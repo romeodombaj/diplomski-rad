@@ -1,0 +1,84 @@
+import * as React from "react";
+import { GalleryVerticalEnd, Logs, Settings2, Users, DatabaseBackup } from "lucide-react";
+import { useTranslation } from "react-i18next";
+
+import { NavMain } from "@/Layout/Navigation/nav-main";
+import { NavSecondary } from "@/Layout/Navigation/nav-secondary";
+import { NavUser } from "@/Layout/Navigation/nav-user";
+import { ProjectSwitcher } from "@/Layout/Navigation/project-switcher";
+import { useAuth } from "@/context/AuthContext";
+import {
+    Sidebar,
+    SidebarContent,
+    SidebarFooter,
+    SidebarHeader,
+    SidebarMenu,
+    SidebarMenuButton,
+    SidebarMenuItem,
+    SidebarRail,
+} from "@/UI/sidebar";
+import { Link } from "react-router-dom";
+
+export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+    const { t } = useTranslation();
+    const { user } = useAuth();
+
+    const navMain = [
+        { title: t('nav.dashboard'), url: "/", icon: GalleryVerticalEnd, items: [] },
+        // gt:nav
+    ];
+
+    const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+
+    const navSecondary = [
+        ...(isAdmin
+            ? [
+                { title: t('nav.users'), url: "/users", icon: Users },
+                { title: t('nav.auditLogs'), url: "/audit-logs", icon: Logs },
+                { title: t('nav.backups'), url: "/backups", icon: DatabaseBackup },
+              ]
+            : []),
+        { title: t('nav.settings'), url: "/settings", icon: Settings2 },
+    ];
+
+    return (
+        <Sidebar collapsible="icon" {...props}>
+            <SidebarHeader>
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton
+                            asChild
+                            className="h-auto p-0 hover:bg-transparent active:bg-transparent"
+                        >
+                            <Link
+                                to="/"
+                                className="flex items-center gap-2 px-2 pt-3 pb-1 transition-all duration-200 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+                            >
+                                <div className="h-0 w-0 shrink-0 group-data-[collapsible=icon]:h-5 group-data-[collapsible=icon]:w-5 transition-all duration-0 delay-0  group-data-[collapsible=icon]:duration-200 group-data-[collapsible=icon]:delay-300">
+                                    <img
+                                        src="/logo.svg"
+                                        className="h-full w-full object-contain"
+                                    />
+                                </div>
+                                <span className="truncate text-sm font-semibold group-data-[collapsible=icon]:hidden">
+                                    {/* gt:app-name */}
+                                </span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </SidebarMenu>
+                <ProjectSwitcher />
+            </SidebarHeader>
+
+            <SidebarContent>
+                <NavMain items={navMain} />
+                {/*<NavProjects projects={data.projects} />*/}
+                <NavSecondary items={navSecondary} className="mt-auto" />
+            </SidebarContent>
+            <SidebarFooter>
+                <NavUser />
+            </SidebarFooter>
+            <SidebarRail />
+        </Sidebar>
+    );
+}

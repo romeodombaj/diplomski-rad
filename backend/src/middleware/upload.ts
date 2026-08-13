@@ -1,0 +1,33 @@
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+
+const uploadsDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadsDir),
+  filename: (_req, file, cb) => {
+    const ext  = path.extname(file.originalname);
+    const base = path.basename(file.originalname, ext).replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    cb(null, `${Date.now()}_${base}${ext}`);
+  },
+});
+
+// 10 MB limit; extend or restrict per-route as needed
+export const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = /jpeg|jpg|png|gif|webp|pdf|csv|xlsx|xls|doc|docx/;
+    const ok = allowed.test(path.extname(file.originalname).toLowerCase()) &&
+               allowed.test(file.mimetype);
+    cb(ok ? null : new Error('File type not allowed'), ok);
+  },
+});
+
+// Usage in a route:
+//   router.post('/', upload.single('avatar'), controller.create);
+//   router.post('/', upload.fields([{ name: 'avatar', maxCount: 1 }]), controller.create);
+//   Access uploaded file as req.file (single) or req.files (multiple)
+//   File URL: `/uploads/${req.file.filename}`  — serve via express.static('uploads')

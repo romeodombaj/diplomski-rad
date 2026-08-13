@@ -1,0 +1,93 @@
+{
+  "common": {
+    "cancel": "Odustani",
+    "delete": "Obriši",
+    "save": "Spremi",
+    "create": "Kreiraj",
+    "saving": "Spremanje...",
+    "loading": "Učitavanje...",
+    "creating": "Kreiranje...",
+    "search": "Pretraži",
+    "clearAll": "Očisti sve",
+    "refresh": "Osvježi",
+    "new": "Novo",
+    "edit": "Uredi",
+    "areYouSure": "Jeste li sigurni?",
+    "actionCannotBeUndone": "Ova radnja se ne može poništiti.",
+    "all": "Sve",
+    "true": "Da",
+    "false": "Ne",
+    "back": "Natrag"
+  },
+  "list": {
+    "retry": "Pokušaj ponovo",
+    "noItems": "Nema stavki.",
+    "createFirstOne": "Kreiraj prvu",
+    "noResults": "Nema rezultata.",
+    "loadMore": "Učitaj više",
+    "results_one": "{{count}} rezultat",
+    "results_other": "{{count}} rezultata"
+  },
+  "auth": {
+    "welcomeBack": "Dobrodošli natrag",
+    "loginWithEmail": "Prijavite se emailom",
+    "email": "Email",
+    "emailPlaceholder": "m@primjer.com",
+    "password": "Lozinka",
+    "forgotPassword": "Zaboravili ste lozinku?",
+    "loggingIn": "Prijavljivanje…",
+    "login": "Prijava",
+    "noAccount": "Nemate račun?",
+    "signUp": "Registracija",
+    "createAccount": "Kreirajte račun",
+    "signUpWithEmail": "Registrirajte se emailom",
+    "fullName": "Puno ime",
+    "fullNamePlaceholder": "Ivan Horvat",
+    "creatingAccount": "Kreiranje računa…",
+    "createAccountButton": "Kreiraj račun",
+    "haveAccount": "Već imate račun?",
+    "signIn": "Prijava",
+    "termsOfService": "Uvjeti korištenja",
+    "privacyPolicy": "Politika privatnosti"
+  },
+  "nav": {
+    "home": "Početna",
+    "settings": "Postavke",
+    "account": "Račun",
+    "logout": "Odjava"
+  },
+  "account": {
+    "heading": "Račun",
+    "profile": "Profil",
+    "profileDescription": "Ažurirajte svoje ime.",
+    "firstName": "Ime",
+    "lastName": "Prezime",
+    "email": "Email",
+    "nameRequired": "Ime je obavezno",
+    "profileUpdated": "Profil ažuriran",
+    "saveChanges": "Spremi promjene",
+    "setPassword": "Postavi lozinku",
+    "changePassword": "Promijeni lozinku",
+    "setPasswordDescription": "Dodajte lozinku za prijavu emailom.",
+    "changePasswordDescription": "Promijenite trenutnu lozinku. Ostat ćete prijavljeni.",
+    "currentPassword": "Trenutna lozinka",
+    "newPassword": "Nova lozinka",
+    "confirmPassword": "Potvrdite novu lozinku",
+    "passwordsMismatch": "Lozinke se ne podudaraju",
+    "passwordSet": "Lozinka uspješno postavljena",
+    "passwordChanged": "Lozinka uspješno promijenjena"
+  },
+  "settings": {
+    "heading": "Postavke",
+    "language": "Jezik",
+    "english": "Engleski",
+    "croatian": "Hrvatski",
+    "account": "Račun",
+    "accountDescription": "Upravljajte profilom i lozinkom"
+  },
+  "error": {
+    "somethingWentWrong": "Nešto je pošlo po krivu",
+    "unexpectedError": "Došlo je do neočekivane greške.",
+    "tryAgain": "Pokušajte ponovo"
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "common": {
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "save": "Save",
+    "create": "Create",
+    "saving": "Saving...",
+    "loading": "Loading...",
+    "creating": "Creating...",
+    "search": "Search",
+    "clearAll": "Clear all",
+    "refresh": "Refresh",
+    "new": "New",
+    "edit": "Edit",
+    "areYouSure": "Are you sure?",
+    "actionCannotBeUndone": "This action cannot be undone.",
+    "all": "All",
+    "true": "True",
+    "false": "False",
+    "back": "Back"
+  },
+  "list": {
+    "retry": "Retry",
+    "noItems": "No items yet.",
+    "createFirstOne": "Create first one",
+    "noResults": "No results.",
+    "loadMore": "Load more",
+    "results_one": "{{count}} result",
+    "results_other": "{{count}} results"
+  },
+  "auth": {
+    "welcomeBack": "Welcome back",
+    "loginWithEmail": "Login with your email",
+    "email": "Email",
+    "emailPlaceholder": "m@example.com",
+    "password": "Password",
+    "forgotPassword": "Forgot your password?",
+    "loggingIn": "Logging in…",
+    "login": "Login",
+    "noAccount": "Don't have an account?",
+    "signUp": "Sign up",
+    "createAccount": "Create an account",
+    "signUpWithEmail": "Sign up with your email",
+    "fullName": "Full Name",
+    "fullNamePlaceholder": "John Doe",
+    "creatingAccount": "Creating account…",
+    "createAccountButton": "Create account",
+    "haveAccount": "Already have an account?",
+    "signIn": "Sign in",
+    "termsOfService": "Terms of Service",
+    "privacyPolicy": "Privacy Policy"
+  },
+  "nav": {
+    "home": "Home",
+    "settings": "Settings",
+    "account": "Account",
+    "logout": "Log out"
+  },
+  "account": {
+    "heading": "Account",
+    "profile": "Profile",
+    "profileDescription": "Update your display name.",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "email": "Email",
+    "nameRequired": "Name is required",
+    "profileUpdated": "Profile updated",
+    "saveChanges": "Save changes",
+    "setPassword": "Set a password",
+    "changePassword": "Change password",
+    "setPasswordDescription": "Add a password so you can log in with email and password.",
+    "changePasswordDescription": "Change your current password. You will stay logged in.",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "passwordsMismatch": "Passwords do not match",
+    "passwordSet": "Password set successfully",
+    "passwordChanged": "Password changed successfully"
+  },
+  "settings": {
+    "heading": "Settings",
+    "language": "Language",
+    "english": "English",
+    "croatian": "Croatian",
+    "account": "Account",
+    "accountDescription": "Manage your profile and password"
+  },
+  "error": {
+    "somethingWentWrong": "Something went wrong",
+    "unexpectedError": "An unexpected error occurred.",
+    "tryAgain": "Try again"
+  }
+}
