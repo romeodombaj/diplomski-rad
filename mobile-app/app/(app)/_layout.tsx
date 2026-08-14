@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Home, Settings } from 'lucide-react-native';
+import { Home, Settings, DoorOpen, KeyRound } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
 // gt:tab-imports
@@ -21,6 +21,20 @@ export default function AppLayout() {
         options={{
           title: t('nav.home'),
           tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="doors"
+        options={{
+          title: t('nav.doors'),
+          tabBarIcon: ({ color, size }) => <DoorOpen size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="code"
+        options={{
+          title: t('nav.verify'),
+          tabBarIcon: ({ color, size }) => <KeyRound size={size} color={color} />,
         }}
       />
       {/* gt:tabs */}

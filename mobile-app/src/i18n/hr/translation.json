@@ -54,7 +54,48 @@
     "home": "Početna",
     "settings": "Postavke",
     "account": "Račun",
-    "logout": "Odjava"
+    "logout": "Odjava",
+    "doors": "Vrata",
+    "verify": "Verifikacija"
+  },
+  "status": {
+    "active": "Aktivno",
+    "inactive": "Neaktivno"
+  },
+  "verify": {
+    "title": "Verifikacija Pristupa",
+    "doorAccess": "Pristup Vratima",
+    "doorAccessDescription": "Unesite verifikacijski kod za otvaranje vrata.",
+    "selectDoor": "Odaberite Vrata",
+    "selectDoorPlaceholder": "Odaberite vrata za otvaranje",
+    "noDoorInfo": "Nema informacija o vratima",
+    "doorInfo": "Informacije o Vratima",
+    "enterCode": "Verifikacijski Kod",
+    "enterValidCode": "Unesite valjani 6-znamenkasti kod",
+    "invalidCode": "Neispravan format koda",
+    "openDoor": "Otvori Vrata",
+    "verifying": "Verificiranje...",
+    "doorOpened": "Vrata uspješno otvorena!",
+    "verificationFailed": "Verifikacija nije uspjela",
+    "networkError": "Mrežna greška. Pokušajte ponovo."
+  },
+  "doors": {
+    "title": "Vrata",
+    "noDoors": "Nema konfiguriranih vrata za vaš projekt. Kontaktirajte administratora za dodavanje vrata.",
+    "doorOpened": "Vrata uspješno otvorena!",
+    "noDoorsFound": "Nema pronađenih vrata",
+    "refreshDoors": "Osvježi vrata"
+  },
+  "code": {
+    "title": "Verifikacijski Kod",
+    "yourCode": "Vaš Verifikacijski Kod",
+    "codeDescription": "Ovaj kod se osvježava svakih 10 sekundi",
+    "nextCodeIn": "Sljedeći kod za",
+    "copyCode": "Kopiraj Kod",
+    "instructions": "Kako koristiti",
+    "step1": "Odaberite vrata iz popisa Vrata",
+    "step2": "Unesite verifikacijski kod prikazan ovdje",
+    "step3": "Dodirnite Otvori Vrata za pristup"
   },
   "account": {
     "heading": "Račun",
@@ -83,7 +124,7 @@
     "english": "Engleski",
     "croatian": "Hrvatski",
     "account": "Račun",
-    "accountDescription": "Upravljajte profilom i lozinkom"
+    "accountDescription": "Upravljajte svojim profilom i lozinkom"
   },
   "error": {
     "somethingWentWrong": "Nešto je pošlo po krivu",

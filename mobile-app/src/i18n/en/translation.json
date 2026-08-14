@@ -54,7 +54,48 @@
     "home": "Home",
     "settings": "Settings",
     "account": "Account",
-    "logout": "Log out"
+    "logout": "Log out",
+    "doors": "Doors",
+    "verify": "Verify"
+  },
+  "status": {
+    "active": "Active",
+    "inactive": "Inactive"
+  },
+  "verify": {
+    "title": "Verify Access",
+    "doorAccess": "Door Access",
+    "doorAccessDescription": "Enter the verification code to open the selected door.",
+    "selectDoor": "Select Door",
+    "selectDoorPlaceholder": "Choose a door to open",
+    "noDoorInfo": "No door information available",
+    "doorInfo": "Door Information",
+    "enterCode": "Verification Code",
+    "enterValidCode": "Enter a valid 6-digit code",
+    "invalidCode": "Invalid code format",
+    "openDoor": "Open Door",
+    "verifying": "Verifying...",
+    "doorOpened": "Door opened successfully!",
+    "verificationFailed": "Verification failed",
+    "networkError": "Network error. Please try again."
+  },
+  "doors": {
+    "title": "Doors",
+    "noDoors": "No doors configured for your project. Contact your administrator to add doors.",
+    "doorOpened": "Door opened successfully!",
+    "noDoorsFound": "No doors found",
+    "refreshDoors": "Refresh doors"
+  },
+  "code": {
+    "title": "Verification Code",
+    "yourCode": "Your Verification Code",
+    "codeDescription": "This code refreshes every 10 seconds",
+    "nextCodeIn": "Next code in",
+    "copyCode": "Copy Code",
+    "instructions": "How to use",
+    "step1": "Select a door from the Doors list",
+    "step2": "Enter the verification code shown here",
+    "step3": "Tap Open Door to gain access"
   },
   "account": {
     "heading": "Account",
