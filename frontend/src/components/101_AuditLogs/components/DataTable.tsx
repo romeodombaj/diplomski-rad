@@ -1,8 +1,8 @@
 import { useState } from "react";
 import {
   flexRender,
-  getCoreRowModel,
-  useReactTable,
+  coreRowModelsFeature,
+  useTable,
   type ColumnDef,
 } from "@tanstack/react-table";
 import { ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
@@ -79,10 +79,10 @@ export function DataTable<TData>({
     ),
   };
 
-  const table = useReactTable({
+  const table = useTable({
     data,
     columns: [...columns, actionColumn],
-    getCoreRowModel: getCoreRowModel(),
+    coreFeatures: [coreRowModelsFeature],
   });
 
   const colCount = columns.length + 1;

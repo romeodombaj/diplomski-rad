@@ -48,7 +48,7 @@ export default function Settings() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <ScrollView contentContainerClassName="p-4 gap-4">
+      <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
         <Text variant="h2">{t('settings.heading')}</Text>
 
         <Card>

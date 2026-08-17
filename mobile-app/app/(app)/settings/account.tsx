@@ -207,7 +207,7 @@ export default function Account() {
       </View>
       <Separator />
 
-      <ScrollView contentContainerClassName="p-4 gap-4">
+      <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
         <Text variant="muted">{user.email}</Text>
         <ProfileCard />
         <PasswordCard />
