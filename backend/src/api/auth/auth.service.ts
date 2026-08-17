@@ -6,6 +6,24 @@ import db from '../../db';
 import { config } from '../../config/conifg';
 import type { LoginDto, RegisterDto, AuthUser, User } from './auth.types';
 
+export function verifyPassword(password: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(password, hash);
+}
+
+export function createTokenPair(
+  userId: string,
+  email: string,
+  role: string,
+  tenantId: string,
+  projectId?: string,
+  isSandbox?: boolean,
+) {
+  return {
+    accessToken: signAccess({ userId, email, role, tenantId, projectId, isSandbox }),
+    refreshToken: signRefresh({ userId, tenantId }),
+  };
+}
+
 const ACCESS_MAX_AGE  = 15 * 60 * 1000;       // 15 min
 const REFRESH_MAX_AGE = 2 * 60 * 60 * 1000;   // 2 h
 

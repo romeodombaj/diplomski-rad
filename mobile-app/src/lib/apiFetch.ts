@@ -1,6 +1,7 @@
 import { storage } from './storage';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000';
+const MOBILE_API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000';
 
 let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;
@@ -39,16 +40,16 @@ async function tryRefresh(): Promise<boolean> {
 
 export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const accessToken = await storage.getAccessToken();
-  const projectId = await storage.getProjectId();
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(init.headers as Record<string, string>),
   };
   if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
-  if (projectId) headers['X-Project-ID'] = projectId;
 
-  const res = await fetch(`${API_URL}${path}`, { ...init, headers });
+  // Use mobile prefix for mobile endpoints
+  const urlPrefix = path.startsWith('/mobile') ? MOBILE_API_URL : API_URL;
+  const res = await fetch(`${urlPrefix}${path}`, { ...init, headers });
 
   if (res.status !== 401) return res;
 
@@ -56,7 +57,7 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
   if (refreshed) {
     const newToken = await storage.getAccessToken();
     if (newToken) headers['Authorization'] = `Bearer ${newToken}`;
-    return fetch(`${API_URL}${path}`, { ...init, headers });
+    return fetch(`${urlPrefix}${path}`, { ...init, headers });
   }
 
   onAuthExpired?.();

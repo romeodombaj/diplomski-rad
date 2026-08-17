@@ -1,36 +1,36 @@
 import { useState } from 'react';
-import { View, KeyboardAvoidingView, Platform, ScrollView, Pressable } from 'react-native';
-import { Link } from 'expo-router';
-import { useTranslation } from 'react-i18next';
+import { View, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
-import { apiFetch } from '@/lib/apiFetch';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { FormInput } from '@/components/ui/form-fields';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 
 export default function Login() {
-  const { t } = useTranslation();
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [totpCode, setTotpCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit() {
-    if (!email || !password) return;
+    if (!email || !password || !totpCode) {
+      setError('All fields are required');
+      return;
+    }
     setError('');
     setLoading(true);
+
     try {
-      const res = await apiFetch('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Login failed');
-      await login(data.user, { accessToken: data.accessToken, refreshToken: data.refreshToken });
-    } catch (err: any) {
-      setError(err.message);
+      const success = await login(email, password, totpCode);
+      if (!success) {
+        setError('Invalid credentials or TOTP code');
+      } else {
+        Alert.alert('Success', 'Logged in successfully');
+      }
+    } catch {
+      setError('Network error');
     } finally {
       setLoading(false);
     }
@@ -41,47 +41,50 @@ export default function Login() {
       className="flex-1 bg-background"
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerClassName="flex-grow items-center justify-center p-6">
+      <ScrollView
+        contentContainerClassName="flex-grow items-center justify-center p-6"
+        keyboardShouldPersistTaps="handled"
+      >
         <View className="w-full max-w-sm gap-6">
           <Card>
             <CardHeader>
-              <CardTitle>{t('auth.welcomeBack')}</CardTitle>
-              <CardDescription>{t('auth.loginWithEmail')}</CardDescription>
+              <CardTitle>TOTP Verification</CardTitle>
+              <CardDescription>Enter your credentials and verification code</CardDescription>
             </CardHeader>
-            <CardContent>
-              <View className="gap-4">
-                <FormInput
-                  label={t('auth.email')}
-                  placeholder={t('auth.emailPlaceholder')}
-                  value={email}
-                  onChangeText={setEmail}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  autoComplete="email"
-                />
-                <FormInput
-                  label={t('auth.password')}
-                  placeholder="••••••••"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                />
-                {error ? <Text variant="destructive">{error}</Text> : null}
-                <Button
-                  label={loading ? t('auth.loggingIn') : t('auth.login')}
-                  loading={loading}
-                  onPress={handleSubmit}
-                />
-              </View>
+            <CardContent className="gap-4">
+              <FormInput
+                label="Email"
+                placeholder="you@example.com"
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoComplete="email"
+              />
+              <FormInput
+                label="Password"
+                placeholder="••••••••"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
+              <FormInput
+                label="Verification Code"
+                placeholder="6-digit code"
+                value={totpCode}
+                onChangeText={(v) => setTotpCode(v.replace(/[^0-9]/g, '').slice(0, 6))}
+                keyboardType="number-pad"
+                autoCapitalize="none"
+                maxLength={6}
+              />
+              {error ? <Text variant="destructive">{error}</Text> : null}
+              <Button
+                label={loading ? 'Verifying...' : 'Verify'}
+                loading={loading}
+                onPress={handleSubmit}
+              />
             </CardContent>
           </Card>
-
-          <Text className="text-center text-sm text-muted-foreground">
-            {t('auth.noAccount')}{' '}
-            <Link href="/(auth)/register">
-              <Text className="text-sm font-medium text-foreground underline">{t('auth.signUp')}</Text>
-            </Link>
-          </Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

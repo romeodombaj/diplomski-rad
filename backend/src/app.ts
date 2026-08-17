@@ -16,6 +16,7 @@ import buildingRoutes from './api/building/building.routes';
 import doorRoutes from './api/door/door.routes';
 import totp_secretRoutes from './api/totp_secret/totp_secret.routes';
 import verifyRoutes from './api/verify/verify.routes';
+import mobileRoutes from './api/mobile';
 // gt:imports
 
 const app = express();
@@ -44,6 +45,7 @@ app.use('/api/buildings', buildingRoutes);
 app.use('/api/doors', doorRoutes);
 app.use('/api/totp_secrets', totp_secretRoutes);
 app.use('/api/verify', verifyRoutes);
+app.use('/mobile', mobileRoutes);
 // gt:routes
 
 // gt:v1-routes

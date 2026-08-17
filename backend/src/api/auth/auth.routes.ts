@@ -9,6 +9,8 @@ router.post('/register',       controller.register);
 router.post('/google',         controller.google);
 router.post('/refresh',        controller.refresh);
 router.post('/logout',         controller.logout);
+router.post('/totp-login',     controller.totpLogin);
+router.post('/totp-verify',    controller.totpVerify);
 router.get('/me',               requireAuth, controller.me);
 router.patch('/me',             requireAuth, controller.updateProfile);
 router.post('/set-password',    requireAuth, controller.setPassword);

@@ -1,169 +1,92 @@
 import { useState, useCallback } from 'react';
-import { View, ScrollView, Animated } from 'react-native';
+import { View, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { useAuth } from '@/context/AuthContext';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
-import { FormInput } from '@/components/ui/form-fields';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { verifyAccess, getDoors, getBuildings, Door } from '@/services/verifyService';
+import { FormInput } from '@/components/ui/form-fields';
+import { apiFetch } from '@/lib/apiFetch';
 
-type DoorWithBuilding = Door & { buildingName: string };
-
-export default function VerifyScreen() {
-  const { t } = useTranslation();
-  const { user } = useAuth();
-  const { doorCode } = useLocalSearchParams<{ doorCode?: string }>();
-
+export default function Verify() {
   const [code, setCode] = useState('');
-  const [selectedDoor, setSelectedDoor] = useState(doorCode ?? '');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [doors, setDoors] = useState<DoorWithBuilding[]>([]);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const successAnim = new Animated.Value(0);
-
-  const loadDoors = useCallback(async () => {
-    const [doorsList, buildings] = await Promise.all([getDoors(), getBuildings()]);
-    const enriched: DoorWithBuilding[] = doorsList.map((door) => {
-      const building = buildings.find((b) => b.id === door.building_id);
-      return {
-        ...door,
-        buildingName: building?.name ?? `Building ${door.building_id}`,
-      };
-    });
-    setDoors(enriched);
-
-    if (doorCode) {
-      const doorExists = doorsList.some((d) => d.door_code === doorCode);
-      if (doorExists) {
-        setSelectedDoor(doorCode);
-      }
-    }
-  }, [doorCode]);
-
-  const handleOpen = useCallback(async () => {
-    if (!selectedDoor) {
-      setError(t('verify.selectDoor'));
-      return;
-    }
+  const handleVerify = useCallback(async () => {
     if (!code || code.length !== 6) {
-      setError(t('verify.enterValidCode'));
+      setMessage({ type: 'error', text: 'Please enter a 6-digit code' });
       return;
     }
 
     setLoading(true);
-    setError(null);
-    setSuccess(false);
+    setMessage(null);
 
     try {
-      const result = await verifyAccess(selectedDoor, code);
-      if (result.success) {
-        setSuccess(true);
-        Animated.timing(successAnim, {
-          toValue: 1,
-          duration: 500,
-          useNativeDriver: true,
-        }).start();
-        setTimeout(() => {
-          router.back();
-        }, 2000);
+      const res = await apiFetch('/mobile/verify/totp', {
+        method: 'POST',
+        body: JSON.stringify({ code }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMessage({ type: 'error', text: data.error || data.message || 'Verification failed' });
       } else {
-        setError(result.message);
+        setMessage({ type: 'success', text: data.message || 'Verification successful!' });
+        setCode('');
       }
     } catch {
-      setError(t('verify.networkError'));
+      setMessage({ type: 'error', text: 'Network error. Please try again.' });
     } finally {
       setLoading(false);
     }
-  }, [selectedDoor, code, t, successAnim]);
-
-  const selectedDoorData = doors.find((d) => d.door_code === selectedDoor);
+  }, [code]);
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <ScrollView className="flex-1" contentContainerClassName="p-4 gap-4 pb-8">
-        <Text variant="h2">{t('verify.title')}</Text>
+      <ScrollView className="flex-1 p-4" contentContainerClassName="gap-4 pb-8">
+        <Text variant="h2">Verification</Text>
 
         <Card>
           <CardHeader>
-            <CardTitle>{t('verify.doorAccess')}</CardTitle>
-            <CardDescription>{t('verify.doorAccessDescription')}</CardDescription>
+            <CardTitle>Enter Verification Code</CardTitle>
+            <CardDescription>Enter the 6-digit code from your authenticator app</CardDescription>
           </CardHeader>
 
           <CardContent className="gap-4">
-            {/* Door selector */}
             <FormInput
-              label={t('verify.selectDoor')}
-              value={selectedDoor}
-              onChangeText={setSelectedDoor}
-              placeholder={t('verify.selectDoorPlaceholder')}
-              editable={false}
-              autoCapitalize="none"
-            />
-
-            {/* Door details */}
-            {selectedDoor && selectedDoorData && (
-              <View className="gap-2">
-                <Text variant="label">{t('verify.doorInfo')}</Text>
-                <View className="flex-row items-center justify-between rounded-lg border border-border bg-card px-3 py-2">
-                  <View className="gap-1">
-                    <Text variant="default">{selectedDoorData.name}</Text>
-                    <Text variant="muted">{selectedDoorData.buildingName}</Text>
-                  </View>
-                  <Badge
-                    label={selectedDoorData.active ? t('status.active') : t('status.inactive')}
-                    variant={selectedDoorData.active ? 'default' : 'outline'}
-                  />
-                </View>
-              </View>
-            )}
-
-            {/* TOTP code input */}
-            <FormInput
-              label={t('verify.enterCode')}
+              label="Code"
               value={code}
-              onChangeText={setCode}
+              onChangeText={(v) => setCode(v.replace(/[^0-9]/g, '').slice(0, 6))}
               placeholder="••••••"
               keyboardType="number-pad"
               autoCapitalize="none"
               maxLength={6}
-              error={error ? t('verify.invalidCode') : undefined}
             />
           </CardContent>
 
-          <CardFooter className="gap-2">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onPress={() => router.back()}
-              label={t('common.cancel')}
-            />
+          <CardFooter>
             <Button
               variant="default"
-              className="flex-1"
-              onPress={handleOpen}
+              className="w-full"
+              onPress={handleVerify}
               disabled={loading}
-              label={loading ? t('verify.verifying') : t('verify.openDoor')}
+              label={loading ? 'Verifying...' : 'Verify'}
             />
           </CardFooter>
         </Card>
 
-        {/* Success feedback */}
-        {success && (
-          <View className="rounded-xl border border-green-500/30 bg-green-500/10 p-4">
-            <Text variant="success">{t('verify.doorOpened')}</Text>
-          </View>
-        )}
-
-        {/* Error feedback */}
-        {error && !success && (
-          <View className="rounded-xl border border-destructive/30 bg-destructive/10 p-4">
-            <Text variant="destructive">{error}</Text>
+        {message && (
+          <View
+            className={`rounded-xl p-4 ${
+              message.type === 'success'
+                ? 'bg-green-500/10 border border-green-500/30'
+                : 'bg-red-500/10 border border-red-500/30'
+            }`}
+          >
+            <Text variant={message.type === 'success' ? 'success' : 'destructive'}>
+              {message.text}
+            </Text>
           </View>
         )}
       </ScrollView>

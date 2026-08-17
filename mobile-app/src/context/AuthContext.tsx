@@ -1,6 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { router } from 'expo-router';
-import { apiFetch, setAuthExpiredHandler } from '@/lib/apiFetch';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { apiFetch } from '@/lib/apiFetch';
 import { storage } from '@/lib/storage';
 
 export interface AuthUser {
@@ -8,19 +7,14 @@ export interface AuthUser {
   email: string;
   name: string;
   role: string;
-  has_password: boolean;
-  projectId?: string;
-  isSandbox?: boolean;
 }
 
 interface AuthContextValue {
   isAuthenticated: boolean;
   isLoading: boolean;
   user: AuthUser | null;
-  login: (user: AuthUser, tokens: { accessToken: string; refreshToken: string }) => Promise<void>;
+  login: (email: string, password: string, totpCode: string) => Promise<boolean>;
   logout: () => Promise<void>;
-  refetch: () => Promise<void>;
-  switchProject: (projectId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -29,14 +23,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<AuthUser | null>(null);
-  const handlerRegistered = useRef(false);
 
-  const login = useCallback(async (u: AuthUser, tokens: { accessToken: string; refreshToken: string }) => {
-    await storage.setAccessToken(tokens.accessToken);
-    await storage.setRefreshToken(tokens.refreshToken);
-    if (u.projectId) await storage.setProjectId(u.projectId);
-    setUser(u);
-    setIsAuthenticated(true);
+  const login = useCallback(async (email: string, password: string, totpCode: string): Promise<boolean> => {
+    try {
+      const res = await apiFetch('/mobile/auth/totp-login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password, totp: totpCode }),
+      });
+
+      if (!res.ok) return false;
+
+      const data = await res.json();
+      if (data.accessToken) {
+        await storage.setAccessToken(data.accessToken);
+      }
+      if (data.user) {
+        setUser(data.user);
+        setIsAuthenticated(true);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
   }, []);
 
   const logout = useCallback(async () => {
@@ -44,61 +53,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await storage.clearAuth();
     setUser(null);
     setIsAuthenticated(false);
-    router.replace('/(auth)/login');
   }, []);
-
-  const refetch = useCallback(async () => {
-    try {
-      const res = await apiFetch('/auth/me');
-      if (res.ok) {
-        const data = await res.json();
-        setUser(data);
-      }
-    } catch {}
-  }, []);
-
-  const switchProject = useCallback(async (projectId: string) => {
-    const res = await apiFetch('/auth/switch-project', {
-      method: 'POST',
-      body: JSON.stringify({ projectId }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.accessToken) await storage.setAccessToken(data.accessToken);
-      await storage.setProjectId(projectId);
-      await refetch();
-    }
-  }, [refetch]);
 
   useEffect(() => {
-    if (!handlerRegistered.current) {
-      handlerRegistered.current = true;
-      setAuthExpiredHandler(() => {
-        setUser(null);
-        setIsAuthenticated(false);
-        router.replace('/(auth)/login');
-      });
-    }
-
     async function checkAuth() {
       try {
         const token = await storage.getAccessToken();
         if (!token) {
           setIsAuthenticated(false);
+          setIsLoading(false);
           return;
         }
 
-        let res = await apiFetch('/auth/me');
-
-        if (res.status === 401) {
-          const refreshed = await apiFetch('/auth/refresh', { method: 'POST' });
-          if (refreshed.ok) {
-            const data = await refreshed.json();
-            if (data.accessToken) await storage.setAccessToken(data.accessToken);
-            res = await apiFetch('/auth/me');
-          }
-        }
-
+        const res = await apiFetch('/auth/me');
         if (res.ok) {
           const data = await res.json();
           setUser(data);
@@ -118,7 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, isLoading, user, login, logout, refetch, switchProject }}>
+    <AuthContext.Provider value={{ isAuthenticated, isLoading, user, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

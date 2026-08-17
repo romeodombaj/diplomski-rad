@@ -1,6 +1,8 @@
 import type { NextFunction, Request, Response } from 'express';
 import { AppError } from '../../middleware/errorHandler';
 import * as authService from './auth.service';
+import { verifyTOTP } from '../../services/totpService';
+import db from '../../db';
 
 export async function login(req: Request, res: Response, next: NextFunction) {
   try {
@@ -223,6 +225,143 @@ export async function deleteProject(req: Request, res: Response, next: NextFunct
     }
 
     res.json({ ok: true, switchToProjectId });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /auth/totp-login
+ * Authenticate with email/password + TOTP code (for mobile app).
+ * Logs success/fail instead of returning 401.
+ */
+export async function totpLogin(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { email, password, totp } = req.body;
+
+    if (!email || !password || !totp) {
+      console.log('[Auth/TOTP] ❌ Missing fields | email provided:', !!email);
+      return res.status(400).json({ error: 'Email, password, and TOTP code are required' });
+    }
+
+    // Step 1: Validate credentials
+    const userRecord = await db('users').where({ email }).whereNull('deleted_at').first();
+    if (!userRecord) {
+      console.log(`[Auth/TOTP] ❌ FAILED: User not found | email: ${email}`);
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Verify password
+    const validPassword = await authService.verifyPassword(password, userRecord.password_hash);
+    if (!validPassword) {
+      console.log(`[Auth/TOTP] ❌ FAILED: Invalid password | email: ${email}`);
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    console.log(`[Auth/TOTP] ✅ Password valid | email: ${email} | user: ${userRecord.id}`);
+
+    // Step 2: Validate TOTP code
+    const totpSecret = await db('totp_secrets')
+      .where({ user_id: userRecord.id })
+      .whereNull('deleted_at')
+      .first();
+
+    if (!totpSecret) {
+      console.log(`[Auth/TOTP] ❌ FAILED: No TOTP secret for user | user: ${userRecord.id} | email: ${email}`);
+      return res.status(401).json({ error: 'TOTP not configured for this account' });
+    }
+
+    const isValid = verifyTOTP(totpSecret.secret, totp, totpSecret.digits, totpSecret.period);
+
+    if (!isValid) {
+      console.log(`[Auth/TOTP] ❌ FAILED: Invalid TOTP code | code: ${totp} | user: ${userRecord.id} | email: ${email}`);
+      return res.status(401).json({ error: 'Invalid TOTP code' });
+    }
+
+    console.log(`[Auth/TOTP] ✅ SUCCESS: TOTP valid | user: ${userRecord.id} | email: ${email} | code: ${totp}`);
+
+    // Step 3: Issue token
+    const { accessToken, refreshToken } = await authService.createTokenPair(
+      userRecord.id,
+      userRecord.email,
+      userRecord.role,
+      userRecord.tenant_id,
+      userRecord.current_project_id,
+    );
+
+    authService.setAuthCookies(res, accessToken, refreshToken);
+
+    res.json({
+      user: {
+        id: userRecord.id,
+        email: userRecord.email,
+        name: userRecord.name,
+        role: userRecord.role,
+      },
+      accessToken,
+      refreshToken,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /auth/totp-verify
+ * Standalone TOTP verification (for mobile app door access).
+ * Logs success/fail to console instead of returning 401.
+ */
+export async function totpVerify(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { code } = req.body;
+
+    if (!code || code.length !== 6) {
+      console.log('[Auth/TOTP] ❌ Invalid code format');
+      return res.status(400).json({ error: 'A 6-digit code is required' });
+    }
+
+    // Get the user from the Bearer token
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      console.log('[Auth/TOTP] ❌ No authorization token');
+      return res.status(401).json({ error: 'Authorization required' });
+    }
+
+    let payload: { userId: string };
+    try {
+      const jwt = await import('jsonwebtoken');
+      const { config } = await import('../../config/conifg');
+      payload = jwt.default.verify(token, config.jwt.accessSecret) as { userId: string };
+    } catch {
+      console.log('[Auth/TOTP] ❌ Invalid/Expired access token');
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+
+    // Validate the TOTP code
+    const totpSecret = await db('totp_secrets')
+      .where({ user_id: payload.userId })
+      .whereNull('deleted_at')
+      .first();
+
+    if (!totpSecret) {
+      console.log(`[Auth/TOTP] ❌ FAILED: No TOTP secret for user | user: ${payload.userId}`);
+      return res.status(401).json({ error: 'TOTP not configured for this account' });
+    }
+
+    const isValid = verifyTOTP(totpSecret.secret, code, totpSecret.digits, totpSecret.period);
+
+    if (!isValid) {
+      console.log(`[Auth/TOTP] ❌ FAILED: Invalid TOTP code | code: ${code} | user: ${payload.userId}`);
+      return res.status(401).json({ error: 'Invalid verification code' });
+    }
+
+    console.log(`[Auth/TOTP] ✅ SUCCESS: TOTP valid | code: ${code} | user: ${payload.userId}`);
+
+    return res.json({
+      success: true,
+      message: 'Verification successful',
+      verified_at: new Date().toISOString(),
+    });
   } catch (err) {
     next(err);
   }
