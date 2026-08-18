@@ -1,58 +1,105 @@
 import type { Request, Response, NextFunction } from 'express';
+import speakeasy from 'speakeasy';
 import * as response from '../../utils/response';
 import { verifyTOTP } from '../../services/totpService';
 import db from '../../db';
 
+const DEFAULT_PERIOD = 30;
+const DEFAULT_DIGITS = 6;
+
+/**
+ * Resolve a project id to attach the TOTP secret to.
+ * The system design keys secrets by (project_id, did) — one backend per building.
+ * For the mobile demo we attach to the first live (non-sandbox) project.
+ */
+async function resolveProjectId(): Promise<string | null> {
+  const live = await db('projects')
+    .where({ is_sandbox: false })
+    .whereNull('deleted_at')
+    .first();
+  if (live) return live.id;
+  const any = await db('projects').whereNull('deleted_at').first();
+  return any ? any.id : null;
+}
+
+/**
+ * POST /mobile/totp/enroll
+ * Register a device DID and return a TOTP secret the app stores locally.
+ * Idempotent: re-enrolling the same DID returns the existing secret so the
+ * on-device generator and the backend stay in sync.
+ */
+export async function enrollTotp(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { did } = req.body as { did: string };
+
+    const projectId = await resolveProjectId();
+    if (!projectId) {
+      console.log('[Mobile/Enroll] ❌ No project found to attach secret to');
+      return res.status(500).json({ success: false, message: 'No project configured on backend' });
+    }
+
+    let secretRow = await db('totp_secrets')
+      .where({ project_id: projectId, did })
+      .whereNull('deleted_at')
+      .first();
+
+    if (!secretRow) {
+      const generated = speakeasy.generateSecret({ length: 20 });
+      const [id] = await db('totp_secrets').insert({
+        project_id: projectId,
+        did,
+        secret: generated.base32,
+        period: DEFAULT_PERIOD,
+        digits: DEFAULT_DIGITS,
+      });
+      secretRow = await db('totp_secrets').where({ id }).first();
+      console.log(`[Mobile/Enroll] ✅ Enrolled new DID | did: ${did}`);
+    } else {
+      console.log(`[Mobile/Enroll] ♻️  Returning existing secret | did: ${did}`);
+    }
+
+    response.ok(res, {
+      success: true,
+      did: secretRow.did,
+      secret: secretRow.secret,
+      period: secretRow.period,
+      digits: secretRow.digits,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 /**
  * POST /mobile/verify/totp
- * Mobile app TOTP verification.
- * Accepts Bearer token + 6-digit code, validates TOTP, logs result.
+ * Verify a 6-digit TOTP code produced on-device for a given DID.
  */
 export async function verifyTotp(req: Request, res: Response, next: NextFunction) {
   try {
-    const { code } = req.body as { code: string };
+    const { did, code } = req.body as { did: string; code: string };
 
-    // Get user from Bearer token
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    if (!token) {
-      console.log('[Mobile/Verify] ❌ No authorization token');
-      return res.status(401).json({ error: 'Authorization required' });
-    }
-
-    let userId: string;
-    try {
-      const jwt = await import('jsonwebtoken');
-      const { config } = await import('../../config/conifg');
-      const payload = jwt.default.verify(token, config.jwt.accessSecret) as { userId: string };
-      userId = payload.userId;
-    } catch {
-      console.log('[Mobile/Verify] ❌ Invalid/Expired token');
-      return res.status(401).json({ error: 'Invalid or expired token' });
-    }
-
-    // Find TOTP secret for this user
     const totpSecret = await db('totp_secrets')
-      .where({ user_id: userId })
+      .where({ did })
       .whereNull('deleted_at')
       .first();
 
     if (!totpSecret) {
-      console.log(`[Mobile/Verify] ❌ FAILED: No TOTP secret | user: ${userId}`);
-      return res.status(401).json({ error: 'TOTP not configured for this account' });
+      console.log(`[Mobile/Verify] ❌ FAILED: No TOTP secret | did: ${did}`);
+      return res.status(404).json({ success: false, message: 'This device is not enrolled' });
     }
 
     const isValid = verifyTOTP(totpSecret.secret, code, totpSecret.digits, totpSecret.period);
 
     if (!isValid) {
-      console.log(`[Mobile/Verify] ❌ FAILED: Invalid code="${code}" | user: ${userId}`);
-      return res.status(401).json({ error: 'Invalid verification code' });
+      console.log(`[Mobile/Verify] ❌ FAILED: Invalid code="${code}" | did: ${did}`);
+      return res.status(401).json({ success: false, message: 'Invalid verification code' });
     }
 
-    console.log(`[Mobile/Verify] ✅ SUCCESS: code="${code}" | user: ${userId}`);
+    console.log(`[Mobile/Verify] ✅ SUCCESS: code="${code}" | did: ${did}`);
 
     response.ok(res, {
       success: true,
-      message: 'Verification successful',
+      message: 'Access granted',
       verified_at: new Date().toISOString(),
     });
   } catch (error) {

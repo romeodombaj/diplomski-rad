@@ -1,7 +1,10 @@
 import { storage } from './storage';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000';
-const MOBILE_API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000';
+// Use `||` so an empty EXPO_PUBLIC_API_URL (as in .env.development) still falls
+// back. NOTE: in Expo Go on a physical phone, localhost is the phone itself —
+// set EXPO_PUBLIC_API_URL to your machine's LAN IP, e.g. http://192.168.1.20:5000
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
+const MOBILE_API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
 
 let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;
