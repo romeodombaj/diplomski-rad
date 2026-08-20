@@ -1,0 +1,318 @@
+Device: cuda
+GPU: AMD Radeon Graphics
+VRAM: 34.3 GB
+============================================================
+  Phase 1: Pretrain Custom CNN on VGGFace2
+============================================================
+  Architecture: CustomCNN (Path C, ~97.5M params)
+  Loss: Cosine-scaled cross-entropy identity classification
+  Epochs: 40, Batch: 32, LR: 0.0001
+============================================================
+
+Device: cuda
+
+Initializing CustomCNN (Path C)...
+  Total parameters: 97,497,760 (~97.5M)
+
+Loading VGGFace2 dataset...
+[Dataset] Loaded 749,553 images from 19203 identities
+  19,203 identities
+
+
+Starting training from scratch.
+
+────────────────────────────────────────────────────────────
+Training for 40 epochs (epochs 1-40)
+────────────────────────────────────────────────────────────
+/home/b2/.local/lib/python3.12/site-packages/torch/nn/modules/conv.py:549: UserWarning: Attempting to use hipBLASLt on an unsupported architecture! Overriding blas backend to hipblas (Triggered internally at /pytorch/aten/src/ATen/Context.cpp:310.)
+  return F.conv2d(
+Epoch   1/40 | Loss: 9.4818 | Acc: 0.10% | Time: 35.6min | Best: 9.4818 NEW BEST! | ProbeDist: 1.3131
+Epoch   2/40 | Loss: 8.9628 | Acc: 0.25% | Time: 35.6min | Best: 8.9628 NEW BEST! | ProbeDist: 1.4225
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_3.pt (epoch 3, loss=8.6922)
+Epoch   3/40 | Loss: 8.6922 | Acc: 0.36% | Time: 35.6min | Best: 8.6922 NEW BEST! | ProbeDist: 1.4249
+Epoch   4/40 | Loss: 8.5034 | Acc: 0.55% | Time: 35.7min | Best: 8.5034 NEW BEST! | ProbeDist: 1.4486
+Epoch   5/40 | Loss: 8.3096 | Acc: 0.75% | Time: 35.7min | Best: 8.3096 NEW BEST! | ProbeDist: 1.4556
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_6.pt (epoch 6, loss=8.0981)
+Epoch   6/40 | Loss: 8.0981 | Acc: 1.03% | Time: 35.7min | Best: 8.0981 NEW BEST! | ProbeDist: 1.4633
+Epoch   7/40 | Loss: 7.9174 | Acc: 1.50% | Time: 35.7min | Best: 7.9174 NEW BEST! | ProbeDist: 1.4430
+Epoch   8/40 | Loss: 7.7380 | Acc: 1.97% | Time: 35.7min | Best: 7.7380 NEW BEST! | ProbeDist: 1.4628
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_9.pt (epoch 9, loss=7.5929)
+Epoch   9/40 | Loss: 7.5929 | Acc: 2.33% | Time: 35.7min | Best: 7.5929 NEW BEST! | ProbeDist: 1.4688
+Device: cuda
+GPU: AMD Radeon Graphics
+VRAM: 34.3 GB
+============================================================
+  Phase 1: Pretrain Custom CNN on VGGFace2
+============================================================
+  Architecture: CustomCNN (Path C, ~97.5M params)
+  Loss: Cosine-scaled cross-entropy identity classification
+  Epochs: 40, Batch: 32, LR: 0.0001
+============================================================
+
+Device: cuda
+
+Initializing CustomCNN (Path C)...
+  Total parameters: 97,497,760 (~97.5M)
+
+Loading VGGFace2 dataset...
+[Dataset] Loaded 749,553 images from 19203 identities
+  19,203 identities
+
+
+Found checkpoint. Resuming...
+    Resumed from epoch 9 (loss=7.5929)
+  Resuming from epoch 10
+/home/b2/.local/lib/python3.12/site-packages/torch/optim/lr_scheduler.py:227: UserWarning: Detected call of `lr_scheduler.step()` before `optimizer.step()`. In PyTorch 1.1.0 and later, you should call them in the opposite order: `optimizer.step()` before `lr_scheduler.step()`.  Failure to do this will result in PyTorch skipping the first value of the learning rate schedule. See more details at https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate
+  warnings.warn(
+
+────────────────────────────────────────────────────────────
+Training for 40 epochs (epochs 10-40)
+────────────────────────────────────────────────────────────
+/home/b2/.local/lib/python3.12/site-packages/torch/nn/modules/conv.py:549: UserWarning: Attempting to use hipBLASLt on an unsupported architecture! Overriding blas backend to hipblas (Triggered internally at /pytorch/aten/src/ATen/Context.cpp:310.)
+  return F.conv2d(
+Device: cuda
+GPU: AMD Radeon Graphics
+VRAM: 34.3 GB
+============================================================
+  Phase 1: Pretrain Custom CNN on VGGFace2
+============================================================
+  Architecture: CustomCNN (Path C, ~97.5M params)
+  Loss: Cosine-scaled cross-entropy identity classification
+  Epochs: 40, Batch: 32, LR: 0.0001
+============================================================
+
+Device: cuda
+
+Initializing CustomCNN (Path C)...
+  Total parameters: 97,497,760 (~97.5M)
+
+Loading VGGFace2 dataset...
+[Dataset] Loaded 749,553 images from 19203 identities
+  19,203 identities
+
+
+Found checkpoint. Resuming...
+    Resumed from epoch 9 (loss=7.5929)
+  Resuming from epoch 10
+/home/b2/.local/lib/python3.12/site-packages/torch/optim/lr_scheduler.py:227: UserWarning: Detected call of `lr_scheduler.step()` before `optimizer.step()`. In PyTorch 1.1.0 and later, you should call them in the opposite order: `optimizer.step()` before `lr_scheduler.step()`.  Failure to do this will result in PyTorch skipping the first value of the learning rate schedule. See more details at https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate
+  warnings.warn(
+
+────────────────────────────────────────────────────────────
+Training for 40 epochs (epochs 10-40)
+────────────────────────────────────────────────────────────
+/home/b2/.local/lib/python3.12/site-packages/torch/nn/modules/conv.py:549: UserWarning: Attempting to use hipBLASLt on an unsupported architecture! Overriding blas backend to hipblas (Triggered internally at /pytorch/aten/src/ATen/Context.cpp:310.)
+  return F.conv2d(
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_10.pt (epoch 10, loss=7.4166)
+    Milestone saved (permanent, no optimizer state): /home/b2/projects/zavrsni/face_recognition/training_checkpoints/milestone_epoch_10.pt
+Epoch  10/40 | Loss: 7.4166 | Acc: 3.00% | Time: 35.8min | Best: 7.4166 NEW BEST! | ProbeDist: 1.4664 | LR: 8.81e-05
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_11.pt (epoch 11, loss=7.2732)
+Epoch  11/40 | Loss: 7.2732 | Acc: 3.45% | Time: 35.8min | Best: 7.2732 NEW BEST! | ProbeDist: 1.4730 | LR: 8.55e-05
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_12.pt (epoch 12, loss=7.1430)
+Epoch  12/40 | Loss: 7.1430 | Acc: 4.07% | Time: 35.8min | Best: 7.1430 NEW BEST! | ProbeDist: 1.4575 | LR: 8.26e-05
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_13.pt (epoch 13, loss=7.0239)
+Epoch  13/40 | Loss: 7.0239 | Acc: 4.71% | Time: 35.8min | Best: 7.0239 NEW BEST! | ProbeDist: 1.4785 | LR: 7.96e-05
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_14.pt (epoch 14, loss=6.9009)
+Epoch  14/40 | Loss: 6.9009 | Acc: 5.49% | Time: 35.8min | Best: 6.9009 NEW BEST! | ProbeDist: 1.4710 | LR: 7.64e-05
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_15.pt (epoch 15, loss=6.7688)
+Epoch  15/40 | Loss: 6.7688 | Acc: 6.21% | Time: 35.8min | Best: 6.7688 NEW BEST! | ProbeDist: 1.4736 | LR: 7.30e-05
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_16.pt (epoch 16, loss=6.6152)
+Epoch  16/40 | Loss: 6.6152 | Acc: 7.38% | Time: 35.8min | Best: 6.6152 NEW BEST! | ProbeDist: 1.4743 | LR: 6.94e-05
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_17.pt (epoch 17, loss=6.5152)
+Epoch  17/40 | Loss: 6.5152 | Acc: 8.09% | Time: 35.8min | Best: 6.5152 NEW BEST! | ProbeDist: 1.4742 | LR: 6.58e-05
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_18.pt (epoch 18, loss=6.3758)
+Epoch  18/40 | Loss: 6.3758 | Acc: 9.10% | Time: 35.8min | Best: 6.3758 NEW BEST! | ProbeDist: 1.4780 | LR: 6.21e-05
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_19.pt (epoch 19, loss=6.2693)
+Epoch  19/40 | Loss: 6.2693 | Acc: 10.07% | Time: 35.8min | Best: 6.2693 NEW BEST! | ProbeDist: 1.4720 | LR: 5.82e-05
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_20.pt (epoch 20, loss=6.1559)
+    Milestone saved (permanent, no optimizer state): /home/b2/projects/zavrsni/face_recognition/training_checkpoints/milestone_epoch_20.pt
+Epoch  20/40 | Loss: 6.1559 | Acc: 10.72% | Time: 35.8min | Best: 6.1559 NEW BEST! | ProbeDist: 1.4755 | LR: 5.44e-05
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_21.pt (epoch 21, loss=6.0662)
+Epoch  21/40 | Loss: 6.0662 | Acc: 11.66% | Time: 35.8min | Best: 6.0662 NEW BEST! | ProbeDist: 1.4776 | LR: 5.05e-05
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_22.pt (epoch 22, loss=5.9493)
+Epoch  22/40 | Loss: 5.9493 | Acc: 12.70% | Time: 35.8min | Best: 5.9493 NEW BEST! | ProbeDist: 1.4714 | LR: 4.66e-05
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_23.pt (epoch 23, loss=5.8684)
+Epoch  23/40 | Loss: 5.8684 | Acc: 13.49% | Time: 35.8min | Best: 5.8684 NEW BEST! | ProbeDist: 1.4748 | LR: 4.28e-05
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_24.pt (epoch 24, loss=5.7619)
+Epoch  24/40 | Loss: 5.7619 | Acc: 14.66% | Time: 35.8min | Best: 5.7619 NEW BEST! | ProbeDist: 1.4744 | LR: 3.89e-05
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_25.pt (epoch 25, loss=5.7151)
+Epoch  25/40 | Loss: 5.7151 | Acc: 15.10% | Time: 35.8min | Best: 5.7151 NEW BEST! | ProbeDist: 1.4780 | LR: 3.52e-05
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_26.pt (epoch 26, loss=5.6240)
+Epoch  26/40 | Loss: 5.6240 | Acc: 15.92% | Time: 35.8min | Best: 5.6240 NEW BEST! | ProbeDist: 1.4761 | LR: 3.16e-05
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_27.pt (epoch 27, loss=5.5681)
+Epoch  27/40 | Loss: 5.5681 | Acc: 16.54% | Time: 35.8min | Best: 5.5681 NEW BEST! | ProbeDist: 1.4751 | LR: 2.80e-05
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_28.pt (epoch 28, loss=5.5259)
+Epoch  28/40 | Loss: 5.5259 | Acc: 17.02% | Time: 35.8min | Best: 5.5259 NEW BEST! | ProbeDist: 1.4813 | LR: 2.46e-05
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_29.pt (epoch 29, loss=5.4585)
+Epoch  29/40 | Loss: 5.4585 | Acc: 17.98% | Time: 35.8min | Best: 5.4585 NEW BEST! | ProbeDist: 1.4835 | LR: 2.14e-05
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_30.pt (epoch 30, loss=5.4144)
+    Milestone saved (permanent, no optimizer state): /home/b2/projects/zavrsni/face_recognition/training_checkpoints/milestone_epoch_30.pt
+Epoch  30/40 | Loss: 5.4144 | Acc: 18.27% | Time: 35.8min | Best: 5.4144 NEW BEST! | ProbeDist: 1.4813 | LR: 1.84e-05
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_31.pt (epoch 31, loss=5.3619)
+Epoch  31/40 | Loss: 5.3619 | Acc: 18.88% | Time: 35.8min | Best: 5.3619 NEW BEST! | ProbeDist: 1.4849 | LR: 1.55e-05
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_32.pt (epoch 32, loss=5.3309)
+Epoch  32/40 | Loss: 5.3309 | Acc: 19.45% | Time: 35.8min | Best: 5.3309 NEW BEST! | ProbeDist: 1.4799 | LR: 1.29e-05
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_33.pt (epoch 33, loss=5.3087)
+Epoch  33/40 | Loss: 5.3087 | Acc: 19.78% | Time: 35.8min | Best: 5.3087 NEW BEST! | ProbeDist: 1.4826 | LR: 1.05e-05
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_34.pt (epoch 34, loss=5.2991)
+Epoch  34/40 | Loss: 5.2991 | Acc: 20.07% | Time: 35.8min | Best: 5.2991 NEW BEST! | ProbeDist: 1.4821 | LR: 8.29e-06
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_35.pt (epoch 35, loss=5.2597)
+Epoch  35/40 | Loss: 5.2597 | Acc: 20.56% | Time: 35.8min | Best: 5.2597 NEW BEST! | ProbeDist: 1.4823 | LR: 6.40e-06
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_36.pt (epoch 36, loss=5.2447)
+Epoch  36/40 | Loss: 5.2447 | Acc: 20.79% | Time: 35.8min | Best: 5.2447 NEW BEST! | ProbeDist: 1.4829 | LR: 4.77e-06
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_37.pt (epoch 37, loss=5.2287)
+Epoch  37/40 | Loss: 5.2287 | Acc: 20.91% | Time: 35.8min | Best: 5.2287 NEW BEST! | ProbeDist: 1.4820 | LR: 3.42e-06
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_38.pt (epoch 38, loss=5.2133)
+Epoch  38/40 | Loss: 5.2133 | Acc: 21.13% | Time: 35.8min | Best: 5.2133 NEW BEST! | ProbeDist: 1.4838 | LR: 2.37e-06
+Device: cuda
+GPU: AMD Radeon Graphics
+VRAM: 34.3 GB
+============================================================
+  Phase 1: Pretrain Custom CNN on VGGFace2
+============================================================
+  Architecture: CustomCNN (Path C, ~97.5M params)
+  Loss: Cosine-scaled cross-entropy identity classification
+  Epochs: 40, Batch: 32, LR: 0.0001
+============================================================
+
+Device: cuda
+
+Initializing CustomCNN (Path C)...
+  Total parameters: 97,497,760 (~97.5M)
+
+Loading VGGFace2 dataset...
+[Dataset] Loaded 749,553 images from 19203 identities
+  19,203 identities
+
+
+Found checkpoint. Resuming...
+    Resumed from epoch 38 (loss=5.2133)
+  Resuming from epoch 39
+/home/b2/.local/lib/python3.12/site-packages/torch/optim/lr_scheduler.py:227: UserWarning: Detected call of `lr_scheduler.step()` before `optimizer.step()`. In PyTorch 1.1.0 and later, you should call them in the opposite order: `optimizer.step()` before `lr_scheduler.step()`.  Failure to do this will result in PyTorch skipping the first value of the learning rate schedule. See more details at https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate
+  warnings.warn(
+
+────────────────────────────────────────────────────────────
+Training for 40 epochs (epochs 39-40)
+────────────────────────────────────────────────────────────
+/home/b2/.local/lib/python3.12/site-packages/torch/nn/modules/conv.py:549: UserWarning: Attempting to use hipBLASLt on an unsupported architecture! Overriding blas backend to hipblas (Triggered internally at /pytorch/aten/src/ATen/Context.cpp:310.)
+  return F.conv2d(
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_39.pt (epoch 39, loss=5.2091)
+Epoch  39/40 | Loss: 5.2091 | Acc: 21.13% | Time: 34.6min | Best: 5.2091 NEW BEST! | ProbeDist: 1.4831 | LR: 1.00e-06
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_40.pt (epoch 40, loss=5.2181)
+    Milestone saved (permanent, no optimizer state): /home/b2/projects/zavrsni/face_recognition/training_checkpoints/milestone_epoch_40.pt
+Epoch  40/40 | Loss: 5.2181 | Acc: 21.14% | Time: 35.2min | Best: 5.2091  | ProbeDist: 1.4825 | LR: 1.00e-06
+
+============================================================
+Phase 1 training complete!
+  Best loss: 5.2091
+============================================================
+  Final model: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/vggface2_pretrained.pt
+Device: cuda
+GPU: AMD Radeon Graphics
+VRAM: 34.3 GB
+============================================================
+  Phase 1: Pretrain Custom CNN on VGGFace2
+============================================================
+  Architecture: CustomCNN (Path C, ~97.5M params)
+  Loss: Cosine-scaled cross-entropy identity classification
+  Epochs: 60, Batch: 32, LR: 0.0001
+============================================================
+
+Device: cuda
+
+Initializing CustomCNN (Path C)...
+  Total parameters: 97,497,760 (~97.5M)
+
+Loading VGGFace2 dataset...
+[Dataset] Loaded 749,553 images from 19203 identities
+  19,203 identities
+
+
+Found checkpoint. Resuming...
+    Resumed from epoch 40 (loss=5.2181)
+  Resuming from epoch 41
+
+────────────────────────────────────────────────────────────
+Training for 60 epochs (epochs 41-60)
+────────────────────────────────────────────────────────────
+/home/b2/.local/lib/python3.12/site-packages/torch/nn/modules/conv.py:549: UserWarning: Attempting to use hipBLASLt on an unsupported architecture! Overriding blas backend to hipblas (Triggered internally at /pytorch/aten/src/ATen/Context.cpp:310.)
+  return F.conv2d(
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_41.pt (epoch 41, loss=5.2279)
+Epoch  41/60 | Loss: 5.2279 | Acc: 20.94% | Time: 35.2min | Best: 5.2279 NEW BEST! | ProbeDist: 1.4795 | LR: 1.00e-05
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_42.pt (epoch 42, loss=5.2254)
+Epoch  42/60 | Loss: 5.2254 | Acc: 21.03% | Time: 35.2min | Best: 5.2254 NEW BEST! | ProbeDist: 1.4849 | LR: 9.94e-06
+Device: cuda
+GPU: AMD Radeon Graphics
+VRAM: 34.3 GB
+============================================================
+  Phase 1: Pretrain Custom CNN on VGGFace2
+============================================================
+  Architecture: CustomCNN (Path C, ~97.5M params)
+  Loss: Cosine-scaled cross-entropy identity classification
+  Epochs: 60, Batch: 32, LR: 0.0001
+============================================================
+
+Device: cuda
+
+Initializing CustomCNN (Path C)...
+  Total parameters: 97,497,760 (~97.5M)
+
+Loading VGGFace2 dataset...
+[Dataset] Loaded 749,553 images from 19203 identities
+  19,203 identities
+
+
+Found checkpoint. Resuming...
+    Resumed from epoch 42 (loss=5.2254)
+  Resuming from epoch 43
+/home/b2/.local/lib/python3.12/site-packages/torch/optim/lr_scheduler.py:227: UserWarning: Detected call of `lr_scheduler.step()` before `optimizer.step()`. In PyTorch 1.1.0 and later, you should call them in the opposite order: `optimizer.step()` before `lr_scheduler.step()`.  Failure to do this will result in PyTorch skipping the first value of the learning rate schedule. See more details at https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate
+  warnings.warn(
+
+────────────────────────────────────────────────────────────
+Training for 60 epochs (epochs 43-60)
+────────────────────────────────────────────────────────────
+/home/b2/.local/lib/python3.12/site-packages/torch/nn/modules/conv.py:549: UserWarning: Attempting to use hipBLASLt on an unsupported architecture! Overriding blas backend to hipblas (Triggered internally at /pytorch/aten/src/ATen/Context.cpp:310.)
+  return F.conv2d(
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_43.pt (epoch 43, loss=5.2086)
+Epoch  43/60 | Loss: 5.2086 | Acc: 21.34% | Time: 34.1min | Best: 5.2086 NEW BEST! | ProbeDist: 1.4799 | LR: 9.78e-06
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_44.pt (epoch 44, loss=5.1783)
+Epoch  44/60 | Loss: 5.1783 | Acc: 21.74% | Time: 35.3min | Best: 5.1783 NEW BEST! | ProbeDist: 1.4817 | LR: 9.51e-06
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_45.pt (epoch 45, loss=5.1622)
+Epoch  45/60 | Loss: 5.1622 | Acc: 21.95% | Time: 35.3min | Best: 5.1622 NEW BEST! | ProbeDist: 1.4809 | LR: 9.14e-06
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_46.pt (epoch 46, loss=5.1489)
+Epoch  46/60 | Loss: 5.1489 | Acc: 22.10% | Time: 35.3min | Best: 5.1489 NEW BEST! | ProbeDist: 1.4787 | LR: 8.68e-06
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_47.pt (epoch 47, loss=5.1394)
+Epoch  47/60 | Loss: 5.1394 | Acc: 22.16% | Time: 35.3min | Best: 5.1394 NEW BEST! | ProbeDist: 1.4833 | LR: 8.15e-06
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_48.pt (epoch 48, loss=5.1288)
+Epoch  48/60 | Loss: 5.1288 | Acc: 22.44% | Time: 35.3min | Best: 5.1288 NEW BEST! | ProbeDist: 1.4826 | LR: 7.54e-06
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_49.pt (epoch 49, loss=5.1019)
+Epoch  49/60 | Loss: 5.1019 | Acc: 22.78% | Time: 35.3min | Best: 5.1019 NEW BEST! | ProbeDist: 1.4821 | LR: 6.89e-06
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_50.pt (epoch 50, loss=5.1083)
+    Milestone saved (permanent, no optimizer state): /home/b2/projects/zavrsni/face_recognition/training_checkpoints/milestone_epoch_50.pt
+Epoch  50/60 | Loss: 5.1083 | Acc: 22.57% | Time: 35.3min | Best: 5.1019  | ProbeDist: 1.4807 | LR: 6.20e-06
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_51.pt (epoch 51, loss=5.0817)
+Epoch  51/60 | Loss: 5.0817 | Acc: 23.12% | Time: 35.3min | Best: 5.0817 NEW BEST! | ProbeDist: 1.4807 | LR: 5.50e-06
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_52.pt (epoch 52, loss=5.0557)
+Epoch  52/60 | Loss: 5.0557 | Acc: 23.40% | Time: 35.3min | Best: 5.0557 NEW BEST! | ProbeDist: 1.4812 | LR: 4.80e-06
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_53.pt (epoch 53, loss=5.0647)
+Epoch  53/60 | Loss: 5.0647 | Acc: 23.32% | Time: 35.3min | Best: 5.0557  | ProbeDist: 1.4815 | LR: 4.11e-06
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_54.pt (epoch 54, loss=5.0426)
+Epoch  54/60 | Loss: 5.0426 | Acc: 23.49% | Time: 35.3min | Best: 5.0426 NEW BEST! | ProbeDist: 1.4811 | LR: 3.46e-06
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_55.pt (epoch 55, loss=5.0195)
+Epoch  55/60 | Loss: 5.0195 | Acc: 24.01% | Time: 35.3min | Best: 5.0195 NEW BEST! | ProbeDist: 1.4806 | LR: 2.85e-06
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_56.pt (epoch 56, loss=5.0368)
+Epoch  56/60 | Loss: 5.0368 | Acc: 23.80% | Time: 35.3min | Best: 5.0195  | ProbeDist: 1.4818 | LR: 2.32e-06
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_57.pt (epoch 57, loss=5.0149)
+Epoch  57/60 | Loss: 5.0149 | Acc: 24.03% | Time: 35.3min | Best: 5.0149 NEW BEST! | ProbeDist: 1.4809 | LR: 1.86e-06
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_58.pt (epoch 58, loss=5.0285)
+Epoch  58/60 | Loss: 5.0285 | Acc: 23.74% | Time: 35.3min | Best: 5.0149  | ProbeDist: 1.4811 | LR: 1.49e-06
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_59.pt (epoch 59, loss=5.0460)
+Epoch  59/60 | Loss: 5.0460 | Acc: 23.84% | Time: 35.3min | Best: 5.0149  | ProbeDist: 1.4808 | LR: 1.22e-06
+    Saved: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/epoch_60.pt (epoch 60, loss=5.0220)
+    Milestone saved (permanent, no optimizer state): /home/b2/projects/zavrsni/face_recognition/training_checkpoints/milestone_epoch_60.pt
+Epoch  60/60 | Loss: 5.0220 | Acc: 24.09% | Time: 35.3min | Best: 5.0149  | ProbeDist: 1.4813 | LR: 1.06e-06
+
+============================================================
+Phase 1 training complete!
+  Best loss: 5.0149
+============================================================
+  Final model: /home/b2/projects/zavrsni/face_recognition/training_checkpoints/vggface2_pretrained.pt

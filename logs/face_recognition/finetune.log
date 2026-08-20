@@ -1,0 +1,36 @@
+Device: cuda
+============================================================
+  Phase 2: Fine-tune on Personal Data
+============================================================
+  Model: CustomCNN pre-trained on VGGFace2
+  Epochs: 50, Batch: 32, LR: 0.0001
+  Conv blocks: FROZEN
+  Dense layers: TRAINABLE
+============================================================
+
+ERROR: Pre-trained model not found at /home/b2/projects/zavrsni/face_recognition/training_checkpoints/vggface2_pretrained.pt
+Run train_vggface2.py first.
+Device: cuda
+============================================================
+  Phase 2: Fine-tune on Personal Data
+============================================================
+  Model: CustomCNN pre-trained on VGGFace2
+  Epochs: 50, Batch: 32, LR: 0.0001
+  Conv blocks: FROZEN
+  Dense layers: TRAINABLE
+============================================================
+
+ERROR: Pre-trained model not found at /home/b2/projects/zavrsni/face_recognition/training_checkpoints/vggface2_pretrained.pt
+Run train_vggface2.py first.
+Device: cuda
+============================================================
+  Phase 2: Fine-tune on Personal Data
+============================================================
+  Model: CustomCNN pre-trained on VGGFace2
+  Epochs: 50, Batch: 32, LR: 0.0001
+  Conv blocks: FROZEN
+  Dense layers: TRAINABLE
+============================================================
+
+ERROR: Pre-trained model not found at /home/b2/projects/zavrsni/face_recognition/training_checkpoints/vggface2_pretrained.pt
+Run train_vggface2.py first.

@@ -1,0 +1,31 @@
+Loading index from /home/b2/projects/zavrsni/face_recognition/datasets/casia-webface/train.idx...
+Found 501,196 records
+Processed: 20,000 images, 0 skipped
+Processed: 40,000 images, 0 skipped
+Processed: 60,000 images, 0 skipped
+Processed: 80,000 images, 0 skipped
+Processed: 100,000 images, 0 skipped
+Processed: 120,000 images, 0 skipped
+Processed: 140,000 images, 0 skipped
+Processed: 160,000 images, 0 skipped
+Processed: 180,000 images, 0 skipped
+Processed: 200,000 images, 0 skipped
+Processed: 220,000 images, 0 skipped
+Processed: 240,000 images, 0 skipped
+Processed: 260,000 images, 0 skipped
+Processed: 280,000 images, 0 skipped
+Processed: 300,000 images, 0 skipped
+Processed: 320,000 images, 0 skipped
+Processed: 340,000 images, 0 skipped
+Processed: 360,000 images, 0 skipped
+Processed: 380,000 images, 0 skipped
+Processed: 400,000 images, 0 skipped
+Processed: 420,000 images, 0 skipped
+Processed: 440,000 images, 0 skipped
+Processed: 460,000 images, 0 skipped
+Processed: 480,000 images, 0 skipped
+Conversion complete!
+Total images: 490,623
+Skipped: 10573
+Output directory: /home/b2/projects/zavrsni/face_recognition/extracted_faces
+Classes: 10,572

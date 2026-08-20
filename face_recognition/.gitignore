@@ -1,1 +1,16 @@
-siamesemodel.h5 
+siamesemodel.h5
+
+# Training artifacts -- huge, regeneratable from the scripts + datasets
+training_checkpoints/
+extracted_faces/
+datasets/vggface2/
+datasets/casia-webface-images/
+__pycache__/
+
+# Personal/biometric photos and video -- not meant for version control
+data/
+application_data/
+videos/
+
+# Empty leftover dir from an abandoned earlier approach
+VGGFace2/

@@ -1,0 +1,19 @@
+=== MILESTONE_CHECK epoch 50 ===
+Loaded training_checkpoints/milestone_epoch_50.pt (epoch 50, train loss 5.1083)
+
+Same-person pairs   (n=10): mean=0.6700  std=0.1818  min=0.3439  max=0.9247
+Different-person pairs (n=10): mean=0.1678  std=0.2974  min=-0.2388  max=0.8104
+
+Separation (higher = better): 0.5022
+Naive midpoint-threshold accuracy on these 20 pairs: 17/20 (85%)
+=== END_MILESTONE_CHECK epoch 50 ===
+=== MILESTONE_CHECK epoch 60 ===
+Loaded training_checkpoints/milestone_epoch_60.pt (epoch 60, train loss 5.0220)
+
+Same-person pairs   (n=10): mean=0.6208  std=0.2080  min=0.2492  max=0.9139
+Different-person pairs (n=10): mean=0.1688  std=0.2915  min=-0.1613  max=0.8134
+
+Separation (higher = better): 0.4520
+Naive midpoint-threshold accuracy on these 20 pairs: 17/20 (85%)
+=== END_MILESTONE_CHECK epoch 60 ===
+=== PHASE1_EXTENSION_FULLY_DONE ===
