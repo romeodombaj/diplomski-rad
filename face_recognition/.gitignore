@@ -14,3 +14,6 @@ videos/
 
 # Empty leftover dir from an abandoned earlier approach
 VGGFace2/
+
+# Exported ONNX models -- large build artifacts, regenerate with export_onnx.py
+*.onnx
