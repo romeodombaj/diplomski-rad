@@ -17,3 +17,7 @@ VGGFace2/
 
 # Exported ONNX models -- large build artifacts, regenerate with export_onnx.py
 *.onnx
+# ...except the int8 model, committed deliberately so the trained network
+# travels with the repo. 93 MiB, just under GitHub's 100 MiB per-file limit.
+# The fp32 export (372 MiB) is over the limit and must stay out.
+!siamese_epoch50_int8.onnx
