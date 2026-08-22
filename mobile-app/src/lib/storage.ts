@@ -1,5 +1,10 @@
 import * as SecureStore from 'expo-secure-store';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
+
+// Face embedding is 2048 bytes as binary → ~2730 chars base64, over SecureStore's 2KB limit.
+// Store it as a plain file in the app's document directory instead.
+const EMBEDDING_FILE = FileSystem.documentDirectory + 'face_embedding.b64';
 
 const KEYS = {
   accessToken: 'accessToken',
@@ -56,6 +61,14 @@ export const storage = {
   // Face gate
   getFaceRegistered: () => get(KEYS.faceRegistered),
   setFaceRegistered: (v: string) => set(KEYS.faceRegistered, v),
+
+  // 512-dim float32 embedding (~2.7 KB) — stored as a file, not in SecureStore
+  getFaceEmbedding: (): Promise<string | null> =>
+    FileSystem.readAsStringAsync(EMBEDDING_FILE).catch(() => null),
+  setFaceEmbedding: (v: string): Promise<void> =>
+    FileSystem.writeAsStringAsync(EMBEDDING_FILE, v),
+  deleteFaceEmbedding: (): Promise<void> =>
+    FileSystem.deleteAsync(EMBEDDING_FILE, { idempotent: true }),
 
   clearEnrollment: () =>
     Promise.all([

@@ -41,9 +41,15 @@ export async function enroll(did: string): Promise<Enrollment> {
     method: 'POST',
     body: JSON.stringify({ did }),
   });
-  const json = await res.json();
+  const text = await res.text();
+  let json: any;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error(`Backend returned non-JSON (${res.status}): ${text.slice(0, 120)}`);
+  }
   if (!res.ok || !json?.data?.secret) {
-    throw new Error(json?.message || 'Enrollment failed');
+    throw new Error(json?.message || `Enrollment failed (${res.status})`);
   }
   const data = json.data as Enrollment;
   await storage.setTotpSecret(data.secret);

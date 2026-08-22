@@ -28,6 +28,7 @@ app.use(['/api', '/auth'], cors({
     credentials: true,
 }));
 app.use(['/v1', '/oauth'], cors({ origin: '*', credentials: false }));
+app.use('/mobile', cors({ origin: '*', credentials: false }));
 app.use(express.json())
 app.use(cookieParser());
 app.use(loggerMiddleware);

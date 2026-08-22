@@ -76,7 +76,7 @@ export async function enrollTotp(req: Request, res: Response, next: NextFunction
  */
 export async function verifyTotp(req: Request, res: Response, next: NextFunction) {
   try {
-    const { did, code } = req.body as { did: string; code: string };
+    const { did, code, faceScore } = req.body as { did: string; code: string; faceScore?: number };
 
     const totpSecret = await db('totp_secrets')
       .where({ did })
@@ -90,12 +90,14 @@ export async function verifyTotp(req: Request, res: Response, next: NextFunction
 
     const isValid = verifyTOTP(totpSecret.secret, code, totpSecret.digits, totpSecret.period);
 
+    const scoreStr = faceScore != null ? ` | face score: ${faceScore.toFixed(3)}` : ' | face: bypassed';
+
     if (!isValid) {
-      console.log(`[Mobile/Verify] ❌ FAILED: Invalid code="${code}" | did: ${did}`);
+      console.log(`[Mobile/Verify] ❌ FAILED: Invalid code="${code}"${scoreStr} | did: ${did}`);
       return res.status(401).json({ success: false, message: 'Invalid verification code' });
     }
 
-    console.log(`[Mobile/Verify] ✅ SUCCESS: code="${code}" | did: ${did}`);
+    console.log(`[Mobile/Verify] ✅ SUCCESS: code="${code}"${scoreStr} | did: ${did}`);
 
     response.ok(res, {
       success: true,
