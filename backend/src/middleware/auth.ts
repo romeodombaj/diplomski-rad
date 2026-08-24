@@ -11,11 +11,10 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
       userId: string;
       email: string;
       role: string;
-      tenantId: string;
-      projectId?: string;
+      buildingId?: number;
       isSandbox?: boolean;
     };
-    req.user = { userId: payload.userId, email: payload.email, role: payload.role, tenantId: payload.tenantId, projectId: payload.projectId, isSandbox: payload.isSandbox };
+    req.user = { userId: payload.userId, email: payload.email, role: payload.role, buildingId: payload.buildingId, isSandbox: payload.isSandbox };
     next();
   } catch {
     return res.status(401).json({ error: 'Invalid or expired token' });

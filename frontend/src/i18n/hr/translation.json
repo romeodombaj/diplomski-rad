@@ -61,6 +61,7 @@
   },
   "nav": {
     "dashboard": "Nadzorna ploča",
+    "buildings": "Zgrade",
     "platform": "Platforma",
     "backups": "Sigurnosne kopije",
     "settings": "Postavke",
@@ -112,9 +113,9 @@
     "createError": "Greška pri kreiranju sigurnosne kopije",
     "restoreError": "Greška pri vraćanju sigurnosne kopije"
   },
-  "projects": {
-    "label": "Projekti",
-    "noProject": "Nema projekta",
+  "buildings": {
+    "label": "Zgrade",
+    "noBuilding": "Nema zgrade",
     "sandbox": "Testno okruženje",
     "live": "Produkcija",
     "switchToLive": "Prebaci na produkciju",
@@ -122,17 +123,17 @@
     "switchToLiveWarning": "Prelazite na produkcijsko okruženje. Promjene ovdje utječu na stvarne podatke.",
     "switchToSandboxWarning": "Prelazite na testno okruženje. Ovo je sigurno okruženje izolirano od produkcije.",
     "active": "aktivno",
-    "projectNamePlaceholder": "Naziv projekta",
-    "addProject": "Dodaj projekt",
+    "buildingNamePlaceholder": "Naziv zgrade",
+    "addBuilding": "Dodaj zgradu",
     "save": "Spremi",
     "add": "Dodaj",
     "rename": "Preimenuj",
     "delete": "Obriši",
     "switchToTitle": "Prebaci na \"{{name}}\"",
-    "switchToDescription": "Bit ćete prebačeni na projekt {{name}} u produkcijskom načinu.",
+    "switchToDescription": "Bit ćete prebačeni na zgradu {{name}} u produkcijskom načinu.",
     "switch": "Prebaci",
     "deleteTitle": "Obriši \"{{name}}\"",
-    "deleteDescription": "Ovo će trajno obrisati projekt i njegovo testno okruženje. Upišite {{name}} za potvrdu."
+    "deleteDescription": "Ovo će trajno obrisati zgradu i njezino testno okruženje. Upišite {{name}} za potvrdu."
   },
   "account": {
     "heading": "Račun",
@@ -206,13 +207,26 @@
       "name": "Ime",
       "role": "Uloga",
       "password": "Lozinka",
-      "projects": "Dodijeljeni projekti",
-      "allProjects": "Svi projekti"
+      "buildings": "Dodijeljene zgrade",
+      "allBuildings": "Sve zgrade"
     }
   },
   "error": {
     "somethingWentWrong": "Nešto je pošlo po krivu",
     "unexpectedError": "Došlo je do neočekivane greške.",
     "tryAgain": "Pokušaj ponovo"
+  },
+  "building": {
+    "searchPlaceholder": "Pretraži zgrade...",
+    "editSheet": "Uredi zgradu",
+    "newSheet": "Nova zgrada",
+    "viewSheet": "Pregled zgrade"
+  },
+  "door": {
+    "searchPlaceholder": "Pretraži vrata...",
+    "editSheet": "Uredi vrata",
+    "newSheet": "Nova vrata",
+    "viewSheet": "Pregled vrata",
+    "filter_active": "Aktivno"
   }
 }

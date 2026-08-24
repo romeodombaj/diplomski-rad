@@ -3,8 +3,7 @@ declare namespace Express {
     id: string;
     auditDescription?: string | null;
     user: {
-      tenantId: string;
-      projectId?: string;
+      buildingId?: number;
       isSandbox?: boolean;
       userId?: string;
       email?: string;

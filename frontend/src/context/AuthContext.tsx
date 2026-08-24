@@ -6,7 +6,7 @@ export interface AuthUser {
   name: string;
   role: string;
   has_password: boolean;
-  projectId?: string;
+  buildingId?: number;
   isSandbox?: boolean;
 }
 
@@ -17,7 +17,7 @@ interface AuthContextValue {
   login: (user: AuthUser) => void;
   logout: () => void;
   refetch: () => Promise<void>;
-  switchProject: (projectId: string) => Promise<void>;
+  switchBuilding: (buildingId: number) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -48,11 +48,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   }, []);
 
-  const switchProject = useCallback(async (projectId: string) => {
-    const res = await fetch('/auth/switch-project', {
+  const switchBuilding = useCallback(async (buildingId: number) => {
+    const res = await fetch('/auth/switch-building', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ projectId }),
+      body: JSON.stringify({ buildingId }),
     });
     if (res.ok) {
       window.location.reload();
@@ -98,7 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, isLoading, user, login, logout, refetch, switchProject }}>
+    <AuthContext.Provider value={{ isAuthenticated, isLoading, user, login, logout, refetch, switchBuilding }}>
       {children}
     </AuthContext.Provider>
   );

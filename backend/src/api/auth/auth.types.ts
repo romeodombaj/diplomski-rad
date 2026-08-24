@@ -1,6 +1,5 @@
 export interface User {
   id: string;
-  tenant_id: string;
   email: string;
   password_hash: string;
   name: string;
@@ -25,7 +24,6 @@ export interface AuthUser {
   email: string;
   name: string;
   role: string;
-  tenantId: string;
-  projectId?: string;
+  buildingId?: number;
   isSandbox?: boolean;
 }

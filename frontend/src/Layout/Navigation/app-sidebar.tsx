@@ -1,11 +1,11 @@
 import * as React from "react";
-import { GalleryVerticalEnd, Logs, Settings2, Users, DatabaseBackup } from "lucide-react";
+import { Building2, GalleryVerticalEnd, Logs, Settings2, Users, DatabaseBackup } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { NavMain } from "@/Layout/Navigation/nav-main";
 import { NavSecondary } from "@/Layout/Navigation/nav-secondary";
 import { NavUser } from "@/Layout/Navigation/nav-user";
-import { ProjectSwitcher } from "@/Layout/Navigation/project-switcher";
+import { BuildingSwitcher } from "@/Layout/Navigation/building-switcher";
 import { useAuth } from "@/context/AuthContext";
 import {
     Sidebar,
@@ -25,7 +25,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
     const navMain = [
         { title: t('nav.dashboard'), url: "/", icon: GalleryVerticalEnd, items: [] },
-        // gt:nav
+        // gt:tab:104_buildings
+    { title: t('nav.buildings'), url: '/buildings', icon: Building2, items: [] },
+    // gt:tab:105_doors
+    // gt:nav
     ];
 
     const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
@@ -67,7 +70,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
-                <ProjectSwitcher />
+                <BuildingSwitcher />
             </SidebarHeader>
 
             <SidebarContent>

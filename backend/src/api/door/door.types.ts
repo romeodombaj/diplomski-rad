@@ -10,7 +10,6 @@ export interface Door {
 }
 
 export interface CreateDoorDto {
-  building_id: number;
   name: string;
   door_code: string;
   mqtt_topic: string;
@@ -18,7 +17,6 @@ export interface CreateDoorDto {
 }
 
 export interface UpdateDoorDto {
-  building_id?: number;
   name?: string;
   door_code?: string;
   mqtt_topic?: string;

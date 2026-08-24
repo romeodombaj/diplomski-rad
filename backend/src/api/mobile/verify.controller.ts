@@ -8,17 +8,17 @@ const DEFAULT_PERIOD = 30;
 const DEFAULT_DIGITS = 6;
 
 /**
- * Resolve a project id to attach the TOTP secret to.
- * The system design keys secrets by (project_id, did) — one backend per building.
- * For the mobile demo we attach to the first live (non-sandbox) project.
+ * Resolve a building id to attach the TOTP secret to.
+ * The system design keys secrets by (building_id, did) — one backend per building.
+ * For the mobile demo we attach to the first live (non-sandbox) building.
  */
-async function resolveProjectId(): Promise<string | null> {
-  const live = await db('projects')
+async function resolveBuildingId(): Promise<number | null> {
+  const live = await db('buildings')
     .where({ is_sandbox: false })
     .whereNull('deleted_at')
     .first();
   if (live) return live.id;
-  const any = await db('projects').whereNull('deleted_at').first();
+  const any = await db('buildings').whereNull('deleted_at').first();
   return any ? any.id : null;
 }
 
@@ -32,21 +32,21 @@ export async function enrollTotp(req: Request, res: Response, next: NextFunction
   try {
     const { did } = req.body as { did: string };
 
-    const projectId = await resolveProjectId();
-    if (!projectId) {
-      console.log('[Mobile/Enroll] ❌ No project found to attach secret to');
-      return res.status(500).json({ success: false, message: 'No project configured on backend' });
+    const buildingId = await resolveBuildingId();
+    if (!buildingId) {
+      console.log('[Mobile/Enroll] ❌ No building found to attach secret to');
+      return res.status(500).json({ success: false, message: 'No building configured on backend' });
     }
 
     let secretRow = await db('totp_secrets')
-      .where({ project_id: projectId, did })
+      .where({ building_id: buildingId, did })
       .whereNull('deleted_at')
       .first();
 
     if (!secretRow) {
       const generated = speakeasy.generateSecret({ length: 20 });
       const [id] = await db('totp_secrets').insert({
-        project_id: projectId,
+        building_id: buildingId,
         did,
         secret: generated.base32,
         period: DEFAULT_PERIOD,

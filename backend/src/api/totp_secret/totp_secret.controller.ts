@@ -5,8 +5,8 @@ import * as response from '../../utils/response';
 
 export const getAll = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const projectId = req.user.projectId!;
-    const result = await totp_secretService.getAll(projectId, req.query as any);
+    const buildingId = req.user.buildingId!;
+    const result = await totp_secretService.getAll(buildingId, req.query as any);
     response.ok(res, result);
   } catch (err) {
     next(err);
@@ -15,8 +15,8 @@ export const getAll = async (req: Request, res: Response, next: NextFunction) =>
 
 export const getById = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const projectId = req.user.projectId!;
-    const item = await totp_secretService.getById(projectId, Number(req.params.id));
+    const buildingId = req.user.buildingId!;
+    const item = await totp_secretService.getById(buildingId, Number(req.params.id));
     if (!item) return next(new AppError('totp_secret not found', 404));
     response.ok(res, item);
   } catch (err) {
@@ -26,8 +26,8 @@ export const getById = async (req: Request, res: Response, next: NextFunction) =
 
 export const create = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const projectId = req.user.projectId!;
-    const item = await totp_secretService.create(projectId, req.body);
+    const buildingId = req.user.buildingId!;
+    const item = await totp_secretService.create(buildingId, req.body);
     response.created(res, item);
   } catch (err) {
     next(err);
@@ -36,8 +36,8 @@ export const create = async (req: Request, res: Response, next: NextFunction) =>
 
 export const update = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const projectId = req.user.projectId!;
-    const item = await totp_secretService.update(projectId, Number(req.params.id), req.body);
+    const buildingId = req.user.buildingId!;
+    const item = await totp_secretService.update(buildingId, Number(req.params.id), req.body);
     if (!item) return next(new AppError('totp_secret not found', 404));
     response.ok(res, item);
   } catch (err) {
@@ -47,8 +47,8 @@ export const update = async (req: Request, res: Response, next: NextFunction) =>
 
 export const remove = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const projectId = req.user.projectId!;
-    await totp_secretService.remove(projectId, Number(req.params.id));
+    const buildingId = req.user.buildingId!;
+    await totp_secretService.remove(buildingId, Number(req.params.id));
     response.ok(res, null);
   } catch (err) {
     next(err);

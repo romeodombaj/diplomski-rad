@@ -7,22 +7,18 @@ import db from '../../db';
 import { config } from '../../config/conifg';
 
 describe('Door API', () => {
-  let tenantId: string;
-  let projectId: string;
+  let buildingId: number;
   let userId: string;
   let authCookie: string;
 
   beforeAll(async () => {
     await db.migrate.latest();
-    tenantId = randomUUID();
-    projectId = randomUUID();
     userId = randomUUID();
-    await db('tenants').insert({ id: tenantId, name: 'Test Tenant' });
-    await db('projects').insert({ id: projectId, tenant_id: tenantId, name: 'Test Project', is_sandbox: false });
-    await db('users').insert({ id: userId, tenant_id: tenantId, email: 'test@test.com', name: 'Test', role: 'admin', password_hash: 'x' });
+    [buildingId] = await db('buildings').insert({ name: 'Test Building', address: 'Test Address', contract_address: 'Test Contract', is_sandbox: false });
+    await db('users').insert({ id: userId, email: 'test@test.com', name: 'Test', role: 'admin', password_hash: 'x' });
 
     const token = jwt.sign(
-      { userId, email: 'test@test.com', role: 'admin', tenantId, projectId },
+      { userId, email: 'test@test.com', role: 'admin', buildingId, isSandbox: false },
       config.jwt.accessSecret,
       { expiresIn: '1h' }
     );
@@ -40,9 +36,7 @@ describe('Door API', () => {
   it('GET /doors returns empty array', async () => {
     const res = await request(app)
       .get('/api/doors')
-      .set('Cookie', authCookie)
-      .set('X-Tenant-ID', String(tenantId))
-      .set('X-Project-ID', String(projectId));
+      .set('Cookie', authCookie);
     expect(res.status).toBe(200);
     expect(res.body.data.data).toEqual([]);
   });
@@ -51,10 +45,7 @@ describe('Door API', () => {
     const res = await request(app)
       .post('/api/doors')
       .set('Cookie', authCookie)
-      .set('X-Tenant-ID', String(tenantId))
-      .set('X-Project-ID', String(projectId))
       .send({
-      building_id: 1,
       name: 'test_name',
       door_code: 'test_door_code',
       mqtt_topic: 'test_mqtt_topic',
@@ -62,16 +53,14 @@ describe('Door API', () => {
       });
     expect(res.status).toBe(201);
     expect(res.body.data.id).toBeDefined();
+    expect(res.body.data.building_id).toBe(buildingId);
   });
 
   it('GET /doors/:id returns a door', async () => {
     const created = await request(app)
       .post('/api/doors')
       .set('Cookie', authCookie)
-      .set('X-Tenant-ID', String(tenantId))
-      .set('X-Project-ID', String(projectId))
       .send({
-      building_id: 1,
       name: 'test_name',
       door_code: 'test_door_code',
       mqtt_topic: 'test_mqtt_topic',
@@ -79,9 +68,7 @@ describe('Door API', () => {
       });
     const res = await request(app)
       .get(`/api/doors/${created.body.data.id}`)
-      .set('Cookie', authCookie)
-      .set('X-Tenant-ID', String(tenantId))
-      .set('X-Project-ID', String(projectId));
+      .set('Cookie', authCookie);
     expect(res.status).toBe(200);
   });
 
@@ -89,10 +76,7 @@ describe('Door API', () => {
     const created = await request(app)
       .post('/api/doors')
       .set('Cookie', authCookie)
-      .set('X-Tenant-ID', String(tenantId))
-      .set('X-Project-ID', String(projectId))
       .send({
-      building_id: 1,
       name: 'test_name',
       door_code: 'test_door_code',
       mqtt_topic: 'test_mqtt_topic',
@@ -101,10 +85,7 @@ describe('Door API', () => {
     const res = await request(app)
       .patch(`/api/doors/${created.body.data.id}`)
       .set('Cookie', authCookie)
-      .set('X-Tenant-ID', String(tenantId))
-      .set('X-Project-ID', String(projectId))
       .send({
-      building_id: 1,
       name: 'test_name',
       door_code: 'test_door_code',
       mqtt_topic: 'test_mqtt_topic',
@@ -117,10 +98,7 @@ describe('Door API', () => {
     const created = await request(app)
       .post('/api/doors')
       .set('Cookie', authCookie)
-      .set('X-Tenant-ID', String(tenantId))
-      .set('X-Project-ID', String(projectId))
       .send({
-      building_id: 1,
       name: 'test_name',
       door_code: 'test_door_code',
       mqtt_topic: 'test_mqtt_topic',
@@ -129,15 +107,11 @@ describe('Door API', () => {
     const id = created.body.data.id;
     const res = await request(app)
       .delete(`/api/doors/${id}`)
-      .set('Cookie', authCookie)
-      .set('X-Tenant-ID', String(tenantId))
-      .set('X-Project-ID', String(projectId));
+      .set('Cookie', authCookie);
     expect(res.status).toBe(200);
     const gone = await request(app)
       .get(`/api/doors/${id}`)
-      .set('Cookie', authCookie)
-      .set('X-Tenant-ID', String(tenantId))
-      .set('X-Project-ID', String(projectId));
+      .set('Cookie', authCookie);
     expect(gone.status).toBe(404);
   });
 })

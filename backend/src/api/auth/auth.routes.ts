@@ -16,17 +16,17 @@ router.patch('/me',             requireAuth, controller.updateProfile);
 router.post('/set-password',    requireAuth, controller.setPassword);
 router.post('/change-password', requireAuth, controller.changePassword);
 router.post('/connect-google',  requireAuth, controller.connectGoogle);
-router.post('/switch-project',  requireAuth, controller.switchProject);
-router.get('/projects',         requireAuth, controller.listProjects);
-router.post('/projects',        requireAuth, controller.createProject);
-router.patch('/projects/:id',   requireAuth, controller.renameProject);
-router.delete('/projects/:id',  requireAuth, controller.deleteProject);
+router.post('/switch-building', requireAuth, controller.switchBuilding);
+router.get('/buildings',        requireAuth, controller.listBuildings);
+router.post('/buildings',       requireAuth, controller.createBuilding);
+router.patch('/buildings/:id',  requireAuth, controller.renameBuilding);
+router.delete('/buildings/:id', requireAuth, controller.deleteBuilding);
 
 router.get('/users',                  requireAuth, requireAdmin, controller.listUsers);
 router.post('/users',                 requireAuth, requireAdmin, controller.createUser);
 router.patch('/users/:id',            requireAuth, requireAdmin, controller.updateUser);
 router.delete('/users/:id',           requireAuth, requireAdmin, controller.deleteUser);
-router.get('/users/:id/projects',     requireAuth, requireAdmin, controller.getUserProjects);
-router.put('/users/:id/projects',     requireAuth, requireAdmin, controller.setUserProjects);
+router.get('/users/:id/buildings',    requireAuth, requireAdmin, controller.getUserBuildings);
+router.put('/users/:id/buildings',    requireAuth, requireAdmin, controller.setUserBuildings);
 
 export default router;

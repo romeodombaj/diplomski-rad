@@ -15,7 +15,7 @@ export const v1RateLimiter = rateLimit({
   max:             config.rateLimit.v1Max,
   standardHeaders: true,
   legacyHeaders:   false,
-  keyGenerator:    (req) => (req.user as any)?.projectId ?? req.ip ?? 'unknown',
+  keyGenerator:    (req) => (req.user as any)?.buildingId ?? req.ip ?? 'unknown',
   message:         { success: false, message: 'Too many requests, please try again later.' },
 });
 

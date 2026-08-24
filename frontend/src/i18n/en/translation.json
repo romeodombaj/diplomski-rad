@@ -61,6 +61,7 @@
   },
   "nav": {
     "dashboard": "Dashboard",
+    "buildings": "Buildings",
     "platform": "Platform",
     "backups": "Backups",
     "settings": "Settings",
@@ -112,9 +113,9 @@
     "createError": "Failed to create backup",
     "restoreError": "Failed to restore backup"
   },
-  "projects": {
-    "label": "Projects",
-    "noProject": "No project",
+  "buildings": {
+    "label": "Buildings",
+    "noBuilding": "No building",
     "sandbox": "Sandbox",
     "live": "Live",
     "switchToLive": "Switch to Live",
@@ -122,17 +123,17 @@
     "switchToLiveWarning": "You are about to switch to the live environment. Changes here affect real data.",
     "switchToSandboxWarning": "You are about to switch to the sandbox environment. This is a safe testing space isolated from live data.",
     "active": "active",
-    "projectNamePlaceholder": "Project name",
-    "addProject": "Add project",
+    "buildingNamePlaceholder": "Building name",
+    "addBuilding": "Add building",
     "save": "Save",
     "add": "Add",
     "rename": "Rename",
     "delete": "Delete",
     "switchToTitle": "Switch to \"{{name}}\"",
-    "switchToDescription": "You will be switched to the {{name}} project in live mode.",
+    "switchToDescription": "You will be switched to the {{name}} building in live mode.",
     "switch": "Switch",
     "deleteTitle": "Delete \"{{name}}\"",
-    "deleteDescription": "This will permanently delete the project and its sandbox. Type {{name}} to confirm."
+    "deleteDescription": "This will permanently delete the building and its sandbox. Type {{name}} to confirm."
   },
   "account": {
     "heading": "Account",
@@ -206,13 +207,26 @@
       "name": "Name",
       "role": "Role",
       "password": "Password",
-      "projects": "Assigned projects",
-      "allProjects": "All projects"
+      "buildings": "Assigned buildings",
+      "allBuildings": "All buildings"
     }
   },
   "error": {
     "somethingWentWrong": "Something went wrong",
     "unexpectedError": "An unexpected error occurred.",
     "tryAgain": "Try again"
+  },
+  "building": {
+    "searchPlaceholder": "Search buildings...",
+    "editSheet": "Edit Building",
+    "newSheet": "New Building",
+    "viewSheet": "View Building"
+  },
+  "door": {
+    "searchPlaceholder": "Search doors...",
+    "editSheet": "Edit Door",
+    "newSheet": "New Door",
+    "viewSheet": "View Door",
+    "filter_active": "Active"
   }
 }

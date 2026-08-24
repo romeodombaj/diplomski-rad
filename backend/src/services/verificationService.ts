@@ -59,10 +59,10 @@ export async function verifyAccess(
       };
     }
 
-    // Find matching TOTP secret for this door's project
+    // Find matching TOTP secret for this door's building
     const totpSecret = await db('totp_secrets')
       .where({
-        project_id: door.project_id,
+        building_id: door.building_id,
         did: request.door_code, // using door_code as DID reference
       })
       .whereNull('deleted_at')
@@ -90,14 +90,14 @@ export async function verifyAccess(
       };
     }
 
-    // Check if user has access to this door's project
+    // Check if user has access to this door's building
     const userHasAccess = await db('users')
       .where({ id: userId })
       .where((query) => {
-        query.where({ id: userId, current_project_id: door.project_id })
-             .orWhere({ id: userId, all_projects: true })
+        query.where({ id: userId, current_building_id: door.building_id })
+             .orWhere({ id: userId, all_buildings: true })
              .orWhereIn('id', () => {
-               query.select('user_id').from('user_projects').where({ project_id: door.project_id });
+               query.select('user_id').from('user_buildings').where({ building_id: door.building_id });
              });
       })
       .first();

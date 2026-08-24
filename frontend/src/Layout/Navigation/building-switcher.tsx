@@ -37,20 +37,22 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/apiFetch";
 
-interface Project {
-    id: string;
+interface Building {
+    id: number;
     name: string;
-    sandboxProjectId: string | null;
+    address: string;
+    contractAddress: string;
+    sandboxBuildingId: number | null;
 }
 
-export function ProjectSwitcher() {
+export function BuildingSwitcher() {
     const { t } = useTranslation();
     const { isMobile } = useSidebar();
-    const { user, switchProject, refetch } = useAuth();
+    const { user, switchBuilding, refetch } = useAuth();
 
-    const [projects, setProjects] = React.useState<Project[]>([]);
+    const [buildings, setBuildings] = React.useState<Building[]>([]);
     const [sandboxConfirm, setSandboxConfirm] = React.useState(false);
-    const [switchConfirm, setSwitchConfirm] = React.useState<Project | null>(
+    const [switchConfirm, setSwitchConfirm] = React.useState<Building | null>(
         null
     );
 
@@ -58,10 +60,10 @@ export function ProjectSwitcher() {
     const [newName, setNewName] = React.useState("");
     const [addLoading, setAddLoading] = React.useState(false);
 
-    const [renamingId, setRenamingId] = React.useState<string | null>(null);
+    const [renamingId, setRenamingId] = React.useState<number | null>(null);
     const [renameValue, setRenameValue] = React.useState("");
 
-    const [deleteTarget, setDeleteTarget] = React.useState<Project | null>(
+    const [deleteTarget, setDeleteTarget] = React.useState<Building | null>(
         null
     );
     const [deleteConfirmName, setDeleteConfirmName] = React.useState("");
@@ -71,50 +73,55 @@ export function ProjectSwitcher() {
     const isEditing = renamingId !== null || addOpen;
     const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
-    const fetchProjects = React.useCallback(async () => {
-        const res = await apiFetch("/auth/projects");
-        if (res.ok) setProjects(await res.json());
+    const fetchBuildings = React.useCallback(async () => {
+        const res = await apiFetch("/auth/buildings");
+        if (res.ok) setBuildings(await res.json());
     }, []);
 
     React.useEffect(() => {
-        if (user) fetchProjects();
-    }, [user, fetchProjects]);
+        if (user) fetchBuildings();
+    }, [user, fetchBuildings]);
 
-    const activeLiveProject = React.useMemo(() => {
-        if (!user?.projectId) return projects[0] ?? null;
+    const activeLiveBuilding = React.useMemo(() => {
+        if (!user?.buildingId) return buildings[0] ?? null;
         if (!user.isSandbox)
             return (
-                projects.find((p) => p.id === user.projectId) ??
-                projects[0] ??
+                buildings.find((b) => b.id === user.buildingId) ??
+                buildings[0] ??
                 null
             );
         return (
-            projects.find((p) => p.sandboxProjectId === user.projectId) ??
-            projects[0] ??
+            buildings.find((b) => b.sandboxBuildingId === user.buildingId) ??
+            buildings[0] ??
             null
         );
-    }, [projects, user]);
+    }, [buildings, user]);
 
     async function handleSandboxToggle() {
-        if (!activeLiveProject) return;
+        if (!activeLiveBuilding) return;
         if (user?.isSandbox) {
-            await switchProject(activeLiveProject.id);
-        } else if (activeLiveProject.sandboxProjectId) {
-            await switchProject(activeLiveProject.sandboxProjectId);
+            await switchBuilding(activeLiveBuilding.id);
+        } else if (activeLiveBuilding.sandboxBuildingId) {
+            await switchBuilding(activeLiveBuilding.sandboxBuildingId);
         }
     }
 
-    async function handleAddProject() {
+    async function handleAddBuilding() {
         if (!newName.trim()) return;
         setAddLoading(true);
         try {
-            const res = await apiFetch("/auth/projects", {
+            const res = await apiFetch("/auth/buildings", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name: newName.trim() }),
+                body: JSON.stringify({
+                    name: newName.trim(),
+                    // Placeholder details — filled in later via the Buildings admin page.
+                    address: "TBD",
+                    contractAddress: "TBD",
+                }),
             });
             if (res.ok) {
-                await fetchProjects();
+                await fetchBuildings();
                 setNewName("");
                 setAddOpen(false);
             }
@@ -123,17 +130,17 @@ export function ProjectSwitcher() {
         }
     }
 
-    async function handleRename(projectId: string) {
+    async function handleRename(buildingId: number) {
         if (!renameValue.trim()) {
             setRenamingId(null);
             return;
         }
-        const res = await apiFetch(`/auth/projects/${projectId}`, {
+        const res = await apiFetch(`/auth/buildings/${buildingId}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ name: renameValue.trim() }),
         });
-        if (res.ok) await fetchProjects();
+        if (res.ok) await fetchBuildings();
         setRenamingId(null);
     }
 
@@ -141,13 +148,13 @@ export function ProjectSwitcher() {
         if (!deleteTarget) return;
         setDeleteLoading(true);
         try {
-            const res = await apiFetch(`/auth/projects/${deleteTarget.id}`, {
+            const res = await apiFetch(`/auth/buildings/${deleteTarget.id}`, {
                 method: "DELETE",
             });
             if (res.ok) {
                 const data = await res.json();
-                await fetchProjects();
-                if (data.switchToProjectId) await refetch();
+                await fetchBuildings();
+                if (data.switchToBuildingId) await refetch();
                 setDeleteTarget(null);
                 setDeleteConfirmName("");
             }
@@ -172,7 +179,7 @@ export function ProjectSwitcher() {
                                     </div>
                                     <div className="grid flex-1 text-left text-sm leading-tight">
                                         <span className="truncate font-semibold">
-                                            {activeLiveProject?.name ?? t('projects.noProject')}
+                                            {activeLiveBuilding?.name ?? t('buildings.noBuilding')}
                                         </span>
                                         <span
                                             className={`truncate text-xs transition-colors duration-[600ms] ${
@@ -181,7 +188,7 @@ export function ProjectSwitcher() {
                                                     : "text-muted-foreground"
                                             }`}
                                         >
-                                            {user?.isSandbox ? t('projects.sandbox') : t('projects.live')}
+                                            {user?.isSandbox ? t('buildings.sandbox') : t('buildings.live')}
                                         </span>
                                     </div>
                                     <ChevronsUpDown className="ml-auto shrink-0" />
@@ -189,7 +196,7 @@ export function ProjectSwitcher() {
                             </DropdownMenuTrigger>
 
                             <button
-                                title={user?.isSandbox ? t('projects.switchToLive') : t('projects.switchToSandbox')}
+                                title={user?.isSandbox ? t('buildings.switchToLive') : t('buildings.switchToSandbox')}
                                 onClick={() => setSandboxConfirm(true)}
                                 className={[
                                     "group-data-[collapsible=icon]:hidden",
@@ -210,14 +217,14 @@ export function ProjectSwitcher() {
                             sideOffset={4}
                         >
                             <DropdownMenuLabel className="text-xs text-muted-foreground">
-                                {t('projects.label')}
+                                {t('buildings.label')}
                             </DropdownMenuLabel>
 
-                            {projects.map((project) => {
-                                const isRenaming = renamingId === project.id;
+                            {buildings.map((building) => {
+                                const isRenaming = renamingId === building.id;
                                 return (
                                     <DropdownMenuItem
-                                        key={project.id}
+                                        key={building.id}
                                         className={[
                                             "gap-2 p-2 group/item",
                                             isEditing
@@ -240,13 +247,13 @@ export function ProjectSwitcher() {
                                                 return;
                                             }
                                             if (
-                                                project.id ===
-                                                    activeLiveProject?.id &&
+                                                building.id ===
+                                                    activeLiveBuilding?.id &&
                                                 !user?.isSandbox
                                             )
                                                 return;
                                             e.preventDefault();
-                                            setSwitchConfirm(project);
+                                            setSwitchConfirm(building);
                                         }}
                                     >
                                         <div className="flex size-6 shrink-0 items-center justify-center rounded-sm border">
@@ -267,7 +274,7 @@ export function ProjectSwitcher() {
                                                         e.stopPropagation();
                                                         if (e.key === "Enter") {
                                                             e.preventDefault();
-                                                            handleRename(project.id);
+                                                            handleRename(building.id);
                                                         }
                                                         if (e.key === "Escape") {
                                                             e.preventDefault();
@@ -279,47 +286,47 @@ export function ProjectSwitcher() {
                                                 />
                                                 <button
                                                     onMouseDown={(e) => e.preventDefault()}
-                                                    onClick={() => handleRename(project.id)}
+                                                    onClick={() => handleRename(building.id)}
                                                     className="shrink-0 text-xs font-medium text-primary"
                                                 >
-                                                    {t('projects.save')}
+                                                    {t('buildings.save')}
                                                 </button>
                                             </div>
                                         ) : (
                                             <>
                                                 <span className="flex-1 truncate">
-                                                    {project.name}
+                                                    {building.name}
                                                 </span>
-                                                {project.id ===
-                                                    activeLiveProject?.id &&
+                                                {building.id ===
+                                                    activeLiveBuilding?.id &&
                                                     !user?.isSandbox && (
                                                         <span className="text-xs text-muted-foreground group-hover/item:opacity-0 duration-[300ms] ml-2">
-                                                            {t('projects.active')}
+                                                            {t('buildings.active')}
                                                         </span>
                                                     )}
                                                 {isAdmin && (
                                                     <div className="ml-auto flex items-center gap-0.5 opacity-0 group-hover/item:opacity-100 translate-x-1/4 group-hover/item:translate-x-0 duration-[300ms]">
                                                         <button
                                                             className="rounded p-0.5 hover:bg-accent"
-                                                            title={t('projects.rename')}
+                                                            title={t('buildings.rename')}
                                                             onMouseDown={(e) => e.preventDefault()}
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 e.preventDefault();
-                                                                setRenamingId(project.id);
-                                                                setRenameValue(project.name);
+                                                                setRenamingId(building.id);
+                                                                setRenameValue(building.name);
                                                             }}
                                                         >
                                                             <Pencil className="size-3" />
                                                         </button>
                                                         <button
                                                             className="rounded p-0.5 hover:bg-destructive/10 hover:text-destructive"
-                                                            title={t('projects.delete')}
+                                                            title={t('buildings.delete')}
                                                             onMouseDown={(e) => e.preventDefault()}
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 e.preventDefault();
-                                                                setDeleteTarget(project);
+                                                                setDeleteTarget(building);
                                                                 setDeleteConfirmName("");
                                                             }}
                                                         >
@@ -347,14 +354,14 @@ export function ProjectSwitcher() {
                                 >
                                     <Input
                                         autoFocus
-                                        placeholder={t('projects.projectNamePlaceholder')}
+                                        placeholder={t('buildings.buildingNamePlaceholder')}
                                         value={newName}
                                         onChange={(e) => setNewName(e.target.value)}
                                         onKeyDown={(e) => {
                                             e.stopPropagation();
                                             if (e.key === "Enter") {
                                                 e.preventDefault();
-                                                handleAddProject();
+                                                handleAddBuilding();
                                             }
                                             if (e.key === "Escape") {
                                                 e.preventDefault();
@@ -370,11 +377,11 @@ export function ProjectSwitcher() {
                                     />
                                     <button
                                         onMouseDown={(e) => e.preventDefault()}
-                                        onClick={handleAddProject}
+                                        onClick={handleAddBuilding}
                                         disabled={addLoading || !newName.trim()}
                                         className="shrink-0 text-xs font-medium text-primary disabled:opacity-50"
                                     >
-                                        {t('projects.add')}
+                                        {t('buildings.add')}
                                     </button>
                                 </div>
                             ) : (
@@ -392,7 +399,7 @@ export function ProjectSwitcher() {
                                         <Plus className="size-4" />
                                     </div>
                                     <div className="font-medium text-muted-foreground">
-                                        {t('projects.addProject')}
+                                        {t('buildings.addBuilding')}
                                     </div>
                                 </DropdownMenuItem>
                             ))}
@@ -406,10 +413,10 @@ export function ProjectSwitcher() {
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>
-                            {user?.isSandbox ? t('projects.switchToLive') : t('projects.switchToSandbox')}
+                            {user?.isSandbox ? t('buildings.switchToLive') : t('buildings.switchToSandbox')}
                         </AlertDialogTitle>
                         <AlertDialogDescription>
-                            {user?.isSandbox ? t('projects.switchToLiveWarning') : t('projects.switchToSandboxWarning')}
+                            {user?.isSandbox ? t('buildings.switchToLiveWarning') : t('buildings.switchToSandboxWarning')}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -420,13 +427,13 @@ export function ProjectSwitcher() {
                                 await handleSandboxToggle();
                             }}
                         >
-                            {user?.isSandbox ? t('projects.switchToLive') : t('projects.switchToSandbox')}
+                            {user?.isSandbox ? t('buildings.switchToLive') : t('buildings.switchToSandbox')}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
 
-            {/* Project switch confirmation */}
+            {/* Building switch confirmation */}
             <AlertDialog
                 open={!!switchConfirm}
                 onOpenChange={(open) => {
@@ -436,10 +443,10 @@ export function ProjectSwitcher() {
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>
-                            {t('projects.switchToTitle', { name: switchConfirm?.name })}
+                            {t('buildings.switchToTitle', { name: switchConfirm?.name })}
                         </AlertDialogTitle>
                         <AlertDialogDescription>
-                            {t('projects.switchToDescription', { name: switchConfirm?.name })}
+                            {t('buildings.switchToDescription', { name: switchConfirm?.name })}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -447,13 +454,13 @@ export function ProjectSwitcher() {
                         <AlertDialogAction
                             onClick={async () => {
                                 if (switchConfirm) {
-                                    await switchProject(switchConfirm.id);
+                                    await switchBuilding(switchConfirm.id);
                                     setSwitchConfirm(null);
                                     setDropdownOpen(false);
                                 }
                             }}
                         >
-                            {t('projects.switch')}
+                            {t('buildings.switch')}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
@@ -472,10 +479,10 @@ export function ProjectSwitcher() {
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>
-                            {t('projects.deleteTitle', { name: deleteTarget?.name })}
+                            {t('buildings.deleteTitle', { name: deleteTarget?.name })}
                         </AlertDialogTitle>
                         <AlertDialogDescription>
-                            {t('projects.deleteDescription', { name: deleteTarget?.name })}
+                            {t('buildings.deleteDescription', { name: deleteTarget?.name })}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <Input

@@ -6,13 +6,11 @@ import helmet from 'helmet';
 import { config } from './config/conifg';
 import path from 'path';
 import { loggerMiddleware } from './middleware/logger';
-import { tenantMiddleware } from './middleware/tenant';
 import { notFoundHandler } from './middleware/notFoundHandler';
 import { errorHandler } from './middleware/errorHandler';
 import healthRoutes from './api/health/health.routes';
 import { rateLimiter, v1RateLimiter, authRateLimiter } from './middleware/rateLimiter';
 import authRoutes from './api/auth/auth.routes';
-import buildingRoutes from './api/building/building.routes';
 import doorRoutes from './api/door/door.routes';
 import totp_secretRoutes from './api/totp_secret/totp_secret.routes';
 import verifyRoutes from './api/verify/verify.routes';
@@ -39,10 +37,8 @@ app.use('/auth/login', authRateLimiter);
 app.use('/auth/register', authRateLimiter);
 
 app.use('/auth', authRoutes)
-app.use('/api', tenantMiddleware);
 
 app.use('/api/health', healthRoutes);
-app.use('/api/buildings', buildingRoutes);
 app.use('/api/doors', doorRoutes);
 app.use('/api/totp_secrets', totp_secretRoutes);
 app.use('/api/verify', verifyRoutes);

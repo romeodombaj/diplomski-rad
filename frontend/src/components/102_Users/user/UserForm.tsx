@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { apiFetch } from '@/lib/apiFetch';
 import { UsersService, type AppUser } from '../services/users.service';
 
-interface Project { id: string; name: string; sandboxProjectId: string | null; }
+interface Building { id: number; name: string; sandboxBuildingId: number | null; }
 
 interface Props {
   user: AppUser | null;
@@ -22,9 +22,9 @@ export default function UserForm({ user, onSuccess }: Props) {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState(() => user?.role ?? 'user');
   const [password, setPassword] = useState('');
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [assignedIds, setAssignedIds] = useState<string[]>([]);
-  const [allProjects, setAllProjects] = useState(false);
+  const [buildings, setBuildings] = useState<Building[]>([]);
+  const [assignedIds, setAssignedIds] = useState<number[]>([]);
+  const [allBuildings, setAllBuildings] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -40,30 +40,30 @@ export default function UserForm({ user, onSuccess }: Props) {
       setEmail('');
       setRole('user');
       setPassword('');
-      setAllProjects(false);
+      setAllBuildings(false);
       setAssignedIds([]);
       setError('');
     }
   }, [user]);
 
   useEffect(() => {
-    apiFetch('/auth/projects').then(async (res) => {
-      if (res.ok) setProjects(await res.json());
+    apiFetch('/auth/buildings').then(async (res) => {
+      if (res.ok) setBuildings(await res.json());
     });
     if (user) {
-      UsersService.getProjects(user.id).then(({ allProjects: ap, projectIds }) => {
-        setAllProjects(ap);
-        setAssignedIds(projectIds);
+      UsersService.getBuildings(user.id).then(({ allBuildings: ab, buildingIds }) => {
+        setAllBuildings(ab);
+        setAssignedIds(buildingIds);
       }).catch(() => {});
     } else {
-      setAllProjects(false);
+      setAllBuildings(false);
       setAssignedIds([]);
     }
   }, [user]);
 
-  function toggleProject(id: string) {
+  function toggleBuilding(id: number) {
     setAssignedIds((prev) =>
-      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((b) => b !== id) : [...prev, id]
     );
   }
 
@@ -73,10 +73,10 @@ export default function UserForm({ user, onSuccess }: Props) {
     setSaving(true);
     try {
       if (isNew) {
-        await UsersService.create({ email, name, role, password, allProjects, projectIds: allProjects ? [] : assignedIds });
+        await UsersService.create({ email, name, role, password, allBuildings, buildingIds: allBuildings ? [] : assignedIds });
       } else {
         await UsersService.update(user.id, { name, role });
-        await UsersService.setProjects(user.id, { allProjects, projectIds: allProjects ? [] : assignedIds });
+        await UsersService.setBuildings(user.id, { allBuildings, buildingIds: allBuildings ? [] : assignedIds });
       }
       onSuccess();
     } catch (err: any) {
@@ -144,30 +144,30 @@ export default function UserForm({ user, onSuccess }: Props) {
         </div>
       )}
 
-      {projects.length > 0 && (
+      {buildings.length > 0 && (
         <div className="space-y-2">
-          <Label>{t('users.fields.projects')}</Label>
+          <Label>{t('users.fields.buildings')}</Label>
           <div className="space-y-1 rounded-md border p-3">
             <label className="flex items-center gap-2 text-sm cursor-pointer font-medium border-b pb-1 mb-1">
               <input
                 type="checkbox"
-                checked={allProjects}
-                onChange={() => setAllProjects((v) => !v)}
+                checked={allBuildings}
+                onChange={() => setAllBuildings((v) => !v)}
                 disabled={isSuperadmin}
                 className="rounded"
               />
-              {t('users.fields.allProjects')}
+              {t('users.fields.allBuildings')}
             </label>
-            {projects.map((p) => (
-              <label key={p.id} className={`flex items-center gap-2 text-sm ${allProjects || isSuperadmin ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+            {buildings.map((b) => (
+              <label key={b.id} className={`flex items-center gap-2 text-sm ${allBuildings || isSuperadmin ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
                 <input
                   type="checkbox"
-                  checked={allProjects || assignedIds.includes(p.id)}
-                  onChange={() => toggleProject(p.id)}
-                  disabled={allProjects || isSuperadmin}
+                  checked={allBuildings || assignedIds.includes(b.id)}
+                  onChange={() => toggleBuilding(b.id)}
+                  disabled={allBuildings || isSuperadmin}
                   className="rounded"
                 />
-                {p.name}
+                {b.name}
               </label>
             ))}
           </div>

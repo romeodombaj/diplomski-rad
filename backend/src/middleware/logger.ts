@@ -37,12 +37,12 @@ function combinedLine(req: IncomingMessage, res: ServerResponse, responseTime: n
   const ua          = (req.headers['user-agent'] ?? '-') as string;
 
   const user        = (req as any).user;
-  const tenantId    = user?.tenantId ?? '-';
-  const email       = user?.email    ?? '-';
-  const reqId       = (req as any).id ?? '-';
+  const buildingId  = user?.buildingId ?? '-';
+  const email       = user?.email      ?? '-';
+  const reqId       = (req as any).id  ?? '-';
 
   if (!isDev) {
-    return `${ip} - - [${date}] "${method} ${url} ${httpVersion}" ${status} ${cl} "${referrer}" "${ua}" ${responseTime}ms [tenant:${tenantId}] [user:${email}] [req:${reqId}]`;
+    return `${ip} - - [${date}] "${method} ${url} ${httpVersion}" ${status} ${cl} "${referrer}" "${ua}" ${responseTime}ms [building:${buildingId}] [user:${email}] [req:${reqId}]`;
   }
 
   const g = c.gray;
@@ -54,7 +54,7 @@ function combinedLine(req: IncomingMessage, res: ServerResponse, responseTime: n
     `${c.blue}"${method} ${url} ${httpVersion}"${r} ` +
     `${c.white}${status}${r} ` +
     `${g}${cl} "${referrer}" "${ua}" ${responseTime}ms${r} ` +
-    `${d}[tenant:${tenantId}] [user:${email}] [req:${reqId}]${r}`
+    `${d}[building:${buildingId}] [user:${email}] [req:${reqId}]${r}`
   );
 }
 

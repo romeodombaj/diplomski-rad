@@ -7,22 +7,18 @@ import db from '../../db';
 import { config } from '../../config/conifg';
 
 describe('Totp_secret API', () => {
-  let tenantId: string;
-  let projectId: string;
+  let buildingId: number;
   let userId: string;
   let authCookie: string;
 
   beforeAll(async () => {
     await db.migrate.latest();
-    tenantId = randomUUID();
-    projectId = randomUUID();
     userId = randomUUID();
-    await db('tenants').insert({ id: tenantId, name: 'Test Tenant' });
-    await db('projects').insert({ id: projectId, tenant_id: tenantId, name: 'Test Project', is_sandbox: false });
-    await db('users').insert({ id: userId, tenant_id: tenantId, email: 'test@test.com', name: 'Test', role: 'admin', password_hash: 'x' });
+    [buildingId] = await db('buildings').insert({ name: 'Test Building', address: 'Test Address', contract_address: 'Test Contract', is_sandbox: false });
+    await db('users').insert({ id: userId, email: 'test@test.com', name: 'Test', role: 'admin', password_hash: 'x' });
 
     const token = jwt.sign(
-      { userId, email: 'test@test.com', role: 'admin', tenantId, projectId },
+      { userId, email: 'test@test.com', role: 'admin', buildingId, isSandbox: false },
       config.jwt.accessSecret,
       { expiresIn: '1h' }
     );
@@ -40,9 +36,7 @@ describe('Totp_secret API', () => {
   it('GET /totp_secrets returns empty array', async () => {
     const res = await request(app)
       .get('/api/totp_secrets')
-      .set('Cookie', authCookie)
-      .set('X-Tenant-ID', String(tenantId))
-      .set('X-Project-ID', String(projectId));
+      .set('Cookie', authCookie);
     expect(res.status).toBe(200);
     expect(res.body.data.data).toEqual([]);
   });
@@ -51,8 +45,6 @@ describe('Totp_secret API', () => {
     const res = await request(app)
       .post('/api/totp_secrets')
       .set('Cookie', authCookie)
-      .set('X-Tenant-ID', String(tenantId))
-      .set('X-Project-ID', String(projectId))
       .send({
       did: 'test_did',
       secret: 'test_secret',
@@ -67,8 +59,6 @@ describe('Totp_secret API', () => {
     const created = await request(app)
       .post('/api/totp_secrets')
       .set('Cookie', authCookie)
-      .set('X-Tenant-ID', String(tenantId))
-      .set('X-Project-ID', String(projectId))
       .send({
       did: 'test_did',
       secret: 'test_secret',
@@ -77,9 +67,7 @@ describe('Totp_secret API', () => {
       });
     const res = await request(app)
       .get(`/api/totp_secrets/${created.body.data.id}`)
-      .set('Cookie', authCookie)
-      .set('X-Tenant-ID', String(tenantId))
-      .set('X-Project-ID', String(projectId));
+      .set('Cookie', authCookie);
     expect(res.status).toBe(200);
   });
 
@@ -87,8 +75,6 @@ describe('Totp_secret API', () => {
     const created = await request(app)
       .post('/api/totp_secrets')
       .set('Cookie', authCookie)
-      .set('X-Tenant-ID', String(tenantId))
-      .set('X-Project-ID', String(projectId))
       .send({
       did: 'test_did',
       secret: 'test_secret',
@@ -98,8 +84,6 @@ describe('Totp_secret API', () => {
     const res = await request(app)
       .patch(`/api/totp_secrets/${created.body.data.id}`)
       .set('Cookie', authCookie)
-      .set('X-Tenant-ID', String(tenantId))
-      .set('X-Project-ID', String(projectId))
       .send({
       did: 'test_did',
       secret: 'test_secret',
@@ -113,8 +97,6 @@ describe('Totp_secret API', () => {
     const created = await request(app)
       .post('/api/totp_secrets')
       .set('Cookie', authCookie)
-      .set('X-Tenant-ID', String(tenantId))
-      .set('X-Project-ID', String(projectId))
       .send({
       did: 'test_did',
       secret: 'test_secret',
@@ -124,15 +106,11 @@ describe('Totp_secret API', () => {
     const id = created.body.data.id;
     const res = await request(app)
       .delete(`/api/totp_secrets/${id}`)
-      .set('Cookie', authCookie)
-      .set('X-Tenant-ID', String(tenantId))
-      .set('X-Project-ID', String(projectId));
+      .set('Cookie', authCookie);
     expect(res.status).toBe(200);
     const gone = await request(app)
       .get(`/api/totp_secrets/${id}`)
-      .set('Cookie', authCookie)
-      .set('X-Tenant-ID', String(tenantId))
-      .set('X-Project-ID', String(projectId));
+      .set('Cookie', authCookie);
     expect(gone.status).toBe(404);
   });
 })

@@ -19,17 +19,16 @@ export type AppUser = {
   role: string;
   has_password: boolean;
   created_at: string;
-  tenant_id: string;
 };
 
 export const UsersService = {
   getAll: () => req<AppUser[]>(BASE),
-  create: (body: { email: string; name: string; role: string; password: string; allProjects?: boolean; projectIds?: string[] }) =>
+  create: (body: { email: string; name: string; role: string; password: string; allBuildings?: boolean; buildingIds?: number[] }) =>
     req<void>(BASE, { method: 'POST', body: JSON.stringify(body) }),
   update: (id: string, body: { name?: string; role?: string }) =>
     req<void>(`${BASE}/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   remove: (id: string) => req<void>(`${BASE}/${id}`, { method: 'DELETE' }),
-  getProjects: (id: string) => req<{ allProjects: boolean; projectIds: string[] }>(`${BASE}/${id}/projects`),
-  setProjects: (id: string, body: { allProjects: boolean; projectIds: string[] }) =>
-    req<void>(`${BASE}/${id}/projects`, { method: 'PUT', body: JSON.stringify(body) }),
+  getBuildings: (id: string) => req<{ allBuildings: boolean; buildingIds: number[] }>(`${BASE}/${id}/buildings`),
+  setBuildings: (id: string, body: { allBuildings: boolean; buildingIds: number[] }) =>
+    req<void>(`${BASE}/${id}/buildings`, { method: 'PUT', body: JSON.stringify(body) }),
 };
