@@ -9,7 +9,7 @@ mkdirSync(dataDir, { recursive: true });
 
 const knexConfig: Record<string, Knex.Config> = {
     development: {
-        client: "sqlite3",
+        client: "better-sqlite3",
         connection: { filename: join(dataDir, "dev.sqlite3") },
         useNullAsDefault: true,
         migrations: {
@@ -19,8 +19,8 @@ const knexConfig: Record<string, Knex.Config> = {
         seeds: { directory: "./src/db/seeds" },
     },
     test: {
-        client: "sqlite3",
-        connection: ":memory:",
+        client: "better-sqlite3",
+        connection: { filename: ":memory:" },
         useNullAsDefault: true,
         migrations: {
             directory: "./src/db/migrations",
@@ -28,7 +28,7 @@ const knexConfig: Record<string, Knex.Config> = {
         },
     },
     production: {
-        client: "sqlite3",
+        client: "better-sqlite3",
         connection: { filename: join(dataDir, "prod.sqlite3") },
         useNullAsDefault: true,
         migrations: {

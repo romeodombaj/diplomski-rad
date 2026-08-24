@@ -1,0 +1,15 @@
+node_modules/
+
+# Build output -- regenerate with `npm run compile`
+artifacts/
+cache/
+typechain-types/
+
+# Deployment manifests for throwaway local chains. deployments/sepolia.json IS
+# committed: those addresses are the real, shared record of what is deployed.
+deployments/localhost.json
+deployments/hardhat.json
+
+# Never commit a key or an RPC URL
+.env
+.env.local
