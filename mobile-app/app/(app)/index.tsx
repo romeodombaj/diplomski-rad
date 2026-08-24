@@ -141,8 +141,8 @@ export default function Access() {
           <View className="rounded-xl p-4 bg-red-500/10 border border-red-500/30">
             <Text variant="destructive">{bootError}</Text>
             <Text className="text-muted-foreground mt-1 text-xs">
-              Set EXPO_PUBLIC_API_URL to your machine&apos;s LAN IP (e.g. http://192.168.1.20:5000)
-              when running in Expo Go on a phone.
+              Set EXPO_PUBLIC_API_URL to your machine&apos;s LAN IP (e.g. http://192.168.1.20:5001)
+              and make sure the backend is reachable from this phone.
             </Text>
           </View>
         ) : null}

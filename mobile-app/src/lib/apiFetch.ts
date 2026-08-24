@@ -1,10 +1,12 @@
 import { storage } from './storage';
 
-// Use `||` so an empty EXPO_PUBLIC_API_URL (as in .env.development) still falls
-// back. NOTE: in Expo Go on a physical phone, localhost is the phone itself —
-// set EXPO_PUBLIC_API_URL to your machine's LAN IP, e.g. http://192.168.1.20:5000
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
-const MOBILE_API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
+// Use `||` so an empty EXPO_PUBLIC_API_URL still falls back. NOTE: on a physical
+// phone localhost is the phone itself, so this fallback only works in the
+// simulator — set EXPO_PUBLIC_API_URL to the dev machine's LAN IP for devices.
+// The value is inlined at bundle time, so a release build bakes in whatever the
+// .env files hold on the machine that ran the build.
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5001';
+const MOBILE_API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5001';
 
 let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;
