@@ -9,6 +9,7 @@ import { ensureEnrolled, type Enrollment } from '@/lib/device';
 import { totpNow, secondsRemaining } from '@/lib/totp';
 import { isFaceRegistered, registerFaceFromUri, verifyFaceFromUri } from '@/lib/faceGate';
 import { CameraCapture } from '@/components/CameraCapture';
+import { storage } from '@/lib/storage';
 
 type Phase = 'idle' | 'processing' | 'sending';
 type Result = { success: boolean; text: string } | null;
@@ -19,6 +20,7 @@ export default function Access() {
 
   const [faceRegistered, setFaceRegistered] = useState(false);
   const [bypassFace, setBypassFace] = useState(false);
+  const [livenessEnabled, setLivenessEnabledState] = useState(false);
 
   const [phase, setPhase] = useState<Phase>('idle');
   const [result, setResult] = useState<Result>(null);
@@ -36,10 +38,16 @@ export default function Access() {
         enrollmentRef.current = e;
         setEnrollment(e);
         setFaceRegistered(await isFaceRegistered());
+        setLivenessEnabledState((await storage.getLivenessEnabled()) === 'true');
       } catch (err: any) {
         setBootError(err?.message || 'Could not reach backend to enroll device');
       }
     })();
+  }, []);
+
+  const setLivenessEnabled = useCallback((v: boolean) => {
+    setLivenessEnabledState(v);
+    storage.setLivenessEnabled(v ? 'true' : 'false');
   }, []);
 
   useEffect(() => {
@@ -194,6 +202,16 @@ export default function Access() {
           onPress={handleUnlock}
         />
 
+        <View className="flex-row items-center justify-between px-1">
+          <View className="flex-1 pr-3">
+            <Text className="font-medium">Liveness detection</Text>
+            <Text className="text-muted-foreground text-xs">
+              Require a blink before face verification to block photo/screen spoofing
+            </Text>
+          </View>
+          <Switch value={livenessEnabled} onValueChange={setLivenessEnabled} />
+        </View>
+
         {phase === 'processing' ? (
           <View className="items-center gap-2 py-2">
             <ActivityIndicator />
@@ -228,6 +246,7 @@ export default function Access() {
       <CameraCapture
         visible={cameraMode !== null}
         mode={cameraMode ?? 'scan'}
+        requireLiveness={livenessEnabled}
         onCapture={handleCameraCapture}
         onCancel={handleCameraCancel}
       />

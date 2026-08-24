@@ -15,6 +15,7 @@ const KEYS = {
   totpPeriod: 'totpPeriod',
   totpDigits: 'totpDigits',
   faceRegistered: 'faceRegistered',
+  livenessEnabled: 'livenessEnabled',
 } as const;
 
 const get = (key: string): Promise<string | null> => {
@@ -61,6 +62,10 @@ export const storage = {
   // Face gate
   getFaceRegistered: () => get(KEYS.faceRegistered),
   setFaceRegistered: (v: string) => set(KEYS.faceRegistered, v),
+
+  // Liveness check toggle (blink detection before face verification)
+  getLivenessEnabled: () => get(KEYS.livenessEnabled),
+  setLivenessEnabled: (v: string) => set(KEYS.livenessEnabled, v),
 
   // 512-dim float32 embedding (~2.7 KB) — stored as a file, not in SecureStore
   getFaceEmbedding: (): Promise<string | null> =>

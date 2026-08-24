@@ -1,27 +1,76 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Modal, View, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import {
+  Camera,
+  useCameraDevice,
+  useCameraPermission,
+  usePhotoOutput,
+  type CameraRef,
+} from 'react-native-vision-camera';
+import { useFaceDetectorOutput } from 'react-native-vision-camera-face-detector';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
+import { BlinkLivenessDetector, type LivenessStage } from '@/lib/liveness';
 
 type Props = {
   visible: boolean;
   mode: 'register' | 'scan';
+  /** Require a confirmed blink (liveness check) before the shutter can be used. Only meaningful for mode 'scan'. */
+  requireLiveness?: boolean;
   onCapture: (uri: string) => void;
   onCancel: () => void;
 };
 
-export function CameraCapture({ visible, mode, onCapture, onCancel }: Props) {
-  const cameraRef = useRef<CameraView>(null);
+export function CameraCapture({ visible, mode, requireLiveness, onCapture, onCancel }: Props) {
+  const cameraRef = useRef<CameraRef>(null);
   const [capturing, setCapturing] = useState(false);
-  const [permission, requestPermission] = useCameraPermissions();
+  const { hasPermission, requestPermission } = useCameraPermission();
+  const device = useCameraDevice('front');
+  const photoOutput = usePhotoOutput({ quality: 0.9 });
+
+  const livenessActive = mode === 'scan' && !!requireLiveness;
+  const livenessDetector = useRef(new BlinkLivenessDetector());
+  const [livenessStage, setLivenessStage] = useState<LivenessStage>('waiting-face');
+
+  useEffect(() => {
+    if (!hasPermission) requestPermission();
+  }, [hasPermission, requestPermission]);
+
+  useEffect(() => {
+    if (visible) {
+      livenessDetector.current.reset();
+      setLivenessStage('waiting-face');
+    }
+  }, [visible, mode]);
+
+  // Runs on the JS thread — no worklet/runOnJS needed, this hook bridges natively.
+  const faceDetectorOutput = useFaceDetectorOutput({
+    performanceMode: 'fast',
+    runClassifications: true,
+    onFacesDetected(faces) {
+      if (!livenessActive) return;
+      const face = faces[0];
+      if (!face) return;
+      livenessDetector.current.update(face.leftEyeOpenProbability ?? 0, face.rightEyeOpenProbability ?? 0);
+      setLivenessStage(livenessDetector.current.stage);
+    },
+    onError(error) {
+      console.warn('[Liveness] face detector error:', error);
+    },
+  });
+
+  // Only attach the face detector output while a liveness check is actually required,
+  // so the toggle being off costs nothing extra.
+  const outputs = livenessActive ? [photoOutput, faceDetectorOutput] : [photoOutput];
+
+  const canCapture = !capturing && (!livenessActive || livenessStage === 'confirmed');
 
   async function handleCapture() {
-    if (!cameraRef.current || capturing) return;
+    if (!canCapture) return;
     setCapturing(true);
     try {
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.9, base64: false });
-      if (photo?.uri) onCapture(photo.uri);
+      const file = await photoOutput.capturePhotoToFile({ flashMode: 'off' }, {});
+      if (file?.filePath) onCapture(`file://${file.filePath}`);
     } finally {
       setCapturing(false);
     }
@@ -30,24 +79,36 @@ export function CameraCapture({ visible, mode, onCapture, onCancel }: Props) {
   const title = mode === 'register' ? 'Register your face' : 'Scan your face';
   const hint = mode === 'register'
     ? 'Position your face in the frame and tap the button'
+    : livenessActive
+    ? livenessStage === 'confirmed'
+      ? 'Liveness confirmed — tap to verify'
+      : livenessStage === 'waiting-blink'
+      ? 'Now blink to confirm you’re really there'
+      : 'Look at the camera'
     : 'Look at the camera to verify your identity';
 
   return (
     <Modal visible={visible} animationType="slide" statusBarTranslucent>
       <View style={styles.container}>
-        {!permission ? (
-          <View style={styles.center}>
-            <ActivityIndicator color="#fff" />
-          </View>
-        ) : !permission.granted ? (
+        {!hasPermission ? (
           <View style={styles.center}>
             <Text style={styles.whiteText}>Camera permission required</Text>
             <Button label="Grant permission" onPress={requestPermission} />
             <Button label="Cancel" variant="outline" onPress={onCancel} />
           </View>
+        ) : !device ? (
+          <View style={styles.center}>
+            <ActivityIndicator color="#fff" />
+          </View>
         ) : (
           <>
-            <CameraView ref={cameraRef} style={styles.camera} facing="front" />
+            <Camera
+              ref={cameraRef}
+              style={styles.camera}
+              device={device}
+              isActive={visible}
+              outputs={outputs}
+            />
 
             {/* Header */}
             <View style={styles.header}>
@@ -57,7 +118,12 @@ export function CameraCapture({ visible, mode, onCapture, onCancel }: Props) {
 
             {/* Face oval guide */}
             <View style={styles.ovalWrapper} pointerEvents="none">
-              <View style={styles.oval} />
+              <View
+                style={[
+                  styles.oval,
+                  livenessActive && livenessStage === 'confirmed' && styles.ovalConfirmed,
+                ]}
+              />
             </View>
 
             {/* Bottom controls */}
@@ -67,9 +133,13 @@ export function CameraCapture({ visible, mode, onCapture, onCancel }: Props) {
               </Pressable>
 
               <Pressable
-                style={[styles.shutterOuter, capturing && styles.shutterCapturing]}
+                style={[
+                  styles.shutterOuter,
+                  capturing && styles.shutterCapturing,
+                  !canCapture && styles.shutterDisabled,
+                ]}
                 onPress={handleCapture}
-                disabled={capturing}
+                disabled={!canCapture}
               >
                 {capturing
                   ? <ActivityIndicator color="#000" />
@@ -115,6 +185,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.7)',
     marginBottom: 60,
   },
+  ovalConfirmed: {
+    borderColor: 'rgba(74,222,128,0.9)',
+  },
   footer: {
     position: 'absolute',
     bottom: 60,
@@ -137,6 +210,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.15)',
   },
   shutterCapturing: { borderColor: 'rgba(255,255,255,0.4)' },
+  shutterDisabled: { borderColor: 'rgba(255,255,255,0.3)', opacity: 0.5 },
   shutterInner: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#fff' },
   whiteText: { color: '#fff', fontSize: 16 },
 });
