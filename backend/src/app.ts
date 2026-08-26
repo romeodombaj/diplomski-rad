@@ -12,6 +12,7 @@ import healthRoutes from './api/health/health.routes';
 import { rateLimiter, v1RateLimiter, authRateLimiter } from './middleware/rateLimiter';
 import authRoutes from './api/auth/auth.routes';
 import doorRoutes from './api/door/door.routes';
+import personRoutes from './api/person/person.routes';
 import totp_secretRoutes from './api/totp_secret/totp_secret.routes';
 import verifyRoutes from './api/verify/verify.routes';
 import mobileRoutes from './api/mobile';
@@ -40,6 +41,7 @@ app.use('/auth', authRoutes)
 
 app.use('/api/health', healthRoutes);
 app.use('/api/doors', doorRoutes);
+app.use('/api/people', personRoutes);
 app.use('/api/totp_secrets', totp_secretRoutes);
 app.use('/api/verify', verifyRoutes);
 app.use('/mobile', mobileRoutes);

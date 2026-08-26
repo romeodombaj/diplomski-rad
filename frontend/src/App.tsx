@@ -17,6 +17,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import Docs from "./components/0_Docs/Docs";
 import Buildings from './components/104_buildings/buildings'
 import Doors from './components/105_doors/doors'
+import People from './components/106_people/people'
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
     | string
@@ -39,6 +40,8 @@ function AppRoutes() {
             {/* gt:buildings-routes */}
             <Route path="/doors" element={<Doors />} />
             {/* gt:doors-routes */}
+            <Route path="/people" element={<People />} />
+            {/* gt:people-routes */}
             {/* gt:nav-routes */}
 
                             {/* secondary nav routes */}

@@ -17,7 +17,8 @@
     "close": "Zatvori",
     "all": "Sve",
     "true": "Da",
-    "false": "Ne"
+    "false": "Ne",
+    "copied": "Kopirano"
   },
   "table": {
     "retry": "Pokušaj ponovo",
@@ -62,6 +63,8 @@
   "nav": {
     "dashboard": "Nadzorna ploča",
     "buildings": "Zgrade",
+    "doors": "Vrata",
+    "people": "Djelatnici",
     "platform": "Platforma",
     "backups": "Sigurnosne kopije",
     "settings": "Postavke",
@@ -228,5 +231,65 @@
     "newSheet": "Nova vrata",
     "viewSheet": "Pregled vrata",
     "filter_active": "Aktivno"
+  },
+  "person": {
+    "searchPlaceholder": "Pretraži ime, matični broj, e-poštu…",
+    "addPerson": "Dodaj djelatnika",
+    "newSheet": "Novi djelatnik",
+    "editSheet": "Uredi djelatnika",
+    "never": "nikad",
+    "suspend": "Privremeno onemogući",
+    "reinstate": "Vrati u pogon",
+    "offboard": "Trajno ukloni",
+    "offboardTitle": "Trajno ukloniti {{name}}?",
+    "offboardWarning": "DID odlazi na lanac za opoziv i sav pristup odmah prestaje. Ovo se ne može poništiti — ponovno uključivanje zahtijeva novi upis od početka.",
+    "createHint": "Djelatnik se stvara sa statusom „pozvan”. Postaje aktivan nakon upisa na mobitelu — QR kod slijedi.",
+    "columns": {
+      "name": "Ime",
+      "department": "Odjel",
+      "type": "Vrsta",
+      "status": "Status",
+      "did": "DID",
+      "enrolled": "Upisan"
+    },
+    "fields": {
+      "fullName": "Ime i prezime",
+      "employeeNo": "Matični broj",
+      "type": "Vrsta",
+      "department": "Odjel",
+      "jobTitle": "Radno mjesto",
+      "email": "E-pošta (samo kontakt)",
+      "phone": "Telefon",
+      "employmentStart": "Početak rada",
+      "employmentEnd": "Kraj rada"
+    },
+    "status": {
+      "invited": "Pozvan",
+      "enrolling": "Upisuje se",
+      "active": "Aktivan",
+      "suspended": "Onemogućen",
+      "offboarded": "Uklonjen"
+    },
+    "type": {
+      "employee": "Zaposlenik",
+      "contractor": "Vanjski suradnik",
+      "visitor": "Posjetitelj",
+      "service": "Servis"
+    },
+    "pendingBanner_one": "{{count}} djelatnik čeka upis — kliknite za filtriranje",
+    "pendingBanner_few": "{{count}} djelatnika čekaju upis — kliknite za filtriranje",
+    "pendingBanner_other": "{{count}} djelatnika čeka upis — kliknite za filtriranje"
+  },
+  "enrollment": {
+    "title": "Kod za upis",
+    "description": "Skenirajte u mobilnoj aplikaciji za upis.",
+    "descriptionNamed": "Neka {{name}} skenira ovo u mobilnoj aplikaciji za upis.",
+    "qrAlt": "QR kod za upis",
+    "expires": "Vrijedi do {{date}}",
+    "oneTimeWarning": "Jednokratno. Kod se ne može ponovno prikazati — novo izdavanje poništava ovaj.",
+    "noActiveToken": "Nema aktivnog koda za upis. Izdajte novi.",
+    "copyToken": "Kopiraj token",
+    "reissue": "Izdaj novi",
+    "showQr": "Prikaži QR za upis"
   }
 }

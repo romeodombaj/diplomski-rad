@@ -17,7 +17,8 @@
     "close": "Close",
     "all": "All",
     "true": "True",
-    "false": "False"
+    "false": "False",
+    "copied": "Copied"
   },
   "table": {
     "retry": "Retry",
@@ -62,6 +63,8 @@
   "nav": {
     "dashboard": "Dashboard",
     "buildings": "Buildings",
+    "doors": "Doors",
+    "people": "People",
     "platform": "Platform",
     "backups": "Backups",
     "settings": "Settings",
@@ -228,5 +231,64 @@
     "newSheet": "New Door",
     "viewSheet": "View Door",
     "filter_active": "Active"
+  },
+  "person": {
+    "searchPlaceholder": "Search name, employee no, email…",
+    "addPerson": "Add person",
+    "newSheet": "New person",
+    "editSheet": "Edit person",
+    "never": "never",
+    "suspend": "Suspend",
+    "reinstate": "Reinstate",
+    "offboard": "Offboard",
+    "offboardTitle": "Offboard {{name}}?",
+    "offboardWarning": "Their DID goes on the on-chain revocation list and all access stops immediately. This cannot be undone — reinstating them later requires enrolling again from scratch.",
+    "createHint": "The person is created as “invited”. They become active once they enrol on their phone — you'll get a QR code next.",
+    "columns": {
+      "name": "Name",
+      "department": "Department",
+      "type": "Type",
+      "status": "Status",
+      "did": "DID",
+      "enrolled": "Enrolled"
+    },
+    "fields": {
+      "fullName": "Full name",
+      "employeeNo": "Employee no.",
+      "type": "Type",
+      "department": "Department",
+      "jobTitle": "Job title",
+      "email": "Email (contact only)",
+      "phone": "Phone",
+      "employmentStart": "Employment start",
+      "employmentEnd": "Employment end"
+    },
+    "status": {
+      "invited": "Invited",
+      "enrolling": "Enrolling",
+      "active": "Active",
+      "suspended": "Suspended",
+      "offboarded": "Offboarded"
+    },
+    "type": {
+      "employee": "Employee",
+      "contractor": "Contractor",
+      "visitor": "Visitor",
+      "service": "Service"
+    },
+    "pendingBanner_one": "{{count}} person awaiting enrolment — click to filter",
+    "pendingBanner_other": "{{count}} people awaiting enrolment — click to filter"
+  },
+  "enrollment": {
+    "title": "Enrolment code",
+    "description": "Scan this in the mobile app to enrol.",
+    "descriptionNamed": "Have {{name}} scan this in the mobile app to enrol.",
+    "qrAlt": "Enrolment QR code",
+    "expires": "Expires {{date}}",
+    "oneTimeWarning": "Single use. The code cannot be shown again — reissue to get a new one, which invalidates this one.",
+    "noActiveToken": "No active enrolment code. Reissue to create one.",
+    "copyToken": "Copy token",
+    "reissue": "Reissue",
+    "showQr": "Show enrolment QR"
   }
 }

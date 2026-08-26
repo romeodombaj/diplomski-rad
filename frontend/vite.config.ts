@@ -10,6 +10,10 @@ try {
   // no git or no commits
 }
 
+// Backend dev port — keep in sync with backend/.env.development (PORT)
+const BACKEND_PORT = process.env.BACKEND_PORT || '5001'
+const backendTarget = `http://localhost:${BACKEND_PORT}`
+
 export default defineConfig({
   plugins: [react()],
   define: {
@@ -23,11 +27,11 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: backendTarget,
         changeOrigin: true,
       },
       '/auth': {
-        target: 'http://localhost:5000',
+        target: backendTarget,
         changeOrigin: true,
       },
     },
