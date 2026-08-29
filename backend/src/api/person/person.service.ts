@@ -1,6 +1,8 @@
 import crypto from 'crypto';
 import db from '../../db';
 import speakeasy from 'speakeasy';
+import logger from '../../lib/logger';
+import * as chain from '../../services/chainService';
 import type {
   Person,
   PersonDevice,
@@ -81,8 +83,16 @@ export const getAll = async (buildingId: number, params: PersonSearchParams): Pr
 
   let total: number | undefined;
   if (params.count === 'true') {
-    const countRow = await base.clone().clearOrder().count('* as count').first();
-    total = Number((countRow as any).count);
+    // Clear the paging the clone inherits — `count(*) … offset 20` returns no
+    // rows, so this would throw on every page but the first.
+    const countRow = await base
+      .clone()
+      .clearOrder()
+      .clear('limit')
+      .clear('offset')
+      .count('* as count')
+      .first();
+    total = Number((countRow as any)?.count ?? 0);
   }
 
   return { data, nextCursor, hasMore, total };
@@ -120,9 +130,51 @@ export const setStatus = async (
   id: string,
   to: PersonStatus,
 ): Promise<Person | undefined> => {
+  const before = await getById(buildingId, id);
   await db('people').where({ id, building_id: buildingId }).update({ status: to, updated_at: now() });
+
+  // Offboarding retires the identity itself, so the DID goes on the on-chain
+  // revocation list — that is what makes "one click revokes access everywhere"
+  // true without a central server to push the update. Suspension deliberately
+  // does not: it revokes policies but keeps the DID valid so the person can
+  // return without re-enrolling their face.
+  if (to === 'offboarded' && before?.did) await revokeDidOnChain(before.did);
+
   return getById(buildingId, id);
 };
+
+/**
+ * Put a DID on the on-chain revocation list.
+ *
+ * Deliberately does NOT pre-check `chain.isRevoked`: that read fails *closed*
+ * and answers "revoked" when the RPC is unreachable, which is correct for the
+ * access path but exactly backwards as a skip-the-write guard — a node restart
+ * or a provider blip would silently skip the transaction and leave a stolen
+ * phone valid at every other building. Instead always attempt the write and
+ * treat the contract's AlreadyRevoked revert as the success it is.
+ *
+ * This awaits confirmation rather than firing and forgetting. Revocation is
+ * rare, operator-initiated, and the whole point is that it is durable — an
+ * operator who sees "revoked" must not be looking at a transaction that never
+ * landed. The cost is that the request blocks for a block time (~12s on a
+ * public network); the return value says whether it actually landed.
+ */
+async function revokeDidOnChain(did: string): Promise<boolean> {
+  if (!chain.isEnabled()) return false;
+  try {
+    const tx = await chain.revokeDID(did);
+    logger.info(`[chain] revokeDID ${did} tx=${tx}`);
+    return true;
+  } catch (err) {
+    const message = (err as Error).message ?? '';
+    if (/AlreadyRevoked/i.test(message)) {
+      logger.info(`[chain] revokeDID ${did}: already on the revocation list`);
+      return true;
+    }
+    logger.error(`[chain] revokeDID ${did} FAILED — the DID is still valid on-chain: ${message}`);
+    return false;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Enrolment
@@ -166,24 +218,28 @@ export const getActiveEnrollment = async (personId: string) =>
     .first();
 
 export type ClaimResult =
-  | { ok: false; reason: 'invalid_token' | 'expired' | 'consumed' | 'did_taken' | 'wrong_status' }
+  | { ok: false; reason: 'invalid_token' | 'expired' | 'consumed' | 'did_taken' | 'did_revoked' | 'wrong_status' }
   | {
       ok: true;
       person: Person;
       totp: { secret: string; period: number; digits: number };
       building: { id: number; name: string; contract_address: string };
       doors: { door_code: string; name: string }[];
+      /** False when the DID exists only in this backend's database. */
+      chain_registered: boolean;
     };
 
 /**
  * Mobile → backend enrolment handshake. Trades a valid one-time token for the
  * TOTP secret, closing AUDIT.md F-02.
  *
- * NOTE: the on-chain DIDRegistry.registerDID() write is NOT performed here — the
- * backend has no chain client yet (see registerDidOnChain below). The DID is
- * recorded locally and will be picked up by reconciliation once the chain client
- * lands. Until then the mobile app's signature cannot be verified against an
- * on-chain public key.
+ * The device's public key is now persisted and, when the chain is enabled,
+ * written to DIDRegistry — so the access path can verify signatures against a
+ * key no single backend operator controls. The chain write happens after the
+ * local commit and is allowed to fail: a person whose phone enrolled but whose
+ * registerDID transaction did not land is in a recoverable state
+ * (`chain_registered` is false, reconciliation can retry), whereas rolling back
+ * a consumed one-time token would strand them with a dead QR code.
  */
 export const claimEnrollment = async (
   token: string,
@@ -207,6 +263,14 @@ export const claimEnrollment = async (
   const existing = await db('people').where({ did }).whereNot('id', person.id).first();
   if (existing) return { ok: false, reason: 'did_taken' };
 
+  // Refuse a DID that is already on the on-chain revocation list. Revocation is
+  // permanent — nothing calls restoreDID — so binding one would consume the
+  // single-use token and mint a credential that is denied at every door with
+  // `revoked_on_chain`, and the person would have no way back. A reset phone
+  // mints a fresh keypair and therefore a fresh DID, so this only catches a
+  // handset that kept its key through a revocation.
+  if (await chain.isRevoked(did)) return { ok: false, reason: 'did_revoked' };
+
   const building = await db('buildings').where({ id: person.building_id }).first();
 
   const secret = speakeasy.generateSecret({ length: 20 }).base32;
@@ -226,6 +290,7 @@ export const claimEnrollment = async (
     await trx('person_devices').insert({
       person_id: person.id,
       did,
+      public_key: publicKey,
       platform: deviceInfo?.platform ?? null,
       model: deviceInfo?.model ?? null,
     });
@@ -240,6 +305,8 @@ export const claimEnrollment = async (
     });
   });
 
+  const chainRegistered = await registerDidOnChain(did, publicKey);
+
   const doors = await db('doors')
     .where({ building_id: person.building_id, active: true })
     .whereNull('deleted_at')
@@ -253,8 +320,32 @@ export const claimEnrollment = async (
     totp: { secret, period, digits },
     building: { id: building.id, name: building.name, contract_address: building.contract_address },
     doors,
+    chain_registered: chainRegistered,
   };
 };
+
+/**
+ * Bind the DID to its public key in the on-chain registry.
+ * @returns whether the key is on-chain — false when the chain is off, already
+ *          registered under a different key, or the transaction failed.
+ */
+async function registerDidOnChain(did: string, publicKey: string): Promise<boolean> {
+  if (!chain.isEnabled()) return false;
+  try {
+    if (await chain.isRegistered(did)) {
+      // registerDID reverts on re-registration by design — silently replacing a
+      // key would let a compromised backend take over an existing identity.
+      logger.warn(`[chain] DID ${did} already registered; leaving the existing key in place`);
+      return true;
+    }
+    const tx = await chain.registerDID(did, publicKey);
+    logger.info(`[chain] registerDID ${did} tx=${tx}`);
+    return true;
+  } catch (err) {
+    logger.error(`[chain] registerDID ${did} failed: ${(err as Error).message}`);
+    return false;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Devices
@@ -299,6 +390,11 @@ export const revokeDevice = async (
       });
     }
   });
+
+  // The stolen-phone path. The DID belonged to that handset, so it goes on the
+  // chain's revocation list and every building's backend sees it on its next
+  // read — including buildings this operator has no account on.
+  await revokeDidOnChain(device.did);
 
   return db('person_devices').where({ id: deviceId }).first();
 };

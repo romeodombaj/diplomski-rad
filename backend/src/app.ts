@@ -9,12 +9,12 @@ import { loggerMiddleware } from './middleware/logger';
 import { notFoundHandler } from './middleware/notFoundHandler';
 import { errorHandler } from './middleware/errorHandler';
 import healthRoutes from './api/health/health.routes';
-import { rateLimiter, v1RateLimiter, authRateLimiter } from './middleware/rateLimiter';
+import { rateLimiter, v1RateLimiter, authRateLimiter, mobileRateLimiter } from './middleware/rateLimiter';
 import authRoutes from './api/auth/auth.routes';
 import doorRoutes from './api/door/door.routes';
 import personRoutes from './api/person/person.routes';
 import totp_secretRoutes from './api/totp_secret/totp_secret.routes';
-import verifyRoutes from './api/verify/verify.routes';
+import accessEventRoutes from './api/access_event/access_event.routes';
 import mobileRoutes from './api/mobile';
 // gt:imports
 
@@ -34,6 +34,8 @@ app.use(loggerMiddleware);
 // gt:middleware
 app.use('/api', rateLimiter);
 app.use('/v1', v1RateLimiter);
+// /mobile is unauthenticated by design, so it needs its own IP-keyed limit.
+app.use('/mobile', mobileRateLimiter);
 app.use('/auth/login', authRateLimiter);
 app.use('/auth/register', authRateLimiter);
 
@@ -43,7 +45,9 @@ app.use('/api/health', healthRoutes);
 app.use('/api/doors', doorRoutes);
 app.use('/api/people', personRoutes);
 app.use('/api/totp_secrets', totp_secretRoutes);
-app.use('/api/verify', verifyRoutes);
+// The dashboard's audit page has always called /api/audit-logs; until now
+// nothing was mounted there. Backed by access_events.
+app.use('/api/audit-logs', accessEventRoutes);
 app.use('/mobile', mobileRoutes);
 // gt:routes
 

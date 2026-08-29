@@ -12,6 +12,15 @@ describe("Integration: full access flow", function () {
   let registry, policy, audit, admin, backend;
   const DOOR = "MAIN-01";
 
+  /**
+   * The message the phone signs, byte-identical to `accessMessage` in
+   * backend/src/api/mobile/access.service.ts and `signAccessRequest` in
+   * mobile-app/src/lib/identity.ts. The nonce is what makes two taps in the
+   * same second distinct requests rather than an apparent replay.
+   */
+  const accessMessage = (did, door, timestamp, nonce) =>
+    `${did}|${door}|${timestamp}|${nonce}`;
+
   async function grant(did, door, start, end) {
     const tx = await policy.grantAccess(did, door, start, end);
     const receipt = await tx.wait();
@@ -41,7 +50,7 @@ describe("Integration: full access flow", function () {
     await grant(did, DOOR, 0, 0);
 
     // 3. phone signs an access request
-    const message = `${did}|${DOOR}|${await time.latest()}`;
+    const message = accessMessage(did, DOOR, await time.latest(), "a1b2c3d4e5f60718");
     const signature = await phone.signMessage(message);
 
     // 4. backend verifies the signature against the ON-CHAIN key -- not its
@@ -72,7 +81,7 @@ describe("Integration: full access flow", function () {
     await registry.connect(backend).registerDID(did, phone.signingKey.publicKey);
     await grant(did, DOOR, 0, 0);
 
-    const message = `${did}|${DOOR}|${await time.latest()}`;
+    const message = accessMessage(did, DOOR, await time.latest(), "a1b2c3d4e5f60718");
     const forged = await attacker.signMessage(message);
 
     const expectedAddress = ethers.computeAddress(await registry.getPublicKey(did));

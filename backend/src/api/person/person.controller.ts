@@ -80,8 +80,9 @@ export const suspend = transition('suspended');
 export const reinstate = transition('active');
 
 /**
- * Offboarding is terminal. The on-chain revocation-list write is not wired up
- * yet (no chain client in the backend) — see specs/06_access_control.md §5.
+ * Offboarding is terminal, and puts the person's DID on the on-chain revocation
+ * list so every building's backend sees it on its next read. That write awaits
+ * confirmation, so this request can take a block time on a public network.
  */
 export const offboard = transition('offboarded');
 
@@ -147,7 +148,7 @@ export const claimEnrollment = async (req: Request, res: Response, next: NextFun
     const { token, did, publicKey, deviceInfo } = req.body;
     const result = await personService.claimEnrollment(token, did, publicKey, deviceInfo);
     if (!result.ok) {
-      const status = result.reason === 'did_taken' ? 409 : 400;
+      const status = result.reason === 'did_taken' || result.reason === 'did_revoked' ? 409 : 400;
       return next(new AppError(`enrolment failed: ${result.reason}`, status));
     }
     response.ok(res, {
@@ -155,6 +156,9 @@ export const claimEnrollment = async (req: Request, res: Response, next: NextFun
       totp: result.totp,
       building: result.building,
       doors: result.doors,
+      // The phone shows this: an identity that is not on-chain still works
+      // locally, but the operator needs to know it is not yet in the registry.
+      chain_registered: result.chain_registered,
     });
   } catch (err) {
     next(err);

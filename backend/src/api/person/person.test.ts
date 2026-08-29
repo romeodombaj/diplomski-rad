@@ -3,17 +3,25 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import speakeasy from 'speakeasy';
+import { Wallet } from 'ethers';
 import app from '../../app';
 import db from '../../db';
 import { config } from '../../config/conifg';
 
-const DID = 'did:ethr:sep:0x1f2e3d4c5b6a798899001122334455667788990a';
+// A real keypair, not a placeholder string: the access path verifies the
+// signature against this public key, so a fake one cannot be substituted.
+const PHONE = Wallet.createRandom();
+const DID = `did:ethr:sep:${PHONE.address}`;
+const PUBLIC_KEY = PHONE.signingKey.publicKey;
+const DOOR_CODE = 'MAIN-01';
 
 describe('Person API', () => {
   let buildingId: number;
   let otherBuildingId: number;
   let userId: string;
   let authCookie: string;
+  let doorId: number;
+  let lastSecret = '';
 
   const newPerson = (over: Record<string, unknown> = {}) => ({
     full_name: 'Ana Horvat',
@@ -28,13 +36,39 @@ describe('Person API', () => {
   const create = (body: Record<string, unknown> = {}) =>
     request(app).post('/api/people').set('Cookie', authCookie).send(newPerson(body));
 
+  /**
+   * Build a signed access request the way the phone does. The message format
+   * must match access.service.ts `accessMessage` byte for byte.
+   */
+  const signedAccess = async (
+    over: Record<string, unknown> = {},
+    wallet = PHONE,
+    did = DID,
+    doorCode = DOOR_CODE,
+  ) => {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const secret = (over.secret as string) ?? lastSecret;
+    const nonce = randomUUID().replace(/-/g, '');
+    return {
+      did,
+      door_code: doorCode,
+      timestamp,
+      nonce,
+      signature: await wallet.signMessage(`${did}|${doorCode}|${timestamp}|${nonce}`),
+      totp: speakeasy.totp({ secret, encoding: 'base32', digits: 6, step: 30 }),
+      faceScore: 0.92,
+      ...over,
+    };
+  };
+
   /** Create a person and take them all the way to `active` via the mobile handshake. */
   const enrol = async (did = DID, body: Record<string, unknown> = {}) => {
     const created = await create(body);
     const { person, invite } = created.body.data;
     const claim = await request(app)
       .post('/mobile/enroll/claim')
-      .send({ token: invite.token, did, publicKey: '0x04aabb', deviceInfo: { platform: 'ios', model: 'iPhone 14' } });
+      .send({ token: invite.token, did, publicKey: PUBLIC_KEY, deviceInfo: { platform: 'ios', model: 'iPhone 14' } });
+    if (claim.body?.data?.totp?.secret) lastSecret = claim.body.data.totp.secret;
     return { person, invite, claim };
   };
 
@@ -44,6 +78,10 @@ describe('Person API', () => {
     [buildingId] = await db('buildings').insert({ name: 'Test Building', address: 'Addr', contract_address: '0xcontract', is_sandbox: false });
     [otherBuildingId] = await db('buildings').insert({ name: 'Other Building', address: 'Addr 2', contract_address: '0xother', is_sandbox: false });
     await db('users').insert({ id: userId, email: 'test@test.com', name: 'Test', role: 'admin', password_hash: 'x' });
+    [doorId] = await db('doors').insert({
+      building_id: buildingId, name: 'Main entrance', door_code: DOOR_CODE,
+      mqtt_topic: 'doors/main-01/cmd', active: true,
+    });
 
     const token = jwt.sign(
       { userId, email: 'test@test.com', role: 'admin', buildingId, isSandbox: false },
@@ -58,6 +96,7 @@ describe('Person API', () => {
   });
 
   beforeEach(async () => {
+    await db('access_events').del();
     await db('totp_secrets').del();
     await db('person_devices').del();
     await db('enrollment_tokens').del();
@@ -172,12 +211,12 @@ describe('Person API', () => {
     expect(claim.body.data.building.contract_address).toBe('0xcontract');
   });
 
-  it('the provisioned TOTP secret verifies against the mobile access path', async () => {
-    const { claim } = await enrol();
-    const code = speakeasy.totp({ secret: claim.body.data.totp.secret, encoding: 'base32', digits: 6, step: 30 });
-    const res = await request(app).post('/mobile/verify/totp').send({ did: DID, code });
+  it('the provisioned credential opens the door it was issued for', async () => {
+    await enrol();
+    const res = await request(app).post('/mobile/access').send(await signedAccess());
     expect(res.status).toBe(200);
-    expect(res.body.data.success).toBe(true);
+    expect(res.body.data.granted).toBe(true);
+    expect(res.body.data.door.code).toBe(DOOR_CODE);
   });
 
   it('records the enrolling device', async () => {
@@ -336,12 +375,13 @@ describe('Person API', () => {
       .set('Cookie', authCookie)
       .send({ reason: 'stolen' });
 
-    // Same secret that worked a moment ago must now be refused outright, not
-    // merely fail the code comparison.
-    const code = speakeasy.totp({ secret: claim.body.data.totp.secret, encoding: 'base32', digits: 6, step: 30 });
-    const res = await request(app).post('/mobile/verify/totp').send({ did: DID, code });
-    expect(res.status).toBe(404);
-    expect(res.body.message).toContain('not enrolled');
+    // The same secret that worked a moment ago must now be refused outright,
+    // not merely fail the code comparison.
+    const res = await request(app)
+      .post('/mobile/access')
+      .send(await signedAccess({ secret: claim.body.data.totp.secret }));
+    expect(res.status).toBe(403);
+    expect(res.body.data.reason).toBe('device_revoked');
   });
 
   it('a person can re-enrol on a replacement device after a revocation', async () => {
