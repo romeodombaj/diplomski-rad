@@ -11,6 +11,9 @@ const KEYS = {
   refreshToken: 'refreshToken',
   projectId: 'projectId',
   did: 'did',
+  privateKey: 'privateKey',
+  doors: 'doors',
+  buildingName: 'buildingName',
   totpSecret: 'totpSecret',
   totpPeriod: 'totpPeriod',
   totpDigits: 'totpDigits',
@@ -50,6 +53,20 @@ export const storage = {
   getDid: () => get(KEYS.did),
   setDid: (v: string) => set(KEYS.did, v),
 
+  // secp256k1 private key, hex. The one value in the app that must never be
+  // transmitted anywhere — SecureStore keeps it in the Keychain/Keystore.
+  getPrivateKey: () => get(KEYS.privateKey),
+  setPrivateKey: (v: string) => set(KEYS.privateKey, v),
+  deletePrivateKey: () => del(KEYS.privateKey),
+
+  // Doors this building offers, as returned by the enrolment claim. Cached so
+  // the door picker renders before any network call.
+  getDoors: () => get(KEYS.doors),
+  setDoors: (v: string) => set(KEYS.doors, v),
+
+  getBuildingName: () => get(KEYS.buildingName),
+  setBuildingName: (v: string) => set(KEYS.buildingName, v),
+
   getTotpSecret: () => get(KEYS.totpSecret),
   setTotpSecret: (v: string) => set(KEYS.totpSecret, v),
 
@@ -78,6 +95,9 @@ export const storage = {
   clearEnrollment: () =>
     Promise.all([
       del(KEYS.did),
+      del(KEYS.privateKey),
+      del(KEYS.doors),
+      del(KEYS.buildingName),
       del(KEYS.totpSecret),
       del(KEYS.totpPeriod),
       del(KEYS.totpDigits),

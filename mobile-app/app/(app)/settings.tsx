@@ -5,36 +5,58 @@ import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { storage } from '@/lib/storage';
-import { reEnroll } from '@/lib/device';
+import { resetEnrollment } from '@/lib/device';
 import { resetFace, isFaceRegistered } from '@/lib/faceGate';
+import { hasIdentity } from '@/lib/identity';
 
 export default function Settings() {
   const [did, setDid] = useState<string | null>(null);
   const [secret, setSecret] = useState<string | null>(null);
   const [faceRegistered, setFaceRegistered] = useState(false);
+  const [hasKey, setHasKey] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function refresh() {
     setDid(await storage.getDid());
     setSecret(await storage.getTotpSecret());
     setFaceRegistered(await isFaceRegistered());
+    setHasKey(await hasIdentity());
   }
 
   useEffect(() => {
     refresh();
   }, []);
 
-  async function handleReEnroll() {
-    setBusy(true);
-    try {
-      await reEnroll();
-      await refresh();
-      Alert.alert('Done', 'Device re-enrolled with a new DID and secret.');
-    } catch (e: any) {
-      Alert.alert('Failed', e?.message || 'Could not re-enroll');
-    } finally {
-      setBusy(false);
-    }
+  /**
+   * Wipe the identity. There is deliberately no "re-enrol" button any more: a
+   * device cannot mint itself a new credential, it can only discard the one it
+   * has and wait for an operator to issue a fresh enrolment code.
+   */
+  function handleReset() {
+    Alert.alert(
+      'Reset this device?',
+      'The private key is deleted permanently and this DID can never be recovered. ' +
+        'You will need a new enrolment code from your administrator.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            setBusy(true);
+            try {
+              await resetEnrollment();
+              await refresh();
+              Alert.alert('Done', 'Device identity cleared. Ask for a new enrolment code.');
+            } catch (e: any) {
+              Alert.alert('Failed', e?.message || 'Could not reset');
+            } finally {
+              setBusy(false);
+            }
+          },
+        },
+      ],
+    );
   }
 
   async function handleResetFace() {
@@ -51,7 +73,9 @@ export default function Settings() {
         <Card>
           <CardHeader>
             <CardTitle>Device identity</CardTitle>
-            <CardDescription>This phone holds its own DID and TOTP secret</CardDescription>
+            <CardDescription>
+              This phone holds its own keypair, DID and TOTP secret
+            </CardDescription>
           </CardHeader>
           <CardContent className="gap-2">
             <Text className="font-medium">DID</Text>
@@ -61,6 +85,10 @@ export default function Settings() {
             <Text className="font-medium mt-2">TOTP secret (base32)</Text>
             <Text className="text-muted-foreground text-xs" selectable>
               {secret || 'none'}
+            </Text>
+            <Text className="font-medium mt-2">Private key</Text>
+            <Text className="text-muted-foreground text-xs">
+              {hasKey ? 'held in the secure enclave — never displayed or transmitted' : 'none'}
             </Text>
             <Text className="font-medium mt-2">Face</Text>
             <Text className="text-muted-foreground text-xs">
@@ -83,9 +111,9 @@ export default function Settings() {
             />
             <Button
               variant="destructive"
-              label={busy ? 'Re-enrolling...' : 'Re-enroll device (new DID)'}
+              label={busy ? 'Resetting…' : 'Reset device identity'}
               loading={busy}
-              onPress={handleReEnroll}
+              onPress={handleReset}
             />
           </CardContent>
         </Card>
