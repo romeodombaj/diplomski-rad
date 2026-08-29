@@ -13,15 +13,43 @@ async function req<T>(url: string, init?: RequestInit): Promise<T> {
   return (json.data ?? json) as T;
 }
 
+/**
+ * One access decision. Backed by the backend's `access_events` table — this
+ * page called /api/audit-logs against a route that did not exist until now, so
+ * it has never rendered a row.
+ *
+ * Every field the operator sees is off-chain; `event_hash` is the value written
+ * to the on-chain AuditLog, which is what makes a row verifiable rather than
+ * merely displayed.
+ */
 export type AuditLog = {
-  id: number;
-  user_email: string | null;
-  project_name: string | null;
-  action: string;
-  entity: string;
-  entity_id: string | null;
-  ip: string | null;
+  id: string;
+  building_id: number | null;
+  door_id: number | null;
+  door_code: string;
+  door_name: string | null;
+  person_id: string | null;
+  person_name: string | null;
+  person_employee_no: string | null;
+  did: string;
+  decision: 'granted' | 'denied';
+  reason: string;
+  face_score: number | null;
+  signature_verified: boolean;
+  chain_checked: boolean;
+  event_hash: string;
+  chain_tx: string | null;
+  occurred_at: string;
   created_at: string;
+};
+
+export type AccessStats = {
+  total: number;
+  granted: number;
+  denied: number;
+  byReason: { reason: string; count: number }[];
+  byDoor: { door_code: string; count: number }[];
+  byHour: { hour: number; count: number }[];
 };
 
 export type AuditLogPage = { data: AuditLog[]; nextCursor: string | null; hasMore: boolean; total?: number };
@@ -41,6 +69,11 @@ export const AuditLogService = {
     return req<AuditLogPage>(`${BASE}?${p}`);
   },
   create:  (body: Partial<AuditLog>)     => req<AuditLog>(BASE,           { method: 'POST',   body: JSON.stringify(body) }),
-  update:  (id: number, body: Partial<AuditLog>) => req<AuditLog>(`${BASE}/${id}`, { method: 'PUT',    body: JSON.stringify(body) }),
-  remove:  (id: number)                   => req<void>(`${BASE}/${id}`, { method: 'DELETE' }),
+  getById: (id: string) => req<AuditLog>(`${BASE}/${id}`),
+
+  // Deliberately no update/remove: the access log is append-only, and its rows
+  // are hashed on-chain. An operator editing history is what the design rules
+  // out, so the client must not offer the affordance.
+  stats: (since?: string) =>
+    req<AccessStats>(`${BASE}/stats${since ? `?since=${encodeURIComponent(since)}` : ''}`),
 };

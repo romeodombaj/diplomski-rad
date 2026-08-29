@@ -1,33 +1,22 @@
 import { useRef, useState } from 'react';
 import { RefreshCw, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/UI/sheet';
-import AuditLog from '../auditLog/AuditLog';
-import { type AuditLog as AuditLogType } from '../services/auditLog.service';
 import { Button } from '@/UI/button';
 import { DataTable } from '../components/DataTable';
 import { useAuditLogColumns } from '../components/columns';
 import { useAuditLog } from '../hooks/useAuditLog';
 import { SearchInput } from '@/UI/SearchInput';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/UI/select';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/UI/alert-dialog';
 
+/**
+ * The access log. There is deliberately no create, edit or delete here: rows
+ * are written by the access path and hashed into the on-chain AuditLog, so an
+ * operator quietly rewriting history is precisely what the system rules out.
+ */
 export default function AuditLogTable() {
   const { t } = useTranslation();
   const columns = useAuditLogColumns();
-  const { data, loading, error, remove, refresh, search, setSearch, filters, setFilter, clearFilters, sortField, sortDir, setSort, page, nextPage, prevPage, hasMore, total } = useAuditLog();
-  const [deleteId, setDeleteId] = useState<number | null>(null);
-  const [formOpen, setFormOpen] = useState(false);
-  const [editId, setEditId] = useState<number | null>(null);
+  const { data, loading, error, refresh, search, setSearch, filters, setFilter, clearFilters, sortField, sortDir, setSort, page, nextPage, prevPage, hasMore, total } = useAuditLog();
   const [resetKey, setResetKey] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const lastRefreshRef = useRef(0);
@@ -52,16 +41,15 @@ export default function AuditLogTable() {
             <SearchInput key={resetKey} onSearch={setSearch} isLoading={loading && search !== ''} placeholder={t('auditLog.searchPlaceholder')} className="w-64" minLength={2} active={search !== ''} />
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-xs text-muted-foreground">{t('auditLog.action')}</span>
-            <Select value={filters['action'] ?? 'all'} onValueChange={(v) => setFilter('action', v === 'all' ? '' : v)}>
-              <SelectTrigger className={`w-40${filters['action'] && filters['action'] !== 'all' ? ' border-primary' : ''}`}>
-                <SelectValue placeholder={t('auditLog.action')} />
+            <span className="text-xs text-muted-foreground">{t('auditLog.decision')}</span>
+            <Select value={filters['decision'] ?? 'all'} onValueChange={(v) => setFilter('decision', v === 'all' ? '' : v)}>
+              <SelectTrigger className={`w-40${filters['decision'] && filters['decision'] !== 'all' ? ' border-primary' : ''}`}>
+                <SelectValue placeholder={t('auditLog.decision')} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t('auditLog.all')}</SelectItem>
-                <SelectItem value="create">{t('auditLog.create')}</SelectItem>
-                <SelectItem value="update">{t('auditLog.update')}</SelectItem>
-                <SelectItem value="delete">{t('auditLog.delete')}</SelectItem>
+                <SelectItem value="granted">{t('auditLog.granted')}</SelectItem>
+                <SelectItem value="denied">{t('auditLog.denied')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -86,8 +74,6 @@ export default function AuditLogTable() {
         error={error}
         onRetry={refresh}
         hasActiveFilters={search !== '' || Object.keys(filters).length > 0}
-        onEdit={(row) => { setEditId((row as AuditLogType).id as number); setFormOpen(true); }}
-        onDelete={(row) => setDeleteId(row.id as number)}
         page={page}
         hasMore={hasMore}
         total={total}
@@ -97,30 +83,7 @@ export default function AuditLogTable() {
         sortDir={sortDir}
         onSort={setSort}
       />
-      <AlertDialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('auditLog.areYouSure')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('auditLog.actionCannotBeUndone')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('auditLog.cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { remove(deleteId!); setDeleteId(null); }}>
-              {t('auditLog.delete')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      <Sheet open={formOpen} onOpenChange={setFormOpen}>
-        <SheetContent>
-          <SheetHeader>
-            <SheetTitle>{editId !== null ? t('auditLog.editSheet') : t('auditLog.newSheet')}</SheetTitle>
-          </SheetHeader>
-          <AuditLog id={editId !== null ? String(editId) : undefined} onSuccess={() => { setFormOpen(false); refresh(); }} />
-        </SheetContent>
-      </Sheet>
+
     </>
   );
 }

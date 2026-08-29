@@ -1,5 +1,5 @@
 import * as React from "react";
-import { DoorOpen, GalleryVerticalEnd, Logs, Settings2, Users, DatabaseBackup, Contact } from "lucide-react";
+import { Building2, DoorOpen, GalleryVerticalEnd, Logs, Settings2, Users, DatabaseBackup, Contact } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { NavMain } from "@/Layout/Navigation/nav-main";
@@ -26,6 +26,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     const navMain = [
         { title: t('nav.dashboard'), url: "/", icon: GalleryVerticalEnd, items: [] },
         // gt:tab:104_buildings
+    { title: t('nav.buildings'), url: '/buildings', icon: Building2, items: [] },
     // gt:tab:105_doors
     { title: t('nav.doors'), url: '/doors', icon: DoorOpen, items: [] },
     // gt:tab:106_people

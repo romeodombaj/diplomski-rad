@@ -187,8 +187,20 @@
       "entity": "Entitet",
       "entityId": "ID",
       "ip": "IP",
-      "date": "Datum"
-    }
+      "date": "Datum",
+      "occurredAt": "Vrijeme",
+      "decision": "Odluka",
+      "person": "Osoba",
+      "door": "Vrata",
+      "faceScore": "Lice",
+      "verified": "Provjereno",
+      "eventHash": "Hash događaja"
+    },
+    "decision": "Odluka",
+    "granted": "Odobreno",
+    "denied": "Odbijeno",
+    "signatureTitle": "Je li potpis zahtjeva provjeren javnim ključem iz registra",
+    "chainTitle": "Je li odluka provjerena na blockchainu"
   },
   "users": {
     "searchPlaceholder": "Pretraži korisnike...",

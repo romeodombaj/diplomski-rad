@@ -187,8 +187,20 @@
       "entity": "Entity",
       "entityId": "ID",
       "ip": "IP",
-      "date": "Date"
-    }
+      "date": "Date",
+      "occurredAt": "Time",
+      "decision": "Decision",
+      "person": "Person",
+      "door": "Door",
+      "faceScore": "Face",
+      "verified": "Verified",
+      "eventHash": "Event hash"
+    },
+    "decision": "Decision",
+    "granted": "Granted",
+    "denied": "Denied",
+    "signatureTitle": "Whether the request signature verified against the registered public key",
+    "chainTitle": "Whether the decision was checked against the blockchain"
   },
   "users": {
     "searchPlaceholder": "Search users...",
