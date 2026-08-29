@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react';
-import { Plus, RefreshCw, X } from 'lucide-react';
+import { Plus, RefreshCw, X, Users } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/UI/sheet';
 import NewDoor from '../door/NewDoor';
 import EditDoor from '../door/EditDoor';
+import DoorAccessDialog from '../door/DoorAccessDialog';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/UI/button';
 import { DataTable } from '../components/DataTable';
@@ -23,6 +24,7 @@ import {
 } from '@/UI/alert-dialog';
 
 export default function DoorTable() {
+  const [accessDoor, setAccessDoor] = useState<DoorType | null>(null);
   const { t } = useTranslation();
   const { data, loading, error, remove, refresh, search, setSearch, filters, setFilter, clearFilters, sortField, sortDir, setSort, page, nextPage, prevPage, hasMore, total } = useDoor();
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -122,6 +124,17 @@ export default function DoorTable() {
         onCreate={search === '' && Object.keys(filters).length === 0 ? () => { setEditId(null); setFormOpen(true); } : undefined}
         hasActiveFilters={search !== '' || Object.keys(filters).length > 0}
         onEdit={(row) => { setEditId((row as DoorType).id as number); setEditData(row as DoorType); setFormOpen(true); }}
+        rowActions={(row: unknown) => {
+          const d = row as DoorType;
+          return (
+            <Button
+              variant="ghost" size="sm" title={t('doors.access.button')}
+              onClick={(e) => { e.stopPropagation(); setAccessDoor(d); }}
+            >
+              <Users className="h-4 w-4" />
+            </Button>
+          );
+        }}
         onDelete={(row) => setDeleteId(row.id as number)}
         page={page}
         hasMore={hasMore}
@@ -152,6 +165,13 @@ export default function DoorTable() {
       </AlertDialog>
 
       {/* New / Edit door slide */}
+      <DoorAccessDialog
+        doorId={accessDoor?.id ?? null}
+        doorName={accessDoor?.name}
+        open={accessDoor !== null}
+        onOpenChange={(o) => { if (!o) setAccessDoor(null); }}
+      />
+
       <Sheet open={formOpen} onOpenChange={setFormOpen}>
         <SheetContent className="overflow-y-auto">
           <SheetHeader>

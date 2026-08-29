@@ -35,6 +35,8 @@ interface DataTableProps<TData> {
   onView?: (row: TData) => void;
   onEdit?: (row: TData) => void;
   onDelete?: (row: TData) => void;
+  /** Extra per-row controls rendered before the standard edit/delete icons. */
+  rowActions?: (row: TData) => React.ReactNode;
   onExport?: (format: 'csv' | 'xlsx') => void;
   page?: number;
   hasMore?: boolean;
@@ -57,6 +59,7 @@ export function DataTable<TData>({
   onView,
   onEdit,
   onDelete,
+  rowActions,
   onExport,
   page,
   hasMore,
@@ -75,6 +78,7 @@ export function DataTable<TData>({
     header: "",
     cell: ({ row }) => (
       <div className="flex items-center justify-end gap-2">
+        {rowActions?.(row.original)}
         {onView && (
           <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onView(row.original); }}>
             <Eye className="h-4 w-4" />

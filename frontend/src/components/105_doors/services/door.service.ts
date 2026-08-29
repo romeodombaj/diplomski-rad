@@ -21,6 +21,15 @@ async function req<T>(url: string, init?: RequestInit): Promise<T> {
 // TODO: replace with your actual field types
 export type Door = {
   id: number;
+  building_id: number;
+  name: string;
+  door_code: string;
+  mqtt_topic: string;
+  active: boolean;
+  created_at?: string;
+  updated_at?: string;
+  // Kept so the generated table/columns code that reads arbitrary keys still
+  // compiles; the named fields above are the ones the API actually returns.
   [key: string]: unknown;
 };
 

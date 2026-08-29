@@ -18,6 +18,8 @@ import Docs from "./components/0_Docs/Docs";
 import Buildings from './components/104_buildings/buildings'
 import Doors from './components/105_doors/doors'
 import People from './components/106_people/people'
+import PersonDetail from './components/106_people/person/PersonDetail'
+import Access from './components/107_access/access'
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
     | string
@@ -41,7 +43,10 @@ function AppRoutes() {
             <Route path="/doors" element={<Doors />} />
             {/* gt:doors-routes */}
             <Route path="/people" element={<People />} />
+            <Route path="/people/:id" element={<PersonDetail />} />
             {/* gt:people-routes */}
+            {/* gt:tab:107_access */}
+            <Route path="/access" element={<Access />} />
             {/* gt:nav-routes */}
 
                             {/* secondary nav routes */}

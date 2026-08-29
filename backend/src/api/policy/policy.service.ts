@@ -465,6 +465,8 @@ export const resolveDrift = async (buildingId: number, id: number) =>
 // ── Effective access ────────────────────────────────────────────────────────
 
 export interface EffectiveAccessRow {
+  /** The mirror row id — what a revoke targets. */
+  id: number;
   door_id: number;
   door_code: string;
   door_name: string;
@@ -506,6 +508,7 @@ export async function effectiveAccess(personId: string): Promise<EffectiveAccess
       (!row.end_time || at.getTime() / 1000 <= Number(row.end_time));
 
     out.push({
+      id: row.id,
       door_id: row.door_id,
       door_code: row.door_code,
       door_name: row.door_name ?? row.door_code,

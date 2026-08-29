@@ -71,7 +71,8 @@
     "auditLogs": "Revizijski zapisnici",
     "users": "Korisnici",
     "account": "Račun",
-    "logout": "Odjava"
+    "logout": "Odjava",
+    "access": "Kontrola pristupa"
   },
   "backups": {
     "title": "Sigurnosne kopije",
@@ -303,5 +304,140 @@
     "copyToken": "Kopiraj token",
     "reissue": "Izdaj novi",
     "showQr": "Prikaži QR za upis"
+  },
+  "access": {
+    "title": "Kontrola pristupa",
+    "subtitle": "Što blockchain provodi i gdje se to razlikuje od ovdje zadanog.",
+    "tabs": {
+      "groups": "Grupe",
+      "schedules": "Rasporedi"
+    },
+    "sync": {
+      "synced": "na lancu",
+      "syncedHint": "Zapisano u AccessPolicy — ova vrata će se otvoriti",
+      "pending": "u redu",
+      "pendingHint": "Zadano, još nije zapisano na lanac — još ne otvara",
+      "failed": "neuspjelo",
+      "failedHint": "Zapis na lanac nije uspio; ovo pravo ne vrijedi",
+      "revoking": "opoziva se",
+      "revokingHint": "U redu za opoziv na lancu",
+      "revoked": "opozvano",
+      "revokedHint": "Više nije aktivno na lancu"
+    },
+    "health": {
+      "chain": "Blockchain",
+      "chainOff": "Lanac isključen",
+      "chainOffHint": "RPC nije konfiguriran. Pravila se zadaju lokalno, ali se ništa ne provodi na lancu.",
+      "policies": "Pravila",
+      "policiesHint": "Prava na putu prema lancu",
+      "pushPending": "Pošalji na lanac",
+      "drift": "Odstupanja",
+      "driftHint": "Pristup dodijeljen izvan ove nadzorne ploče",
+      "noDrift": "Nema odstupanja.",
+      "runReconcile": "Provjeri lanac",
+      "acknowledge": "Potvrdi",
+      "syncDone": "Poslano: {{granted}} dodijeljeno, {{revoked}} opozvano, {{failed}} neuspjelo.",
+      "reconcileDone": "Provjereno {{checked}} pravila na lancu, {{unauthorised}} neovlaštenih."
+    },
+    "drift": {
+      "unauthorised": "Dodijeljeno izvan nadzorne ploče",
+      "missing_on_chain": "Nedostaje na lancu",
+      "mismatch": "Razlika u rasporedu"
+    },
+    "groups": {
+      "newGroup": "Nova grupa",
+      "namePlaceholder": "npr. Inženjering",
+      "add": "Dodaj",
+      "name": "Naziv",
+      "doors": "Vrata",
+      "doorsShort": "vrata",
+      "members": "Članovi",
+      "fanOut": "Cijena po članu",
+      "fanOutHint": "Broj transakcija na lancu koje košta jedan član više",
+      "default": "zadano",
+      "loading": "Učitavanje…",
+      "empty": "Još nema grupa.",
+      "edit": "Uredi grupu",
+      "save": "Spremi",
+      "saving": "Spremanje…",
+      "cancel": "Odustani",
+      "delete": "Obriši",
+      "inactive": "neaktivna",
+      "allHours": "Bez ograničenja (24/7)",
+      "noDoors": "Za ovu zgradu nisu definirana vrata.",
+      "fanOutTitle": "Ovo će zapisati na lanac",
+      "fanOutBody": "{{added}} vrata dodano, {{removed}} uklonjeno, za {{members}} član(ova) — otprilike {{transactions}} transakcija na lancu.",
+      "deleteTitle": "Obrisati {{name}}?",
+      "deleteBody": "Sva pravila nastala iz ove grupe bit će opozvana na lancu — otprilike {{count}} transakcija. Ovo se odavde ne može poništiti."
+    },
+    "schedules": {
+      "name": "Naziv",
+      "namePlaceholder": "npr. Radno vrijeme",
+      "from": "Od",
+      "to": "Do",
+      "add": "Dodaj",
+      "days": "Dani",
+      "window": "Interval",
+      "timezone": "Vremenska zona",
+      "empty": "Još nema rasporeda. Prava bez rasporeda vrijede 24/7.",
+      "overnight": "preko noći",
+      "overnightHint": "Kraj nije nakon početka, pa interval prelazi ponoć (noćna smjena)."
+    }
+  },
+  "people": {
+    "detail": {
+      "back": "Natrag na djelatnike",
+      "loading": "Učitavanje…",
+      "tabs": {
+        "profile": "Profil",
+        "credential": "Vjerodajnica",
+        "access": "Pristup"
+      },
+      "devices": "Uređaji",
+      "devicesHint": "Mobiteli koji nose identitet ove osobe",
+      "did": "Decentralizirani identifikator (DID)",
+      "noDid": "Još nije upisan",
+      "device": "Uređaj",
+      "enrolled": "Upisan",
+      "state": "Stanje",
+      "noDevices": "Nema upisanih uređaja.",
+      "revoked": "opozvan",
+      "activeDevice": "aktivan",
+      "revokeDevice": "Opozovi ovaj uređaj",
+      "grantTitle": "Dodijeli pristup",
+      "grantHint": "Stavlja se u red, zatim zapisuje na lanac.",
+      "needsEnrolment": "Ova osoba još nije upisala mobitel, pa nema identiteta kojem bi se dodijelio pristup.",
+      "pickDoor": "Odaberi vrata",
+      "pickGroup": "Odaberi grupu",
+      "grant": "Dodijeli",
+      "addToGroup": "Dodaj u grupu",
+      "effectiveTitle": "Stvarni pristup",
+      "effectiveHint": "Što ova osoba može otvoriti i odakle to pravo dolazi.",
+      "door": "Vrata",
+      "via": "Preko",
+      "hours": "Vrijeme",
+      "chain": "Lanac",
+      "openNow": "Otvara sada",
+      "noAccess": "Nema dodijeljenog pristupa.",
+      "yes": "da",
+      "no": "ne",
+      "revokeGrant": "Opozovi ovo pravo"
+    }
+  },
+  "doors": {
+    "access": {
+      "button": "Tko ima pristup",
+      "title": "Tko može otvoriti {{name}}",
+      "loading": "Učitavanje…",
+      "hint": "Svi koji imaju pravo na ova vrata i odakle to pravo dolazi.",
+      "person": "Osoba",
+      "via": "Preko",
+      "hours": "Vrijeme",
+      "chain": "Lanac",
+      "openNow": "Otvara sada",
+      "nobody": "Nitko nema pristup ovim vratima.",
+      "yes": "da",
+      "no": "ne"
+    }
   }
 }

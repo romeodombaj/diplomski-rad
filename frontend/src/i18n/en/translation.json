@@ -71,7 +71,8 @@
     "auditLogs": "Audit Logs",
     "users": "Users",
     "account": "Account",
-    "logout": "Log out"
+    "logout": "Log out",
+    "access": "Access control"
   },
   "backups": {
     "title": "Backups",
@@ -302,5 +303,140 @@
     "copyToken": "Copy token",
     "reissue": "Reissue",
     "showQr": "Show enrolment QR"
+  },
+  "access": {
+    "title": "Access control",
+    "subtitle": "What the chain enforces, and where it disagrees with what was authored here.",
+    "tabs": {
+      "groups": "Groups",
+      "schedules": "Schedules"
+    },
+    "sync": {
+      "synced": "on chain",
+      "syncedHint": "Written to AccessPolicy — this door will open",
+      "pending": "queued",
+      "pendingHint": "Authored, not yet written to the chain — will not open yet",
+      "failed": "failed",
+      "failedHint": "The chain write failed; this grant is not in effect",
+      "revoking": "revoking",
+      "revokingHint": "Queued for revocation on chain",
+      "revoked": "revoked",
+      "revokedHint": "No longer active on chain"
+    },
+    "health": {
+      "chain": "Blockchain",
+      "chainOff": "Chain disabled",
+      "chainOffHint": "No RPC configured. Policies are authored locally but nothing is enforced on chain.",
+      "policies": "Policies",
+      "policiesHint": "Grants on their way to the chain",
+      "pushPending": "Push queued grants",
+      "drift": "Drift",
+      "driftHint": "Access granted outside this dashboard",
+      "noDrift": "No drift detected.",
+      "runReconcile": "Check the chain",
+      "acknowledge": "Acknowledge",
+      "syncDone": "Pushed: {{granted}} granted, {{revoked}} revoked, {{failed}} failed.",
+      "reconcileDone": "Checked {{checked}} on-chain policies, {{unauthorised}} unauthorised."
+    },
+    "drift": {
+      "unauthorised": "Granted outside the dashboard",
+      "missing_on_chain": "Missing on chain",
+      "mismatch": "Schedule commitment differs"
+    },
+    "groups": {
+      "newGroup": "New group",
+      "namePlaceholder": "e.g. Engineering",
+      "add": "Add",
+      "name": "Name",
+      "doors": "Doors",
+      "doorsShort": "doors",
+      "members": "Members",
+      "fanOut": "Cost per member",
+      "fanOutHint": "On-chain transactions one more member costs",
+      "default": "default",
+      "loading": "Loading…",
+      "empty": "No groups yet.",
+      "edit": "Edit group",
+      "save": "Save",
+      "saving": "Saving…",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "inactive": "inactive",
+      "allHours": "All hours (24/7)",
+      "noDoors": "No doors defined for this building.",
+      "fanOutTitle": "This will write to the chain",
+      "fanOutBody": "{{added}} door(s) added, {{removed}} removed, across {{members}} member(s) — about {{transactions}} on-chain transactions.",
+      "deleteTitle": "Delete {{name}}?",
+      "deleteBody": "Every policy this group produced will be revoked on chain — about {{count}} transactions. This cannot be undone from here."
+    },
+    "schedules": {
+      "name": "Name",
+      "namePlaceholder": "e.g. Office hours",
+      "from": "From",
+      "to": "To",
+      "add": "Add",
+      "days": "Days",
+      "window": "Window",
+      "timezone": "Timezone",
+      "empty": "No schedules yet. Grants without one are 24/7.",
+      "overnight": "overnight",
+      "overnightHint": "End is not after start, so this window crosses midnight (a night shift)."
+    }
+  },
+  "people": {
+    "detail": {
+      "back": "Back to people",
+      "loading": "Loading…",
+      "tabs": {
+        "profile": "Profile",
+        "credential": "Credential",
+        "access": "Access"
+      },
+      "devices": "Devices",
+      "devicesHint": "Phones holding this person's identity",
+      "did": "Decentralized identifier (DID)",
+      "noDid": "Not enrolled yet",
+      "device": "Device",
+      "enrolled": "Enrolled",
+      "state": "State",
+      "noDevices": "No devices enrolled.",
+      "revoked": "revoked",
+      "activeDevice": "active",
+      "revokeDevice": "Revoke this device",
+      "grantTitle": "Grant access",
+      "grantHint": "Queued, then written to the chain.",
+      "needsEnrolment": "This person has not enrolled a phone yet, so there is no identity to grant access to.",
+      "pickDoor": "Choose a door",
+      "pickGroup": "Choose a group",
+      "grant": "Grant",
+      "addToGroup": "Add to group",
+      "effectiveTitle": "Effective access",
+      "effectiveHint": "What this person can open, and where it comes from.",
+      "door": "Door",
+      "via": "Via",
+      "hours": "Hours",
+      "chain": "Chain",
+      "openNow": "Opens now",
+      "noAccess": "No access granted.",
+      "yes": "yes",
+      "no": "no",
+      "revokeGrant": "Revoke this grant"
+    }
+  },
+  "doors": {
+    "access": {
+      "button": "Who has access",
+      "title": "Who can open {{name}}",
+      "loading": "Loading…",
+      "hint": "Everyone with a policy for this door, and where it came from.",
+      "person": "Person",
+      "via": "Via",
+      "hours": "Hours",
+      "chain": "Chain",
+      "openNow": "Opens now",
+      "nobody": "Nobody has access to this door.",
+      "yes": "yes",
+      "no": "no"
+    }
   }
 }

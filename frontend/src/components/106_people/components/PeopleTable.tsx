@@ -9,6 +9,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/UI/alert-dialog';
+import { useNavigate } from 'react-router-dom';
 import { DataTable } from './DataTable';
 import { makeColumns } from './columns';
 import { usePerson } from '../hooks/usePerson';
@@ -21,6 +22,7 @@ const STATUSES = ['invited', 'active', 'suspended', 'offboarded'] as const;
 const TYPES = ['employee', 'contractor', 'visitor', 'service'] as const;
 
 export default function PeopleTable() {
+  const navigate = useNavigate();
   const { t } = useTranslation();
   const {
     data, loading, error, refresh, search, setSearch, filters, setFilter,
@@ -147,6 +149,7 @@ export default function PeopleTable() {
         onExport={handleExport}
         onCreate={search === '' && Object.keys(filters).length === 0 ? () => { setEditPerson(null); setFormOpen(true); } : undefined}
         hasActiveFilters={search !== '' || Object.keys(filters).length > 0}
+        onView={(row) => navigate(`/people/${(row as unknown as Person).id}`)}
         onEdit={(row) => { setEditPerson(row as unknown as Person); setFormOpen(true); }}
         onDelete={(row) => setOffboardTarget(row as unknown as Person)}
         rowActions={(row: unknown) => {
