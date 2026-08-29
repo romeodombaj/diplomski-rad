@@ -1,0 +1,120 @@
+# The whole stack, minus the phone.
+#
+#   docker compose up --build
+#
+#   dashboard   http://localhost:8080
+#   backend     http://localhost:5001
+#   chain RPC   http://localhost:8545
+#   MQTT        localhost:1883  (websockets on 9001)
+#
+# Every host port is overridable, because 5001 in particular tends to already be
+# taken by a `npm run dev` backend on the same machine:
+#   BACKEND_PORT=5002 FRONTEND_PORT=8081 docker compose up
+#
+# The mobile app is not here: it is an Expo build that runs on a device, and it
+# reaches the backend over the LAN. Point EXPO_PUBLIC_API_URL at this machine's
+# LAN address, not localhost — on a phone, localhost is the phone.
+
+name: diplomski-rad
+
+services:
+  # A local Ethereum node with the contracts deployed into it. Stands in for
+  # Sepolia; see the note in blockchain/Dockerfile about why it is not a
+  # substitute for one.
+  chain:
+    build:
+      context: ./blockchain
+    container_name: dr-chain
+    ports:
+      - "${CHAIN_PORT:-8545}:8545"
+    volumes:
+      # The deployment manifest is how the backend learns the contract
+      # addresses. Shared rather than baked in, so a redeploy is picked up.
+      - chain-deployments:/app/deployments
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /app/deployments/localhost.json && curl -fsS -X POST -H 'Content-Type: application/json' --data '{\"jsonrpc\":\"2.0\",\"method\":\"eth_chainId\",\"params\":[],\"id\":1}' http://127.0.0.1:8545 >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      start_period: 40s
+      retries: 10
+
+  broker:
+    image: eclipse-mosquitto:2
+    container_name: dr-broker
+    ports:
+      - "${MQTT_PORT:-1883}:1883"
+      - "${MQTT_WS_PORT:-9001}:9001"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+    healthcheck:
+      # mosquitto_sub with -E exits as soon as it has connected, which is
+      # exactly the "is the broker accepting clients" question.
+      test: ["CMD-SHELL", "mosquitto_sub -h 127.0.0.1 -t healthcheck -E -W 3 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+  backend:
+    build:
+      context: ./backend
+    container_name: dr-backend
+    ports:
+      # 5001 by default because that is what mobile-app/.env points at.
+      - "${BACKEND_PORT:-5001}:5000"
+    depends_on:
+      chain:
+        # Waits for the manifest to exist, not just for the port to open —
+        # otherwise the backend starts, finds no addresses, and runs chain-less.
+        condition: service_healthy
+      broker:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+
+      # Change these before running this anywhere but a laptop.
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-me}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-only-change-me-too}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+
+      CHAIN_RPC_URL: http://chain:8545
+      CHAIN_NETWORK: localhost
+      CHAIN_DEPLOYMENT_FILE: /chain/localhost.json
+      # hardhat account #0 — publicly known, and holds every contract role.
+      # Fine against a throwaway local chain, never against a testnet.
+      CHAIN_BACKEND_PRIVATE_KEY: ${CHAIN_BACKEND_PRIVATE_KEY:-0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80}
+      # The chain is up in this stack, so make it authoritative: no chain, no
+      # entry. Set false only if you deliberately want the degraded path.
+      CHAIN_REQUIRED: ${CHAIN_REQUIRED:-true}
+
+      MQTT_URL: mqtt://broker:1883
+      MQTT_CLIENT_ID: access-backend
+
+      ACCESS_REQUIRE_FACE: ${ACCESS_REQUIRE_FACE:-true}
+      ACCESS_FACE_THRESHOLD: ${ACCESS_FACE_THRESHOLD:-0.7}
+    volumes:
+      - backend-data:/app/data
+      - chain-deployments:/chain:ro
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+    container_name: dr-frontend
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  # The SQLite file. Without this, every restart discards the people, devices
+  # and the whole access history.
+  backend-data:
+  mosquitto-data:
+  # Written by the chain container, read by the backend.
+  chain-deployments:

@@ -259,7 +259,9 @@ export function ChartAreaInteractive() {
               content={
                 <ChartTooltipContent
                   labelFormatter={(value) => {
-                    return new Date(value).toLocaleDateString("en-US", {
+                    // recharts types this as `any`-ish union including types
+                    // Date cannot take; the values here are date strings.
+                    return new Date(value as string).toLocaleDateString("en-US", {
                       month: "short",
                       day: "numeric",
                     })

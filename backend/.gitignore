@@ -2,3 +2,7 @@ node_modules/
 .env
 data/*.sqlite3
 /backups/
+
+# Build output — the Docker image compiles this itself; a committed copy only
+# goes stale and misleads.
+dist

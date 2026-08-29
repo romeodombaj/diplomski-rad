@@ -37,12 +37,10 @@ export function FormInput(props: FormInputProps) {
         disabled,
         error,
     } = props;
-    const numberProps =
-        type === "number"
-            ? (props as Extract<FormInputProps, { type: "number" }>)
-            : null;
-    const step = numberProps?.step;
-    const decimals = numberProps?.decimals;
+    // FormInputProps is a plain object type, not a discriminated union, so
+    // Extract<..., { type: "number" }> resolved to `never` and every field read
+    // off it was an error. `step` and `decimals` are already optional members.
+    const { step, decimals } = props;
 
     const [focused, setFocused] = useState(false);
 
@@ -65,11 +63,15 @@ export function FormInput(props: FormInputProps) {
                 onFocus={() => setFocused(true)}
                 onBlur={() => setFocused(false)}
                 onChange={(e) =>
+                    // A number input reports through valueAsNumber, but the
+                    // prop is declared as taking a string. Routed through
+                    // unknown because the two signatures genuinely do not
+                    // overlap — the callers of a number field expect a number.
                     type === "number"
-                        ? (onChange as (v: number) => void)(
+                        ? (onChange as unknown as (v: number) => void)(
                               e.target.valueAsNumber
                           )
-                        : (onChange as (v: string) => void)(e.target.value)
+                        : onChange(e.target.value)
                 }
                 placeholder={
                     decimals !== undefined

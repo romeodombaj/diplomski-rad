@@ -22,7 +22,10 @@ export const upload = multer({
     const allowed = /jpeg|jpg|png|gif|webp|pdf|csv|xlsx|xls|doc|docx/;
     const ok = allowed.test(path.extname(file.originalname).toLowerCase()) &&
                allowed.test(file.mimetype);
-    cb(ok ? null : new Error('File type not allowed'), ok);
+    // multer's callback types the error as `null` in its accept overload, so
+    // the two outcomes have to be passed separately rather than ternaried.
+    if (!ok) return cb(new Error('File type not allowed'));
+    cb(null, true);
   },
 });
 
