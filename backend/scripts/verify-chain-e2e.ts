@@ -59,7 +59,7 @@ async function main() {
   const [buildingId] = await db('buildings').insert({
     name: 'HQ', address: 'A', contract_address: addresses.AccessPolicy, is_sandbox: false,
   });
-  await db('doors').insert({
+  const [doorId] = await db('doors').insert({
     building_id: buildingId, name: 'Main', door_code: DOOR, mqtt_topic: 'doors/main/cmd', active: true,
   });
   const userId = randomUUID();
@@ -117,8 +117,24 @@ async function main() {
   let res = await request(app).post('/mobile/access').send(await sign());
   check('denied while no on-chain policy exists', res.body.data?.reason === 'not_authorized', res.body.data?.reason);
 
-  await chain.grantAccess(did, DOOR, 0, 0);
-  check('AccessPolicy grants the DID', await chain.hasAccess(did, DOOR));
+  // Granting now goes through the application, not a hardhat console: author a
+  // direct grant, and the sync pass writes it to AccessPolicy.
+  const grant = await request(app).post('/api/policies/grants').set('Cookie', cookie)
+    .send({ person_id: person.id, door_id: doorId });
+  check('operator authors a grant', grant.status === 202, `${grant.status}`);
+  check('grant starts pending, not blocking on a block',
+    grant.body.data?.sync_status === 'pending');
+
+  const synced = await request(app).post('/api/policies/sync').set('Cookie', cookie);
+  check('sync pushes it to the chain', synced.body.data?.granted === 1,
+    JSON.stringify(synced.body.data));
+  check('AccessPolicy now grants the DID', await chain.hasAccess(did, DOOR));
+
+  const mirror = await db('access_policy_mirror').where({ person_id: person.id }).first();
+  check('mirror records the chain policy id', /^pol-\d+$/.test(mirror?.chain_policy_id ?? ''),
+    mirror?.chain_policy_id);
+  check('mirror records the transaction', Boolean(mirror?.chain_tx_hash));
+  check('mirror is marked synced', mirror?.sync_status === 'synced', mirror?.sync_status);
 
   res = await request(app).post('/mobile/access').send(await sign());
   check('access granted end-to-end', res.body.data?.granted === true, res.body.data?.reason);
@@ -158,9 +174,43 @@ async function main() {
   res = await request(app).post('/mobile/totp/enroll').send({ did: 'did:x' });
   check('the old self-service enrolment route is gone', res.status === 404);
 
+  console.log('\nreconciliation');
+  // The drift demo the spec calls the strongest one: grant a policy directly on
+  // chain, bypassing the dashboard, and watch reconciliation catch it.
+  const rogue = Wallet.createRandom();
+  const rogueDid = `did:ethr:sep:${rogue.address}`;
+  const rogueP = await request(app).post('/api/people').set('Cookie', cookie)
+    .send({ full_name: 'Rogue Grant', employee_no: 'E-R' });
+  await request(app).post('/mobile/enroll/claim').send({
+    token: rogueP.body.data.invite.token, did: rogueDid,
+    publicKey: rogue.signingKey.publicKey,
+  });
+  await chain.grantAccess(rogueDid, DOOR, 0, 0);   // straight to the chain
+
+  const recon = await request(app).post('/api/policies/reconcile').set('Cookie', cookie);
+  check('reconciliation flags a policy granted outside the dashboard',
+    recon.body.data?.unauthorised >= 1, JSON.stringify(recon.body.data));
+
+  const drift = await request(app).get('/api/policies/drift').set('Cookie', cookie);
+  const rogueDrift = drift.body.data?.find((d: any) => d.did === rogueDid);
+  check('the drift is high severity and names the DID',
+    rogueDrift?.severity === 'high' && rogueDrift?.kind === 'unauthorised',
+    JSON.stringify(rogueDrift ?? {}));
+  check('an unauthorised grant is never auto-deleted',
+    await chain.hasAccess(rogueDid, DOOR));
+
+  const health = await request(app).get('/api/policies/health').set('Cookie', cookie);
+  check('sync health surfaces the open drift', health.body.data?.drift?.unauthorised >= 1,
+    JSON.stringify(health.body.data?.drift));
+
   console.log('\nrevocation');
   await request(app).post(`/api/people/${person.id}/offboard`).set('Cookie', cookie).send({});
   check('offboarding puts the DID on the on-chain revocation list', await chain.isRevoked(did));
+  check('offboarding also revoked the policy on chain',
+    (await chain.hasAccess(did, DOOR)) === false);
+  const afterOffboard = await db('access_policy_mirror').where({ person_id: person.id }).first();
+  check('mirror reflects the revocation', afterOffboard?.sync_status === 'revoked',
+    afterOffboard?.sync_status);
 
   res = await request(app).post('/mobile/access').send(await sign());
   check('revoked DID is refused', res.body.data?.granted === false, res.body.data?.reason);

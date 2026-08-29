@@ -3,6 +3,7 @@ import db from '../../db';
 import speakeasy from 'speakeasy';
 import logger from '../../lib/logger';
 import * as chain from '../../services/chainService';
+import * as policyService from '../policy/policy.service';
 import type {
   Person,
   PersonDevice,
@@ -138,7 +139,27 @@ export const setStatus = async (
   // true without a central server to push the update. Suspension deliberately
   // does not: it revokes policies but keeps the DID valid so the person can
   // return without re-enrolling their face.
-  if (to === 'offboarded' && before?.did) await revokeDidOnChain(before.did);
+  if (to === 'offboarded' && before?.did) {
+    // Order matters (specs/06_access_control.md section 5): revoke the person's
+    // policies first, then add the DID to the revocation list. Both are belt
+    // and braces; the revocation list is the one that must succeed, so it goes
+    // last where a failure is loudest.
+    const queued = await policyService.revokeAllForPerson(id);
+    if (queued > 0) {
+      logger.info(`[policy] queued ${queued} policies for revocation on offboard of ${id}`);
+      await policyService.syncPending().catch((err) => {
+        logger.error(`[policy] offboard sync failed: ${(err as Error).message}`);
+      });
+    }
+    await revokeDidOnChain(before.did);
+  }
+
+  // Suspension revokes policies but keeps the DID valid, so the person can
+  // return without re-enrolling their face.
+  if (to === 'suspended' && before?.did) {
+    const queued = await policyService.revokeAllForPerson(id);
+    if (queued > 0) await policyService.syncPending().catch(() => {});
+  }
 
   return getById(buildingId, id);
 };
@@ -391,9 +412,11 @@ export const revokeDevice = async (
     }
   });
 
-  // The stolen-phone path. The DID belonged to that handset, so it goes on the
-  // chain's revocation list and every building's backend sees it on its next
-  // read — including buildings this operator has no account on.
+  // The stolen-phone path. Revoke the policies that DID holds, then put the DID
+  // itself on the chain's revocation list — every building's backend sees it on
+  // its next read, including buildings this operator has no account on.
+  const queued = await policyService.revokeAllForPerson(personId);
+  if (queued > 0) await policyService.syncPending().catch(() => {});
   await revokeDidOnChain(device.did);
 
   return db('person_devices').where({ id: deviceId }).first();

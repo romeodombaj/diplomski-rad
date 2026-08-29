@@ -29,10 +29,14 @@ const DID_REGISTRY_ABI = [
 ];
 
 const ACCESS_POLICY_ABI = [
-  'function grantAccess(string _did, string _doorCode, uint256 _startTime, uint256 _endTime) external returns (string)',
+  'function grantAccess(string _did, string _doorCode, uint256 _startTime, uint256 _endTime, bytes32 _scheduleHash) external returns (string)',
   'function revokeAccess(string _policyId) external',
   'function hasAccess(string _did, string _doorCode) external view returns (bool)',
+  'function hasAccessWithSchedule(string _did, string _doorCode) external view returns (bool allowed, bytes32 scheduleHash)',
+  'function getPolicy(string _policyId) external view returns (tuple(string did, string doorCode, uint256 startTime, uint256 endTime, bool active, string policyId, bytes32 scheduleHash))',
+  'function getPoliciesForDID(string _did) external view returns (tuple(string did, string doorCode, uint256 startTime, uint256 endTime, bool active, string policyId, bytes32 scheduleHash)[])',
   'function getPolicyCount() external view returns (uint256)',
+  'event AccessGranted(string policyId, string did, string doorCode, uint256 startTime, uint256 endTime, bytes32 scheduleHash)',
 ];
 
 const AUDIT_LOG_ABI = [
@@ -285,16 +289,112 @@ export async function revokeDID(did: string): Promise<string> {
   });
 }
 
+/** No recurring schedule — 24/7 access, nothing for the backend to enforce. */
+export const NO_SCHEDULE = ethers.ZeroHash;
+
+export interface GrantResult {
+  /** The contract's "pol-N" id, needed to revoke this exact policy later. */
+  policyId: string;
+  txHash: string;
+}
+
+/**
+ * Write one (did, doorCode) policy on chain.
+ *
+ * `grantAccess` returns the policy id on-chain, but a transaction only yields a
+ * receipt off-chain — so the id is read back out of the AccessGranted event.
+ * Losing it would make the policy unrevocable by id.
+ */
 export async function grantAccess(
   did: string,
   doorCode: string,
   startTime = 0,
   endTime = 0,
-): Promise<string> {
+  scheduleHash: string = NO_SCHEDULE,
+): Promise<GrantResult> {
   requireSigner('grantAccess');
   return enqueueWrite(async () => {
-    const tx = await state.policy!.grantAccess(did, doorCode, startTime, endTime);
+    const tx = await state.policy!.grantAccess(did, doorCode, startTime, endTime, scheduleHash);
+    const receipt = await tx.wait();
+    let policyId = '';
+    for (const log of receipt.logs) {
+      try {
+        const parsed = state.policy!.interface.parseLog(log);
+        if (parsed?.name === 'AccessGranted') {
+          policyId = parsed.args.policyId;
+          break;
+        }
+      } catch {
+        // Logs from other contracts in the same tx do not parse; skip them.
+      }
+    }
+    if (!policyId) throw new Error('grantAccess: AccessGranted not emitted');
+    return { policyId, txHash: tx.hash };
+  });
+}
+
+export async function revokeAccess(policyId: string): Promise<string> {
+  requireSigner('revokeAccess');
+  return enqueueWrite(async () => {
+    const tx = await state.policy!.revokeAccess(policyId);
     await tx.wait();
     return tx.hash;
   });
+}
+
+export interface ChainPolicy {
+  did: string;
+  doorCode: string;
+  startTime: number;
+  endTime: number;
+  active: boolean;
+  policyId: string;
+  scheduleHash: string;
+}
+
+const toChainPolicy = (p: any): ChainPolicy => ({
+  did: p.did,
+  doorCode: p.doorCode,
+  startTime: Number(p.startTime),
+  endTime: Number(p.endTime),
+  active: p.active,
+  policyId: p.policyId,
+  scheduleHash: p.scheduleHash,
+});
+
+/**
+ * Every policy the chain holds for a DID, active or not.
+ *
+ * This is the reconciliation read and the revocation read — NOT a table-view
+ * read. The contract's own comments warn the return is unbounded, so it is
+ * called per-DID during a sweep, never to render a list.
+ */
+export async function getPoliciesForDID(did: string): Promise<ChainPolicy[]> {
+  if (!state.enabled) return [];
+  try {
+    const rows = await state.policy!.getPoliciesForDID(did);
+    return rows.map(toChainPolicy);
+  } catch (err) {
+    logger.error(`[chain] getPoliciesForDID ${did} failed: ${(err as Error).message}`);
+    throw err;
+  }
+}
+
+/**
+ * Does the chain allow this DID through this door, and under what schedule
+ * commitment? Returns null when the chain is disabled, so the caller can tell
+ * "no policy" from "could not ask".
+ */
+export async function hasAccessWithSchedule(
+  did: string,
+  doorCode: string,
+): Promise<{ allowed: boolean; scheduleHash: string } | null> {
+  if (!state.enabled) return null;
+  try {
+    const [allowed, scheduleHash] = await state.policy!.hasAccessWithSchedule(did, doorCode);
+    return { allowed, scheduleHash };
+  } catch (err) {
+    logger.error(`[chain] hasAccessWithSchedule ${did}/${doorCode}: ${(err as Error).message}`);
+    return { allowed: false, scheduleHash: NO_SCHEDULE };
+  }
 }

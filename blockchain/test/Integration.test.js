@@ -22,7 +22,7 @@ describe("Integration: full access flow", function () {
     `${did}|${door}|${timestamp}|${nonce}`;
 
   async function grant(did, door, start, end) {
-    const tx = await policy.grantAccess(did, door, start, end);
+    const tx = await policy.grantAccess(did, door, start, end, ethers.ZeroHash);
     const receipt = await tx.wait();
     for (const log of receipt.logs) {
       const parsed = policy.interface.parseLog(log);

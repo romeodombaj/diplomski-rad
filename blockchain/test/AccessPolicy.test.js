@@ -6,11 +6,14 @@ describe("AccessPolicy", function () {
   let policy, admin, outsider;
   const DID = "did:demo:a1b2c3";
   const DOOR = "MAIN-01";
+  // The sentinel for "no recurring schedule" — 24/7 access, nothing for the
+  // backend to enforce. See specs/06_access_control.md section 4, option C.
+  const NO_SCHEDULE = ethers.ZeroHash;
 
   // grantAccess returns a value on-chain, but a transaction only yields a
   // receipt off-chain -- so read the id back out of the emitted event.
-  async function grant(did, door, start, end, signer = admin) {
-    const tx = await policy.connect(signer).grantAccess(did, door, start, end);
+  async function grant(did, door, start, end, signer = admin, schedule = NO_SCHEDULE) {
+    const tx = await policy.connect(signer).grantAccess(did, door, start, end, schedule);
     const receipt = await tx.wait();
     for (const log of receipt.logs) {
       const parsed = policy.interface.parseLog(log);
@@ -95,7 +98,7 @@ describe("AccessPolicy", function () {
 
   it("rejects a window that ends before it starts", async function () {
     const now = await time.latest();
-    await expect(policy.grantAccess(DID, DOOR, now + 100, now + 50))
+    await expect(policy.grantAccess(DID, DOOR, now + 100, now + 50, NO_SCHEDULE))
       .to.be.revertedWithCustomError(policy, "InvalidTimeWindow");
   });
 
@@ -119,7 +122,7 @@ describe("AccessPolicy", function () {
 
   // AUDIT.md F-23
   it("blocks granting from an address without POLICY_ADMIN_ROLE", async function () {
-    await expect(policy.connect(outsider).grantAccess(DID, DOOR, 0, 0))
+    await expect(policy.connect(outsider).grantAccess(DID, DOOR, 0, 0, NO_SCHEDULE))
       .to.be.revertedWithCustomError(policy, "AccessControlUnauthorizedAccount");
   });
 
@@ -129,10 +132,60 @@ describe("AccessPolicy", function () {
       .to.be.revertedWithCustomError(policy, "AccessControlUnauthorizedAccount");
   });
 
+  it("stores the schedule commitment and reports it back", async function () {
+    // The chain cannot express "Mon-Fri 09:00-17:00"; it commits to a hash of
+    // the schedule so the backend that enforces it cannot silently widen it.
+    const schedule = ethers.keccak256(
+      ethers.toUtf8Bytes("FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR|540|1020|Europe/Zagreb"),
+    );
+    const id = await grant(DID, DOOR, 0, 0, admin, schedule);
+
+    const stored = await policy.getPolicy(id);
+    expect(stored.scheduleHash).to.equal(schedule);
+
+    const [allowed, reported] = await policy.hasAccessWithSchedule(DID, DOOR);
+    expect(allowed).to.equal(true);
+    expect(reported).to.equal(schedule);
+  });
+
+  it("reports a zero commitment for unscheduled access", async function () {
+    await grant(DID, DOOR, 0, 0);
+    const [allowed, schedule] = await policy.hasAccessWithSchedule(DID, DOOR);
+    expect(allowed).to.equal(true);
+    expect(schedule).to.equal(NO_SCHEDULE);
+  });
+
+  it("prefers a 24/7 policy over a scheduled one", async function () {
+    // Two grants for the same door, one scheduled and one not. The unscheduled
+    // one is the weaker constraint, so the backend must be told there is no
+    // window to enforce rather than being handed an arbitrary one.
+    const schedule = ethers.keccak256(ethers.toUtf8Bytes("weekdays"));
+    await grant(DID, DOOR, 0, 0, admin, schedule);
+    await grant(DID, DOOR, 0, 0);
+
+    const [allowed, reported] = await policy.hasAccessWithSchedule(DID, DOOR);
+    expect(allowed).to.equal(true);
+    expect(reported).to.equal(NO_SCHEDULE);
+  });
+
+  it("reports no access with a zero commitment when nothing matches", async function () {
+    const [allowed, schedule] = await policy.hasAccessWithSchedule(DID, "NOPE-99");
+    expect(allowed).to.equal(false);
+    expect(schedule).to.equal(NO_SCHEDULE);
+  });
+
+  it("does not report a revoked policy's schedule", async function () {
+    const schedule = ethers.keccak256(ethers.toUtf8Bytes("weekdays"));
+    const id = await grant(DID, DOOR, 0, 0, admin, schedule);
+    await policy.revokeAccess(id);
+    const [allowed] = await policy.hasAccessWithSchedule(DID, DOOR);
+    expect(allowed).to.equal(false);
+  });
+
   it("rejects empty did or door", async function () {
-    await expect(policy.grantAccess("", DOOR, 0, 0))
+    await expect(policy.grantAccess("", DOOR, 0, 0, NO_SCHEDULE))
       .to.be.revertedWithCustomError(policy, "EmptyField");
-    await expect(policy.grantAccess(DID, "", 0, 0))
+    await expect(policy.grantAccess(DID, "", 0, 0, NO_SCHEDULE))
       .to.be.revertedWithCustomError(policy, "EmptyField");
   });
 });

@@ -15,6 +15,7 @@ import doorRoutes from './api/door/door.routes';
 import personRoutes from './api/person/person.routes';
 import totp_secretRoutes from './api/totp_secret/totp_secret.routes';
 import accessEventRoutes from './api/access_event/access_event.routes';
+import policyRoutes from './api/policy/policy.routes';
 import mobileRoutes from './api/mobile';
 // gt:imports
 
@@ -48,6 +49,7 @@ app.use('/api/totp_secrets', totp_secretRoutes);
 // The dashboard's audit page has always called /api/audit-logs; until now
 // nothing was mounted there. Backed by access_events.
 app.use('/api/audit-logs', accessEventRoutes);
+app.use('/api/policies', policyRoutes);
 app.use('/mobile', mobileRoutes);
 // gt:routes
 

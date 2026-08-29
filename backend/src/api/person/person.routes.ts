@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as personController from './person.controller';
+import * as policyController from '../policy/policy.controller';
 import { validate } from '../../middleware/validate';
 import {
   CreatePersonSchema,
@@ -27,6 +28,10 @@ router.post('/:id/offboard', requireAuth, validate(OffboardPersonSchema), person
 // Enrolment
 router.get('/:id/enrollment', requireAuth, personController.getEnrollment);
 router.post('/:id/enrollment', requireAuth, personController.issueEnrollment);
+
+// What can this person open, and via which group or direct grant. Provenance
+// is the point: "can open the server room" is useless without "via Engineering".
+router.get('/:id/effective-access', requireAuth, policyController.listForPerson);
 
 // Devices
 router.get('/:id/devices', requireAuth, personController.listDevices);

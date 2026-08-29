@@ -19,6 +19,7 @@ import { config } from '../../config/conifg';
 import { verifyTOTP } from '../../services/totpService';
 import * as chain from '../../services/chainService';
 import * as mqttService from '../../services/mqttService';
+import * as scheduleService from '../../services/scheduleService';
 import type { AccessRequestInput } from './access.schema';
 
 /** Machine-readable denial causes. Stored verbatim in access_events.reason. */
@@ -36,6 +37,8 @@ export type DenialReason =
   | 'invalid_totp'
   | 'revoked_on_chain'
   | 'not_authorized'
+  | 'schedule_unknown'
+  | 'outside_schedule'
   | 'face_missing'
   | 'face_below_threshold'
   | 'chain_unavailable';
@@ -174,6 +177,29 @@ const deny = async (
     httpStatus,
   };
 };
+
+/**
+ * The local schedule matching the commitment the chain holds for this grant.
+ *
+ * Returns null when no local schedule hashes to `committed` — which means
+ * either the schedule was edited without a re-grant, or this backend is not
+ * the one that authored the policy. Both are refusals, not fallbacks.
+ */
+async function findCommittedSchedule(
+  personId: string,
+  doorId: number,
+  committed: string,
+): Promise<scheduleService.Schedule | null> {
+  const rows = await db('access_policy_mirror')
+    .where({ person_id: personId, door_id: doorId })
+    .whereNotNull('schedule_id');
+
+  for (const row of rows) {
+    const schedule = await db('access_schedules').where({ id: row.schedule_id }).first();
+    if (schedule && scheduleService.matchesCommitment(schedule, committed)) return schedule;
+  }
+  return null;
+}
 
 /** Every building this person may be seen at: their home site plus attachments. */
 async function personBuildingIds(person: { id: string; building_id: number }): Promise<number[]> {
@@ -330,8 +356,25 @@ export async function decide(input: AccessRequestInput): Promise<AccessDecision>
     if (await chain.isRevoked(did)) {
       return deny(draft, 'revoked_on_chain', 'This identity has been revoked');
     }
-    if (!(await chain.hasAccess(did, door_code))) {
+
+    const verdict = await chain.hasAccessWithSchedule(did, door_code);
+    if (!verdict?.allowed) {
       return deny(draft, 'not_authorized', 'Not authorised for this door');
+    }
+
+    // The chain cannot express "Mon-Fri 09:00-17:00", so it commits to a hash
+    // of the schedule and this enforces the window. The commitment is what
+    // stops an operator quietly widening a schedule: a local schedule that
+    // does not hash to what the chain holds is refused outright rather than
+    // trusted, so tampering shows up as a denial instead of silent access.
+    if (verdict.scheduleHash !== chain.NO_SCHEDULE) {
+      const schedule = await findCommittedSchedule(person.id, door.id, verdict.scheduleHash);
+      if (!schedule) {
+        return deny(draft, 'schedule_unknown', 'Access schedule could not be verified', 403);
+      }
+      if (!scheduleService.isWithinSchedule(schedule)) {
+        return deny(draft, 'outside_schedule', 'Outside your permitted hours');
+      }
     }
   } else if (config.chain.requireChain) {
     return deny(draft, 'chain_unavailable', 'Access policy unavailable', 503);
