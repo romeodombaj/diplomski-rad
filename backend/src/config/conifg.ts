@@ -74,6 +74,18 @@ export const config = {
     holdSeconds: num(process.env.MQTT_HOLD_SECONDS, 5),
   },
 
+  behavior: {
+    /**
+     * The behaviour engine (Python/FastAPI). Empty = disabled, and every call
+     * becomes a no-op: scoring happens after the access decision is already
+     * made and recorded, so a missing engine costs alerts, never entry.
+     */
+    url: process.env.BEHAVIOR_ENGINE_URL || '',
+    // Short on purpose — this runs off the critical path, but a hung request
+    // should not pile up sockets while someone holds a door open.
+    timeoutMs: num(process.env.BEHAVIOR_TIMEOUT_MS, 3000),
+  },
+
   access: {
     // How stale a signed request may be. Long enough for a slow phone and a
     // little clock skew, short enough that a captured request is useless.

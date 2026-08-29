@@ -245,7 +245,7 @@ export type ClaimResult =
       person: Person;
       totp: { secret: string; period: number; digits: number };
       building: { id: number; name: string; contract_address: string };
-      doors: { door_code: string; name: string }[];
+      doors: { id: number; building_id: number; door_code: string; name: string }[];
       /** False when the DID exists only in this backend's database. */
       chain_registered: boolean;
     };
@@ -328,10 +328,13 @@ export const claimEnrollment = async (
 
   const chainRegistered = await registerDidOnChain(did, publicKey);
 
+  // `id` and `building_id` are here for the BLE door beacons: a beacon
+  // advertises (major=building_id, minor=door_id), and the phone needs this
+  // list to turn that pair back into the door_code an access request carries.
   const doors = await db('doors')
     .where({ building_id: person.building_id, active: true })
     .whereNull('deleted_at')
-    .select('door_code', 'name');
+    .select('id', 'building_id', 'door_code', 'name');
 
   const updated = (await db('people').where({ id: person.id }).first()) as Person;
 
