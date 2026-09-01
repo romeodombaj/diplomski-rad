@@ -1,7 +1,8 @@
-import * as ort from 'onnxruntime-react-native';
+import type * as OrtNS from 'onnxruntime-react-native';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system/legacy';
 import jpeg from 'jpeg-js';
+import { Platform } from 'react-native';
 import { storage } from './storage';
 
 const INPUT_SIZE = 105;
@@ -15,19 +16,58 @@ const SIMILARITY_THRESHOLD = 0.7;
 
 const MODEL_FILENAME = 'siamese_epoch50_int8.onnx';
 
-let _session: ort.InferenceSession | null = null;
+let _session: OrtNS.InferenceSession | null = null;
+let _ortPromise: Promise<typeof OrtNS> | null = null;
 
-async function getSession(): Promise<ort.InferenceSession> {
+/**
+ * Loaded lazily on purpose. onnxruntime-react-native's binding.js runs
+ * `NativeModules.Onnxruntime.install()` at module scope with no null guard, and
+ * on Android that module is currently not exposed to JS — so a static import
+ * takes the entire app down at startup, since the route graph pulls this file
+ * in. Deferring it confines the failure to the face-recognition path and lets
+ * the rest of the app run.
+ */
+function loadOrt(): Promise<typeof OrtNS> {
+  if (!_ortPromise) _ortPromise = import('onnxruntime-react-native');
+  return _ortPromise;
+}
+
+/**
+ * Resolve the model to something onnxruntime can open. It is shipped as a native
+ * resource on both platforms by the withOnnxModel config plugin.
+ *
+ * On iOS bundleDirectory is the .app bundle root, so the model is already a real
+ * file on disk. On Android bundleDirectory is 'asset:///' — a handle into the
+ * compressed APK rather than a path — and onnxruntime is native code that can
+ * only fopen() a real file, so the model has to be unpacked once on first run.
+ */
+async function resolveModelPath(): Promise<string> {
+  const bundled = FileSystem.bundleDirectory + MODEL_FILENAME;
+  if (Platform.OS !== 'android') return bundled;
+
+  const unpacked = FileSystem.documentDirectory + MODEL_FILENAME;
+  const existing = await FileSystem.getInfoAsync(unpacked);
+  if (existing.exists && existing.size > 0) return unpacked;
+
+  // Unpack via a staging file and rename into place, so a first launch that is
+  // interrupted mid-copy can't leave a truncated model that looks valid later.
+  const staging = `${unpacked}.partial`;
+  await FileSystem.deleteAsync(staging, { idempotent: true });
+  await FileSystem.copyAsync({ from: bundled, to: staging });
+  await FileSystem.moveAsync({ from: staging, to: unpacked });
+  return unpacked;
+}
+
+async function getSession(): Promise<OrtNS.InferenceSession> {
   if (_session) return _session;
-  // Model is bundled as a native iOS resource via the withOnnxModel config plugin.
-  // FileSystem.bundleDirectory points to the .app bundle root on iOS.
-  const modelPath = FileSystem.bundleDirectory + MODEL_FILENAME;
+  const modelPath = await resolveModelPath();
   const info = await FileSystem.getInfoAsync(modelPath);
   if (!info.exists) {
     throw new Error(`Model not found at: ${modelPath}`);
   }
   // onnxruntime-react-native expects a plain file path, not a file:// URI
   const plainPath = modelPath.replace('file://', '');
+  const ort = await loadOrt();
   _session = await ort.InferenceSession.create(plainPath);
   return _session;
 }
@@ -68,6 +108,7 @@ async function preprocessImage(uri: string): Promise<Float32Array> {
 async function embed(uri: string): Promise<Float32Array> {
   const pixels = await preprocessImage(uri);
   const sess = await getSession();
+  const ort = await loadOrt();
   const inputTensor = new ort.Tensor('float32', pixels, [1, 3, INPUT_SIZE, INPUT_SIZE]);
   const output = await sess.run({ image: inputTensor });
   return output['embedding'].data as Float32Array; // 512-dim L2-normalized

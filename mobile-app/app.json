@@ -13,14 +13,22 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.mobile-app"
+      "bundleIdentifier": "com.mobile-app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app uses the camera to verify your face and check liveness before granting access."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.mobile-app"
+      "package": "com.romeo.mobileapp",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -30,16 +38,27 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
+      "onnxruntime-react-native",
+      "./plugins/withOnnxModel",
+      "./plugins/withCleartextTraffic",
+      "./plugins/withOnnxPackage",
+      "./plugins/withGradleMemory",
       [
-        "react-native-vision-camera",
+        "react-native-ble-plx",
         {
-          "cameraPermissionText": "This app uses the camera to verify your face and check liveness before granting access.",
-          "enableMicrophonePermission": false
+          "isBackgroundEnabled": false,
+          "neverForLocation": true
         }
       ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "d89c4cda-9930-47eb-8638-781ad7e202ce"
+      }
     }
   }
 }
