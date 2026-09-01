@@ -152,6 +152,38 @@ export async function signAccessRequest(doorCode: string): Promise<SignedAccessR
   return { did, door_code: doorCode, timestamp, nonce, signature };
 }
 
+export interface SignedProximityReport {
+  did: string;
+  door_code: string;
+  level: number;
+  timestamp: number;
+  nonce: string;
+  signature: string;
+}
+
+/**
+ * Sign a cosmetic proximity report for one door's LED ring.
+ *
+ * Must stay byte-identical to `proximityMessage` in
+ * backend/src/api/mobile/proximity.service.ts. The shape is deliberately not
+ * the access message: the `proximity|` prefix stops an access signature being
+ * replayed here, and `level` sits LAST — after the pipe-free hex nonce — so a
+ * report captured off the wire cannot be reassembled into an access request.
+ * Moving `level` earlier would silently break that.
+ */
+export async function signProximityReport(
+  doorCode: string,
+  level: number,
+): Promise<SignedProximityReport> {
+  const { did } = await getOrCreateIdentity();
+  const timestamp = Math.floor(Date.now() / 1000);
+  const nonce = newNonce();
+  const signature = await signPersonalMessage(
+    `proximity|${did}|${doorCode}|${timestamp}|${nonce}|${level}`,
+  );
+  return { did, door_code: doorCode, level, timestamp, nonce, signature };
+}
+
 /** Wipe the keypair. The old DID can never be re-derived — that is the point. */
 export async function clearIdentity(): Promise<void> {
   cached = null;

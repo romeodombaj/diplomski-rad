@@ -11,13 +11,28 @@
  * single-use, hashed at rest, and expires. Nothing is minted without it.
  */
 
+import { Platform } from 'react-native';
 import { apiFetch } from './apiFetch';
 import { storage } from './storage';
-import { getOrCreateIdentity, signAccessRequest, hasIdentity, clearIdentity } from './identity';
+import {
+  getOrCreateIdentity,
+  signAccessRequest,
+  signProximityReport,
+  hasIdentity,
+  clearIdentity,
+} from './identity';
 
 export interface Door {
   door_code: string;
   name: string;
+  /**
+   * `doors.id` and `buildings.id` — the iBeacon's `minor` and `major`. Present
+   * for anything enrolled after the BLE work landed; older cached enrolments
+   * have neither, which useDoorProximity treats as "no beacon support" and
+   * falls back to the manual door list rather than locking the person out.
+   */
+  id?: number;
+  building_id?: number;
 }
 
 export interface Enrollment {
@@ -53,7 +68,7 @@ export async function claimEnrollment(token: string): Promise<Enrollment> {
       token: token.trim(),
       did: identity.did,
       publicKey: identity.publicKey,
-      deviceInfo: { platform: 'ios' },
+      deviceInfo: { platform: Platform.OS },
     }),
   });
 
@@ -170,6 +185,33 @@ export async function requestAccess(
     unlocked: Boolean(data.unlocked),
     chainChecked: Boolean(data.chain_checked),
   };
+}
+
+/**
+ * Tell the backend how close this phone is to a door, so the door can light its
+ * LED ring. Cosmetic: this opens nothing and is never an input to an access
+ * decision — see backend/src/api/mobile/proximity.service.ts.
+ *
+ * Failures are swallowed on purpose. A dark ring is not something to interrupt
+ * someone standing at a door about, and this runs on a timer rather than on a
+ * tap, so there is nobody waiting on the answer.
+ */
+export async function reportProximity(
+  doorCode: string,
+  level: number,
+  rssi: number,
+): Promise<void> {
+  try {
+    const signed = await signProximityReport(doorCode, level);
+    // `rssi` rides along outside the signature: it is only ever read for
+    // calibration and logs, so binding it would buy nothing.
+    await apiFetch('/mobile/proximity', {
+      method: 'POST',
+      body: JSON.stringify({ ...signed, rssi: Math.round(rssi) }),
+    });
+  } catch {
+    // Intentionally silent.
+  }
 }
 
 /**

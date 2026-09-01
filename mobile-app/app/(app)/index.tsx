@@ -15,10 +15,26 @@ import {
 import { totpNow, secondsRemaining } from '@/lib/totp';
 import { isFaceRegistered, registerFaceFromUri, verifyFaceFromUri } from '@/lib/faceGate';
 import { CameraCapture } from '@/components/CameraCapture';
+import { useDoorProximity } from '@/hooks/useDoorProximity';
 import { storage } from '@/lib/storage';
 
 type Phase = 'idle' | 'processing' | 'sending' | 'enrolling';
 type Result = { success: boolean; text: string } | null;
+
+/** The same 0..levels ramp the door's LED ring is showing, on the phone. */
+function SignalBars({ level, levels }: { level: number; levels: number }) {
+  return (
+    <View className="flex-row items-end gap-[3px]" accessibilityLabel={`Signal ${level} of ${levels}`}>
+      {Array.from({ length: levels }, (_, i) => (
+        <View
+          key={i}
+          style={{ height: 6 + i * 2 }}
+          className={`w-[4px] rounded-sm ${i < level ? 'bg-green-500' : 'bg-muted'}`}
+        />
+      ))}
+    </View>
+  );
+}
 
 export default function Access() {
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
@@ -38,6 +54,22 @@ export default function Access() {
   const [code, setCode] = useState('------');
   const [secs, setSecs] = useState(30);
   const enrollmentRef = useRef<Enrollment | null>(null);
+
+  /**
+   * BLE door detection. Scanning only while the screen is usable — there is no
+   * background mode, because the app is already open for the face scan.
+   *
+   * `supported` is false whenever the radio, the permission or the cached door
+   * list cannot support it, and everything below then falls back to the manual
+   * picker. A phone with Bluetooth switched off must still be able to open a
+   * door: the gate is UX, and the backend re-checks the door regardless.
+   */
+  const proximity = useDoorProximity(enrollment?.doors ?? [], booted && !!enrollment);
+
+  // Standing at a door selects it. Manual taps still work when BLE cannot run.
+  useEffect(() => {
+    if (proximity.nearest) setSelectedDoor(proximity.nearest.door);
+  }, [proximity.nearest?.door.door_code]);
 
   useEffect(() => {
     (async () => {
@@ -164,6 +196,26 @@ export default function Access() {
 
   const busy = phase !== 'idle';
 
+  /**
+   * Whether a door may be verified for at all. When BLE cannot run this is
+   * always true, so the screen behaves exactly as it did before the beacons
+   * existed — a flat battery in a door beacon, or a denied permission, must not
+   * strand someone outside.
+   */
+  const atADoor = !proximity.supported || proximity.nearest !== null;
+
+  const doorCardHint = !enrollment?.doors.length
+    ? 'No doors available for your account'
+    : proximity.supported
+    ? 'Doors near you, found over Bluetooth'
+    : proximity.status === 'permission-denied'
+    ? 'Bluetooth permission denied — pick your door manually'
+    : proximity.status === 'bluetooth-off'
+    ? 'Bluetooth is off — pick your door manually'
+    : proximity.status === 'no-beacons'
+    ? 'No door beacons found — pick your door manually'
+    : 'Pick the door you are standing at';
+
   // ── Not enrolled: the token is the only way in ────────────────────────────
   if (booted && !enrollment) {
     return (
@@ -220,25 +272,49 @@ export default function Access() {
         <Card>
           <CardHeader>
             <CardTitle>Door</CardTitle>
-            <CardDescription>
-              {enrollment?.doors.length
-                ? 'Pick the door you are standing at'
-                : 'No doors available for your account'}
-            </CardDescription>
+            <CardDescription>{doorCardHint}</CardDescription>
           </CardHeader>
           <CardContent className="gap-2">
-            {enrollment?.doors.map((d) => {
-              const active = d.door_code === selectedDoor?.door_code;
-              return (
-                <Button
-                  key={d.door_code}
-                  variant={active ? 'default' : 'outline'}
-                  label={`${d.name} (${d.door_code})`}
-                  disabled={busy}
-                  onPress={() => setSelectedDoor(d)}
-                />
-              );
-            })}
+            {proximity.supported ? (
+              proximity.nearby.length ? (
+                proximity.nearby.map((n) => (
+                  <View
+                    key={n.door.door_code}
+                    className={`flex-row items-center justify-between rounded-xl border p-3 ${
+                      n.withinGate
+                        ? 'border-green-500/40 bg-green-500/10'
+                        : 'border-border bg-transparent'
+                    }`}
+                  >
+                    <View className="flex-1 pr-3">
+                      <Text className="font-medium">{n.door.name}</Text>
+                      <Text className="text-muted-foreground text-xs">
+                        {n.withinGate ? 'You are here' : 'Getting closer…'} · {Math.round(n.rssi)} dBm
+                      </Text>
+                    </View>
+                    <SignalBars level={n.level} levels={proximity.levels} />
+                  </View>
+                ))
+              ) : (
+                <View className="items-center gap-1 py-4">
+                  <ActivityIndicator />
+                  <Text className="text-muted-foreground text-xs">Listening for doors…</Text>
+                </View>
+              )
+            ) : (
+              enrollment?.doors.map((d) => {
+                const active = d.door_code === selectedDoor?.door_code;
+                return (
+                  <Button
+                    key={d.door_code}
+                    variant={active ? 'default' : 'outline'}
+                    label={`${d.name} (${d.door_code})`}
+                    disabled={busy}
+                    onPress={() => setSelectedDoor(d)}
+                  />
+                );
+              })
+            )}
           </CardContent>
         </Card>
 
@@ -283,12 +359,14 @@ export default function Access() {
               ? 'Verifying face…'
               : phase === 'sending'
               ? 'Verifying…'
-              : selectedDoor
-              ? `Scan face & unlock ${selectedDoor.name}`
+              : atADoor && selectedDoor
+              ? `Verify for ${selectedDoor.name}`
+              : proximity.supported
+              ? 'Walk up to a door'
               : 'Scan face & unlock'
           }
           loading={busy}
-          disabled={!enrollment || !selectedDoor || busy}
+          disabled={!enrollment || !selectedDoor || !atADoor || busy}
           onPress={handleUnlock}
         />
 
