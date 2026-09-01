@@ -88,6 +88,65 @@ export async function publishUnlock(topic: string, cmd: UnlockCommand): Promise<
   });
 }
 
+export interface ProximityUpdate {
+  doorId: number;
+  doorCode: string;
+  /** LED steps to light, 0..levels. */
+  level: number;
+  /** Total steps, so the door does not need to share the backend's config. */
+  levels: number;
+  /** Smoothed RSSI behind the bucket. For calibration and diagnostics only. */
+  rssi: number;
+}
+
+/**
+ * Publish an LED proximity update to one door's ring.
+ *
+ * Three deliberate differences from `publishUnlock`, all because this is
+ * cosmetic and continuous rather than consequential and rare:
+ *
+ *  - **QoS 0.** An unlock must arrive; a position update must be *current*. QoS
+ *    1 would retry a frame describing where somebody stood a second ago, which
+ *    is worse than dropping it — the next report is already on its way.
+ *  - **Not retained.** A retained proximity would relight the ring from stale
+ *    state whenever the door reboots, showing someone standing there who left
+ *    hours earlier.
+ *  - **Logged at debug.** One approach produces a message per LED step; at info
+ *    this would bury the access log it sits next to.
+ *
+ * The door is responsible for fading its own ring out when updates stop — see
+ * hardware/door-beacon/respeaker-leds.yaml. Nothing here sends a final zero,
+ * because the phone that walks away, backgrounds the app or loses WiFi is
+ * exactly the case that would never send one.
+ */
+export async function publishProximity(
+  topic: string,
+  update: ProximityUpdate,
+): Promise<boolean> {
+  const payload = JSON.stringify({
+    action: 'proximity',
+    door_id: update.doorId,
+    door_code: update.doorCode,
+    level: update.level,
+    levels: update.levels,
+    rssi: update.rssi,
+    timestamp: Date.now(),
+  });
+
+  if (!client?.connected) return false;
+
+  return new Promise((resolve) => {
+    client!.publish(`${topic}/proximity`, payload, { qos: 0 }, (err) => {
+      if (err) {
+        logger.debug(`[mqtt] proximity publish to ${topic}/proximity failed: ${err.message}`);
+        return resolve(false);
+      }
+      logger.debug(`[mqtt] proximity ${update.level}/${update.levels} -> ${topic}/proximity`);
+      resolve(true);
+    });
+  });
+}
+
 export async function close(): Promise<void> {
   await client?.endAsync();
   client = null;

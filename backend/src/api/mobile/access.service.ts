@@ -201,8 +201,13 @@ async function findCommittedSchedule(
   return null;
 }
 
-/** Every building this person may be seen at: their home site plus attachments. */
-async function personBuildingIds(person: { id: string; building_id: number }): Promise<number[]> {
+/**
+ * Every building this person may be seen at: their home site plus attachments.
+ * Exported because proximity.service.ts must scope doors identically — door
+ * codes are not globally unique, and duplicating this would let the two paths
+ * drift apart.
+ */
+export async function personBuildingIds(person: { id: string; building_id: number }): Promise<number[]> {
   const extra = await db('person_buildings')
     .where({ person_id: person.id })
     .pluck('building_id');

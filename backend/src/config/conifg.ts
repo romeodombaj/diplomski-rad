@@ -32,6 +32,11 @@ export const config = {
         // Unauthenticated mobile surface; keyed by IP. See mobileRateLimiter.
         mobileWindowMs: num(process.env.RATE_LIMIT_MOBILE_WINDOW_MS, 60 * 1000),
         mobileMax:      num(process.env.RATE_LIMIT_MOBILE_MAX,       60),
+        // Proximity/LED reports get their own budget so the cosmetic path can
+        // never spend the allowance /mobile/access needs. Higher because a
+        // single approach legitimately sends one report per LED step.
+        proximityWindowMs: num(process.env.RATE_LIMIT_PROXIMITY_WINDOW_MS, 60 * 1000),
+        proximityMax:      num(process.env.RATE_LIMIT_PROXIMITY_MAX,       240),
     },
   jwt: {
     accessSecret:  process.env.JWT_SECRET         || 'change-in-production',
@@ -100,5 +105,25 @@ export const config = {
      */
     requireFace: process.env.ACCESS_REQUIRE_FACE !== 'false',
     faceThreshold: num(process.env.ACCESS_FACE_THRESHOLD, 0.7),
+  },
+
+  /**
+   * The door LED ring driven by BLE proximity. Cosmetic throughout — see
+   * api/mobile/proximity.service.ts. Nothing here affects an access decision.
+   */
+  proximity: {
+    /**
+     * LED steps in a door's ring. The phone buckets RSSI into 0..levels and
+     * reports only on a change, so this is also the cap on how many messages
+     * one approach can produce.
+     */
+    levels: num(process.env.PROXIMITY_LEVELS, 8),
+    /**
+     * How stale a report may be. Far tighter than an access request: this is a
+     * claim about where somebody is *now*, and the phone re-sends on every
+     * bucket change, so there is no reason to honour an old one.
+     */
+    maxAgeSeconds: num(process.env.PROXIMITY_MAX_AGE, 10),
+    maxClockSkewSeconds: num(process.env.PROXIMITY_MAX_CLOCK_SKEW, 30),
   },
 };
