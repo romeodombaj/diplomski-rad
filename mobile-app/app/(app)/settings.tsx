@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { router } from 'expo-router';
 import { View, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/text';
@@ -47,7 +48,15 @@ export default function Settings() {
             try {
               await resetEnrollment();
               await refresh();
-              Alert.alert('Done', 'Device identity cleared. Ask for a new enrolment code.');
+              // Go back to Access, which now has nothing to show but the
+              // enrolment form. Staying here left the previous screen still
+              // rendering doors and a TOTP code for a key that no longer
+              // exists, and the only way out was to restart the app.
+              Alert.alert(
+                'Done',
+                'Device identity cleared. Ask for a new enrolment code.',
+                [{ text: 'OK', onPress: () => router.replace('/') }],
+              );
             } catch (e: any) {
               Alert.alert('Failed', e?.message || 'Could not reset');
             } finally {

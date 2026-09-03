@@ -22,29 +22,67 @@ export const BEACON_UUID = '8f1d2a604c3b4e919a772b5c6d8e0f13';
  * `NEAR` is the reading with the phone against the door (full ring), `FAR` the
  * reading where the ring should just light up at all.
  */
-export const RSSI_NEAR = -52;
-export const RSSI_FAR = -88;
+// MEASURED on this install, walking the distance with the app open:
+//
+//   touching  -10      3 m  -56
+//   1 m       -43      4 m  -65
+//   2 m       -50      5 m  -70..-75
+//
+// Near enough to linear in distance over 1-5 m that a straight RSSI ramp gives
+// an even spread of LEDs per metre. Re-measure after moving the board: walls,
+// mounting height and which hand holds the phone all shift these.
+
+/** 1 m — the whole ring is lit at this signal or stronger. */
+export const RSSI_NEAR = -43;
+/** 5 m — a single LED is lit here, the last step before dark. */
+export const RSSI_FAR = -72;
+/** Beyond about 5 m the ring goes out entirely. */
+export const RSSI_DARK = -78;
 
 /**
  * The gate, with hysteresis: the button appears at ENTER and only disappears
  * again at EXIT. Raw RSSI swings ±10 dB between frames even standing still, so
  * a single threshold makes the button flicker on and off in someone's hand.
  */
-export const RSSI_GATE_ENTER = -68;
-export const RSSI_GATE_EXIT = -76;
+// The unlock button appears around 2-3 m, partway up the ramp, and only
+// disappears again slightly further out so it cannot flicker at the boundary.
+// The unlock button appears around 2-3 m, partway up the ramp, and only
+// disappears again slightly further out so it cannot flicker at the boundary.
+// The unlock button appears at roughly 2 m and only goes away again nearer 3 m,
+// so it cannot flicker while somebody stands at the boundary.
+export const RSSI_GATE_ENTER = -50;
+export const RSSI_GATE_EXIT = -57;
 
-/** Steps in the door's LED ring. Must match `config.proximity.levels`. */
-export const LED_LEVELS = 8;
+/**
+ * Steps in the door's LED ring — one per physical LED.
+ *
+ * Twelve because the ring has twelve. It was eight, which the door then
+ * rescaled to twelve and left the intermediate positions uneven
+ * (0,1,3,4,6,7,9,10,12). Must match `config.proximity.levels` in the backend,
+ * which clamps to it.
+ */
+export const LED_LEVELS = 12;
 
 /** Drop a door from the list this long after its last advertisement. */
 export const BEACON_TTL_MS = 4000;
 
 /**
- * Smoothing factor for the RSSI moving average. Lower is steadier but slower to
- * react; 0.25 settles within about a second at a 10 Hz advertising rate, which
- * is faster than a person walks.
+ * How much history the median is taken over.
+ *
+ * Two seconds is long enough to ride out the deep fades BLE produces when a
+ * body or a hand moves through the path, and short enough that the ring still
+ * tracks someone walking at a normal pace.
  */
-const EMA_ALPHA = 0.25;
+export const RSSI_WINDOW_MS = 2000;
+
+/**
+ * How many consecutive evaluations must agree before the LED count changes.
+ *
+ * The median alone still sits on a boundary occasionally and toggles between
+ * two adjacent counts. Requiring the new level twice in a row costs a quarter
+ * of a second and removes that flicker entirely.
+ */
+export const LEVEL_CONFIRM_TICKS = 2;
 
 export interface IBeaconFrame {
   uuid: string;
@@ -106,6 +144,32 @@ const hex = (bytes: Uint8Array): string =>
 export function parseIBeacon(manufacturerData: string | null | undefined): IBeaconFrame | null {
   if (!manufacturerData) return null;
   const b = fromBase64(manufacturerData);
+
+  // ── Our compact door frame (8 bytes) ──────────────────────────────────────
+  //   FF FF   company id 0xFFFF (reserved for testing / no company)
+  //   AC 01   marker: Access Control, format version 1
+  //   major   buildings.id, big-endian
+  //   minor   doors.id, big-endian
+  //
+  // This is what the door hardware actually broadcasts. ESPHome's
+  // esp32_ble_beacon never transmitted — its start-advertising call is dropped
+  // by an internal flag race — so the payload moved to esp32_ble_server's
+  // manufacturer_data, which needs to fit alongside the name inside BLE's
+  // 31-byte advertisement. See hardware/door-beacon/README.md.
+  if (b.length >= 8 && b[0] === 0xff && b[1] === 0xff && b[2] === 0xac && b[3] === 0x01) {
+    return {
+      uuid: BEACON_UUID,
+      major: (b[4] << 8) | b[5],
+      minor: (b[6] << 8) | b[7],
+      // Not carried: the ramp is calibrated against RSSI_NEAR/RSSI_FAR, which
+      // have to be measured per install anyway.
+      measuredPower: -59,
+    };
+  }
+
+  // ── Standard iBeacon (25 bytes) ───────────────────────────────────────────
+  // Still accepted, so a real iBeacon — a bought one, or ESPHome's component if
+  // it is ever fixed — works without another app release.
   if (b.length < 25) return null;
   if (b[0] !== 0x4c || b[1] !== 0x00) return null;
   if (b[2] !== 0x02 || b[3] !== 0x15) return null;
@@ -119,10 +183,30 @@ export function parseIBeacon(manufacturerData: string | null | undefined): IBeac
   };
 }
 
-/** One step of an exponential moving average over RSSI. */
-export function smoothRssi(previous: number | null, sample: number): number {
-  if (previous === null) return sample;
-  return previous + EMA_ALPHA * (sample - previous);
+export interface RssiSample {
+  t: number;
+  rssi: number;
+}
+
+/**
+ * Median RSSI over the recent window, with samples older than it dropped.
+ *
+ * Median rather than mean on purpose. RSSI is not noisy in a well-behaved,
+ * normally-distributed way — it takes sudden deep drops when something blocks
+ * the path, and occasional constructive-interference spikes. A mean folds those
+ * into the answer and the ring jumps; a median throws them away. This mutates
+ * `samples`, trimming it in place, because it is called once per evaluation and
+ * the caller owns the buffer.
+ */
+export function medianRssi(samples: RssiSample[], now: number): number | null {
+  while (samples.length > 0 && now - samples[0].t > RSSI_WINDOW_MS) {
+    samples.shift();
+  }
+  if (samples.length === 0) return null;
+
+  const values = samples.map((s) => s.rssi).sort((a, b) => a - b);
+  const mid = values.length >> 1;
+  return values.length % 2 === 1 ? values[mid] : (values[mid - 1] + values[mid]) / 2;
 }
 
 /**
@@ -133,9 +217,16 @@ export function smoothRssi(previous: number | null, sample: number): number {
  * someone walks up, which is all an LED ring has to be.
  */
 export function rssiToLevel(rssi: number, levels: number = LED_LEVELS): number {
+  // Out of range entirely: dark.
+  if (rssi < RSSI_DARK) return 0;
+
+  // Inside the ramp the floor is one LED, not zero — at 5 m the ring should
+  // show a single light rather than nothing, so that "seen but far" and "not
+  // seen at all" look different to somebody walking up.
   const span = RSSI_NEAR - RSSI_FAR;
   const ratio = (rssi - RSSI_FAR) / span;
-  return Math.max(0, Math.min(levels, Math.round(ratio * levels)));
+  const level = 1 + Math.round(ratio * (levels - 1));
+  return Math.max(1, Math.min(levels, level));
 }
 
 /**

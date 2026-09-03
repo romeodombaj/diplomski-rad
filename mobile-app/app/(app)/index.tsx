@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { View, ScrollView, Switch, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/text';
@@ -13,13 +14,27 @@ import {
   type Door,
 } from '@/lib/device';
 import { totpNow, secondsRemaining } from '@/lib/totp';
-import { isFaceRegistered, registerFaceFromUri, verifyFaceFromUri } from '@/lib/faceGate';
+import {
+  isFaceRegistered,
+  registerFaceFromUri,
+  verifyFaceFromUri,
+  SIMILARITY_THRESHOLD as FACE_THRESHOLD,
+} from '@/lib/faceGate';
 import { CameraCapture } from '@/components/CameraCapture';
+import { QrScanner } from '@/components/QrScanner';
+import { parseEnrollmentPayload } from '@/lib/enrollmentPayload';
 import { useDoorProximity } from '@/hooks/useDoorProximity';
 import { storage } from '@/lib/storage';
 
 type Phase = 'idle' | 'processing' | 'sending' | 'enrolling';
-type Result = { success: boolean; text: string } | null;
+type Result = {
+  success: boolean;
+  text: string;
+  /** On-device cosine similarity, 0..1. Shown for every outcome. */
+  score?: number;
+  /** True when the scan never left the phone. */
+  test?: boolean;
+} | null;
 
 /** The same 0..levels ramp the door's LED ring is showing, on the phone. */
 function SignalBars({ level, levels }: { level: number; levels: number }) {
@@ -41,6 +56,7 @@ export default function Access() {
   const [booted, setBooted] = useState(false);
   const [tokenInput, setTokenInput] = useState('');
   const [enrollError, setEnrollError] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
 
   const [faceRegistered, setFaceRegistered] = useState(false);
   const [livenessEnabled, setLivenessEnabledState] = useState(false);
@@ -71,17 +87,36 @@ export default function Access() {
     if (proximity.nearest) setSelectedDoor(proximity.nearest.door);
   }, [proximity.nearest?.door.door_code]);
 
-  useEffect(() => {
-    (async () => {
-      const e = await loadEnrollment();
-      enrollmentRef.current = e;
-      setEnrollment(e);
-      if (e?.doors?.length) setSelectedDoor(e.doors[0]);
-      setFaceRegistered(await isFaceRegistered());
-      setLivenessEnabledState((await storage.getLivenessEnabled()) === 'true');
-      setBooted(true);
-    })();
-  }, []);
+  /**
+   * Re-read the stored enrolment every time this screen comes into focus, not
+   * just on mount.
+   *
+   * Settings can wipe the identity while this screen is still mounted behind
+   * it. Reading only on mount meant the screen kept rendering the enrolled UI —
+   * doors, TOTP code and all — for an identity whose private key had already
+   * been deleted, and the way back to the enrolment form was to kill the app.
+   */
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      (async () => {
+        const e = await loadEnrollment();
+        if (cancelled) return;
+        enrollmentRef.current = e;
+        setEnrollment(e);
+        // Keep whatever door is already chosen if it is still on offer, so a
+        // trip to Settings does not silently reselect the first one.
+        setSelectedDoor((prev) => {
+          const stillThere = prev && e?.doors?.some((d) => d.door_code === prev.door_code);
+          return stillThere ? prev : e?.doors?.[0] ?? null;
+        });
+        setFaceRegistered(await isFaceRegistered());
+        setLivenessEnabledState((await storage.getLivenessEnabled()) === 'true');
+        setBooted(true);
+      })();
+      return () => { cancelled = true; };
+    }, []),
+  );
 
   const setLivenessEnabled = useCallback((v: boolean) => {
     setLivenessEnabledState(v);
@@ -99,12 +134,17 @@ export default function Access() {
     return () => clearInterval(id);
   }, [enrollment]);
 
-  const handleEnrol = useCallback(async () => {
-    if (!tokenInput.trim()) return;
+  const handleEnrol = useCallback(async (raw?: string) => {
+    // Accept the bare token, or the JSON envelope the dashboard's QR carries.
+    const parsed = parseEnrollmentPayload(raw ?? tokenInput);
+    if (!parsed) {
+      setEnrollError('That does not look like an enrolment code');
+      return;
+    }
     setPhase('enrolling');
     setEnrollError(null);
     try {
-      const e = await claimEnrollment(tokenInput);
+      const e = await claimEnrollment(parsed.token);
       enrollmentRef.current = e;
       setEnrollment(e);
       if (e.doors.length) setSelectedDoor(e.doors[0]);
@@ -122,6 +162,15 @@ export default function Access() {
     }
   }, [tokenInput]);
 
+  /** Scanned codes enrol straight away — there is nothing left to confirm. */
+  const handleScanned = useCallback(
+    (token: string) => {
+      setScanning(false);
+      void handleEnrol(token);
+    },
+    [handleEnrol],
+  );
+
   /** Sign and send. Called only after the face scan produces a score. */
   const send = useCallback(
     async (faceScore: number) => {
@@ -132,13 +181,16 @@ export default function Access() {
         const res = await requestAccess(selectedDoor.door_code, totpNow(e), faceScore);
         setResult({
           success: res.granted,
+          score: faceScore,
           text: res.granted
             ? `${res.message} — ${res.door?.name ?? selectedDoor.name}` +
               (res.unlocked ? '' : ' (door not reachable)')
             : res.message,
         });
       } catch {
-        setResult({ success: false, text: 'Network error — is the backend reachable?' });
+        // The score still stands: the face was matched on this device before
+        // anything was sent, so it is worth showing even when nothing arrived.
+        setResult({ success: false, score: faceScore, text: 'Network error — is the backend reachable?' });
       } finally {
         setPhase('idle');
       }
@@ -146,18 +198,22 @@ export default function Access() {
     [selectedDoor],
   );
 
+  /**
+   * With no door chosen there is nothing to unlock, so the scan runs as a
+   * self-test: the model still produces a score, it is just never sent. Useful
+   * for checking the face model and tuning the threshold with the backend down,
+   * or before any door exists.
+   */
+  const testMode = !selectedDoor;
+
   const handleUnlock = useCallback(() => {
     setResult(null);
-    if (!selectedDoor) {
-      setResult({ success: false, text: 'Pick a door first' });
-      return;
-    }
     if (!faceRegistered) {
       setResult({ success: false, text: 'Register your face first' });
       return;
     }
     setCameraMode('scan');
-  }, [faceRegistered, selectedDoor]);
+  }, [faceRegistered]);
 
   const handleRegisterFace = useCallback(() => {
     setResult(null);
@@ -177,8 +233,19 @@ export default function Access() {
           setResult({ success: true, text: 'Face registered on this device' });
         } else {
           const scan = await verifyFaceFromUri(uri);
+
+          if (testMode) {
+            setResult({
+              success: scan.ok,
+              score: scan.score,
+              test: true,
+              text: scan.ok ? 'Face matched' : scan.reason || 'Face not recognized',
+            });
+            return;
+          }
+
           if (!scan.ok) {
-            setResult({ success: false, text: scan.reason || 'Face not recognized' });
+            setResult({ success: false, score: scan.score, text: scan.reason || 'Face not recognized' });
             return;
           }
           await send(scan.score);
@@ -189,7 +256,7 @@ export default function Access() {
         setPhase('idle');
       }
     },
-    [cameraMode, send],
+    [cameraMode, send, testMode],
   );
 
   const handleCameraCancel = useCallback(() => setCameraMode(null), []);
@@ -212,6 +279,8 @@ export default function Access() {
     ? 'Bluetooth permission denied — pick your door manually'
     : proximity.status === 'bluetooth-off'
     ? 'Bluetooth is off — pick your door manually'
+    : proximity.status === 'scan-error'
+    ? 'Bluetooth scan failed — pick your door manually'
     : proximity.status === 'no-beacons'
     ? 'No door beacons found — pick your door manually'
     : 'Pick the door you are standing at';
@@ -231,6 +300,23 @@ export default function Access() {
               </CardDescription>
             </CardHeader>
             <CardContent className="gap-3">
+              {/* Scanning is the intended path: the token is 43 characters of
+                  base64url, which nobody should be retyping off a screen. */}
+              <Button
+                label="Scan QR code"
+                disabled={busy}
+                onPress={() => {
+                  setEnrollError(null);
+                  setScanning(true);
+                }}
+              />
+
+              <View className="flex-row items-center gap-3 py-1">
+                <View className="flex-1 h-px bg-border" />
+                <Text className="text-muted-foreground text-xs">or enter it by hand</Text>
+                <View className="flex-1 h-px bg-border" />
+              </View>
+
               <Input
                 placeholder="Paste your enrolment code"
                 value={tokenInput}
@@ -240,10 +326,11 @@ export default function Access() {
                 editable={!busy}
               />
               <Button
+                variant="outline"
                 label={phase === 'enrolling' ? 'Enrolling…' : 'Enrol'}
                 loading={phase === 'enrolling'}
                 disabled={!tokenInput.trim() || busy}
-                onPress={handleEnrol}
+                onPress={() => handleEnrol()}
               />
               {enrollError ? (
                 <View className="rounded-xl p-3 bg-red-500/10 border border-red-500/30">
@@ -257,6 +344,12 @@ export default function Access() {
             </CardContent>
           </Card>
         </ScrollView>
+
+        <QrScanner
+          visible={scanning}
+          onScanned={handleScanned}
+          onCancel={() => setScanning(false)}
+        />
       </SafeAreaView>
     );
   }
@@ -315,6 +408,19 @@ export default function Access() {
                 );
               })
             )}
+            {!proximity.supported && enrollment?.doors.length ? (
+              <View className="mt-1 rounded-lg bg-muted/50 p-2 gap-0.5">
+                <Text className="text-muted-foreground text-[10px]">
+                  BLE seen {proximity.diagnostics.seen} · iBeacons{' '}
+                  {proximity.diagnostics.iBeacons} · ours {proximity.diagnostics.ours}
+                </Text>
+                {proximity.diagnostics.lastError ? (
+                  <Text className="text-[10px] text-red-500" numberOfLines={3}>
+                    {proximity.diagnostics.lastError}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
           </CardContent>
         </Card>
 
@@ -359,16 +465,24 @@ export default function Access() {
               ? 'Verifying face…'
               : phase === 'sending'
               ? 'Verifying…'
+              : testMode
+              ? 'Verify as test'
               : atADoor && selectedDoor
               ? `Verify for ${selectedDoor.name}`
               : proximity.supported
               ? 'Walk up to a door'
               : 'Scan face & unlock'
           }
+          variant={testMode ? 'outline' : 'default'}
           loading={busy}
-          disabled={!enrollment || !selectedDoor || !atADoor || busy}
+          disabled={!enrollment || busy || (!testMode && !atADoor)}
           onPress={handleUnlock}
         />
+        {testMode ? (
+          <Text className="text-muted-foreground text-xs -mt-2 text-center">
+            No door selected — the scan runs on this phone and is not sent anywhere.
+          </Text>
+        ) : null}
 
         <View className="flex-row items-center justify-between px-1">
           <View className="flex-1 pr-3">
@@ -396,6 +510,12 @@ export default function Access() {
             }`}
           >
             <Text variant={result.success ? 'success' : 'destructive'}>{result.text}</Text>
+            {result.score !== undefined ? (
+              <Text className="text-muted-foreground text-xs mt-1">
+                Face match {result.score.toFixed(3)} · threshold {FACE_THRESHOLD.toFixed(2)}
+                {result.test ? ' · test only' : ''}
+              </Text>
+            ) : null}
           </View>
         ) : null}
 

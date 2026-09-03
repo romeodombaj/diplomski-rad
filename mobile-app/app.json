@@ -38,6 +38,12 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "This app uses the camera to scan your enrolment QR code and to verify your face before granting access."
+        }
+      ],
       "onnxruntime-react-native",
       "./plugins/withOnnxModel",
       "./plugins/withCleartextTraffic",

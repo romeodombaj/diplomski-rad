@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, View, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import {
   Camera,
@@ -52,16 +52,42 @@ export function CameraCapture({ visible, mode, requireLiveness, onCapture, onCan
       const face = faces[0];
       if (!face) return;
       livenessDetector.current.update(face.leftEyeOpenProbability ?? 0, face.rightEyeOpenProbability ?? 0);
-      setLivenessStage(livenessDetector.current.stage);
+      // Only re-render when the stage actually moves. Faces arrive ~30x a
+      // second and there are three stages in a whole scan, so setting state
+      // unconditionally re-rendered the screen on every frame — see the note on
+      // stableFaceOutput below for why that was catastrophic rather than merely
+      // wasteful.
+      const next = livenessDetector.current.stage;
+      setLivenessStage((prev) => (prev === next ? prev : next));
     },
     onError(error) {
       console.warn('[Liveness] face detector error:', error);
     },
   });
 
+  /**
+   * Pin the first face-detector output for the life of the component.
+   *
+   * `useFaceDetectorOutput` memoises on `[options]`, but builds `options` with
+   * a rest spread — a fresh object every render — so the memo never hits and
+   * the hook creates a NEW native output on every render. Handing that to
+   * <Camera> changes the outputs prop identity, which reconfigures the capture
+   * session; with a re-render per frame that is a session reconfiguration per
+   * frame, which is the stutter that made liveness unusable.
+   *
+   * Pinning the first instance is safe because the library routes both
+   * callbacks through refs it keeps current, so the original output still
+   * invokes the latest closure.
+   */
+  const stableFaceOutput = useRef(faceDetectorOutput).current;
+
   // Only attach the face detector output while a liveness check is actually required,
-  // so the toggle being off costs nothing extra.
-  const outputs = livenessActive ? [photoOutput, faceDetectorOutput] : [photoOutput];
+  // so the toggle being off costs nothing extra. Memoised for the same reason as
+  // above: a new array each render is a new prop identity for <Camera>.
+  const outputs = useMemo(
+    () => (livenessActive ? [photoOutput, stableFaceOutput] : [photoOutput]),
+    [livenessActive, photoOutput, stableFaceOutput],
+  );
 
   const canCapture = !capturing && (!livenessActive || livenessStage === 'confirmed');
 

@@ -12,7 +12,12 @@ const MEAN = [0.485, 0.456, 0.406];
 const STD = [0.229, 0.224, 0.225];
 // Cosine similarity threshold (embeddings are L2-normalized, so dot product = cosine sim).
 // 0.5 matches the threshold used in evaluate.py.
-const SIMILARITY_THRESHOLD = 0.7;
+/**
+ * The on-device match threshold, exported so the UI can show a score against
+ * the number it is actually judged by. Keep it in step with the backend's
+ * ACCESS_FACE_THRESHOLD — the server re-checks and is the real gate.
+ */
+export const SIMILARITY_THRESHOLD = 0.7;
 
 const MODEL_FILENAME = 'siamese_epoch50_int8.onnx';
 
