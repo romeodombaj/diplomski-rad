@@ -394,7 +394,8 @@
       "tabs": {
         "profile": "Profil",
         "credential": "Vjerodajnica",
-        "access": "Pristup"
+        "access": "Pristup",
+        "behaviour": "Ponašanje"
       },
       "devices": "Uređaji",
       "devicesHint": "Mobiteli koji nose identitet ove osobe",
@@ -424,7 +425,57 @@
       "noAccess": "Nema dodijeljenog pristupa.",
       "yes": "da",
       "no": "ne",
-      "revokeGrant": "Opozovi ovo pravo"
+      "revokeGrant": "Opozovi ovo pravo",
+      "behaviour": {
+        "engineOff": "Modul ponašanja nije konfiguriran pa ništa ovdje nije ocijenjeno. Sve niže dolazi iz zabilježene povijesti pristupa.",
+        "engineDown": "Modul ponašanja se ne javlja. Povijest niže i dalje je ono što je zabilježeno; nedostaje samo pogled modela na nju.",
+        "latestScore": "Zadnja ocjena",
+        "latestHint": "Zadnji pristup koji je modul ocijenio.",
+        "noScores": "Još nema ocijenjenih događaja.",
+        "anomalous": "neuobičajeno",
+        "normal": "uobičajeno",
+        "scaleHint": "Od 0 do 1, više znači neobičnije. 0,5 je granica samog modela.",
+        "whyTitle": "Što čini ocjenu",
+        "whyHint": "Svaki redak je isti događaj ocijenjen ponovno, kao da je ta jedna stvar bila uobičajena za ovu osobu.",
+        "noFactors": "Još nema što objasniti — modelu prvo treba osnovica.",
+        "usually": "uobičajeno",
+        "factors": {
+          "time_of_day": "Doba dana",
+          "day_of_week": "Dan u tjednu",
+          "door": "Vrata",
+          "interval": "Vrijeme od prethodnog",
+          "first_of_day": "Prvi ulaz u danu"
+        },
+        "baselineTitle": "Osnovica",
+        "baselineHint": "Ono što je model naučio iz vlastite povijesti ove osobe.",
+        "noBaseline": "Još nema osnovice — zabilježeno je {{have}} događaja, potrebno ih je {{needed}}.",
+        "fittedOn": "naučeno na {{n}} događaja",
+        "synthetic": "sintetička",
+        "syntheticHint": "Generirana povijest, ne stvarno zabilježena. Prava osnovica traži jedan do dva tjedna stvarnog korištenja.",
+        "usualHours": "Uobičajeno vrijeme",
+        "perDay": "Događaja dnevno",
+        "typicalGap": "Uobičajeni razmak",
+        "minutes": "{{n}} min",
+        "nightShare": "Između ponoći i 05:00",
+        "train": "Nauči iz povijesti",
+        "seed": "Postavi osnovicu",
+        "trained": "Naučeno na {{n}} zabilježenih događaja.",
+        "tooLittle": "Samo {{n}} događaja — modelu ih treba {{needed}} da bi naučio.",
+        "seeded": "Postavljeno {{n}} sintetičkih događaja.",
+        "observedTitle": "Zabilježena povijest",
+        "observedHint": "Iz dnevnika pristupa ove zgrade, neovisno o tome radi li modul.",
+        "events": "{{n}} događaja",
+        "scored": "{{n}} ocijenjeno",
+        "flagged": "{{n}} označeno",
+        "byHour": "Po satu u danu",
+        "byDoor": "Po vratima",
+        "noHistory": "Još nema zabilježenih pristupa.",
+        "recentTitle": "Nedavno ocijenjeno",
+        "recentHint": "Svi ocijenjeni događaji, ne samo označeni.",
+        "when": "Kada",
+        "score": "Ocjena",
+        "why": "Glavni razlog"
+      }
     }
   },
   "doors": {

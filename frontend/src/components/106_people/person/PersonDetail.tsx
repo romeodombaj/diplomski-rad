@@ -13,8 +13,9 @@ import {
 } from '@/components/107_access/services/policy.service';
 import { DoorService, type Door } from '@/components/105_doors/services/door.service';
 import { SyncBadge } from '@/components/107_access/components/SyncBadge';
+import BehaviourPanel from '../components/BehaviourPanel';
 
-type Tab = 'profile' | 'credential' | 'access';
+type Tab = 'profile' | 'credential' | 'access' | 'behaviour';
 
 export default function PersonDetail() {
   const { t } = useTranslation();
@@ -111,6 +112,7 @@ export default function PersonDetail() {
         <TabButton value="profile" label={t('people.detail.tabs.profile')} />
         <TabButton value="credential" label={t('people.detail.tabs.credential')} />
         <TabButton value="access" label={t('people.detail.tabs.access')} />
+        <TabButton value="behaviour" label={t('people.detail.tabs.behaviour')} />
       </div>
 
       {tab === 'profile' && (
@@ -319,6 +321,10 @@ export default function PersonDetail() {
           </Card>
         </div>
       )}
+
+      {/* Mounted only when open: the panel calls the behaviour engine, which is
+          optional and can be slow, and no other tab should wait on it. */}
+      {tab === 'behaviour' && <BehaviourPanel personId={person.id} />}
     </div>
   );
 }

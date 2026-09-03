@@ -393,7 +393,8 @@
       "tabs": {
         "profile": "Profile",
         "credential": "Credential",
-        "access": "Access"
+        "access": "Access",
+        "behaviour": "Behaviour"
       },
       "devices": "Devices",
       "devicesHint": "Phones holding this person's identity",
@@ -423,7 +424,57 @@
       "noAccess": "No access granted.",
       "yes": "yes",
       "no": "no",
-      "revokeGrant": "Revoke this grant"
+      "revokeGrant": "Revoke this grant",
+      "behaviour": {
+        "engineOff": "The behaviour engine is not configured, so nothing here has been scored. Everything below comes from the recorded access history.",
+        "engineDown": "The behaviour engine did not answer. The history below is still what was recorded; only the model's view of it is missing.",
+        "latestScore": "Latest score",
+        "latestHint": "The most recent access event the engine scored.",
+        "noScores": "No scored events yet.",
+        "anomalous": "unusual",
+        "normal": "as usual",
+        "scaleHint": "0 to 1, higher is more unusual. 0.5 is the model's own boundary.",
+        "whyTitle": "What drives the score",
+        "whyHint": "Each line is the same event scored again as if that one thing had been normal for this person.",
+        "noFactors": "Nothing to explain yet — the model needs a baseline first.",
+        "usually": "usually",
+        "factors": {
+          "time_of_day": "Time of day",
+          "day_of_week": "Day of week",
+          "door": "Door",
+          "interval": "Time since previous",
+          "first_of_day": "First of the day"
+        },
+        "baselineTitle": "Baseline",
+        "baselineHint": "What this person's own history taught the model.",
+        "noBaseline": "No baseline yet — {{have}} events recorded, {{needed}} needed.",
+        "fittedOn": "fitted on {{n}} events",
+        "synthetic": "synthetic",
+        "syntheticHint": "Generated history, not observed. A real baseline needs one to two weeks of actual usage.",
+        "usualHours": "Usual hours",
+        "perDay": "Events per day",
+        "typicalGap": "Typical gap",
+        "minutes": "{{n}} min",
+        "nightShare": "Between midnight and 05:00",
+        "train": "Train from history",
+        "seed": "Seed a baseline",
+        "trained": "Fitted on {{n}} recorded events.",
+        "tooLittle": "Only {{n}} events — the model needs {{needed}} before it will fit.",
+        "seeded": "Seeded {{n}} synthetic events.",
+        "observedTitle": "Recorded history",
+        "observedHint": "From this building's access log, whether or not the engine is running.",
+        "events": "{{n}} events",
+        "scored": "{{n}} scored",
+        "flagged": "{{n}} flagged",
+        "byHour": "By hour of day",
+        "byDoor": "By door",
+        "noHistory": "No access events recorded yet.",
+        "recentTitle": "Recently scored",
+        "recentHint": "Every scored event, not only the flagged ones.",
+        "when": "When",
+        "score": "Score",
+        "why": "Leading factor"
+      }
     }
   },
   "doors": {

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as personController from './person.controller';
 import * as policyController from '../policy/policy.controller';
+import * as behaviorController from '../behavior/behavior.controller';
 import { validate } from '../../middleware/validate';
 import {
   CreatePersonSchema,
@@ -32,6 +33,13 @@ router.post('/:id/enrollment', requireAuth, personController.issueEnrollment);
 // What can this person open, and via which group or direct grant. Provenance
 // is the point: "can open the server room" is useless without "via Engineering".
 router.get('/:id/effective-access', requireAuth, policyController.listForPerson);
+
+// Behaviour — the anomaly engine's view of this person, delegated the same way
+// as effective-access above. It is not part of the person record, but it is
+// where an operator looks for it.
+router.get('/:id/behavior', requireAuth, behaviorController.getForPerson);
+router.post('/:id/behavior/train', requireAuth, behaviorController.train);
+router.post('/:id/behavior/seed', requireAuth, behaviorController.seed);
 
 // Devices
 router.get('/:id/devices', requireAuth, personController.listDevices);

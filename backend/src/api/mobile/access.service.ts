@@ -17,6 +17,7 @@ import db from '../../db';
 import logger from '../../lib/logger';
 import { config } from '../../config/conifg';
 import { verifyTOTP } from '../../services/totpService';
+import * as behavior from '../../services/behaviorService';
 import * as chain from '../../services/chainService';
 import * as mqttService from '../../services/mqttService';
 import * as scheduleService from '../../services/scheduleService';
@@ -105,6 +106,25 @@ async function record(draft: EventDraft, decision: 'granted' | 'denied', reason:
     if (isUniqueViolation(err)) throw new DuplicateSignature();
     throw err;
   }
+
+  // Forward to the behaviour engine, from the one place every outcome passes
+  // through — granted and denied alike, because a denial is exactly the shape
+  // of behaviour worth learning from. Not awaited: the decision is already
+  // made and the row is already committed, so a slow or missing engine costs
+  // an alert and never an entry (config.behavior.url empty = no-op).
+  behavior.scoreAsync(
+    {
+      event_id: id,
+      person_id: draft.personId,
+      did: draft.did,
+      door_code: draft.doorCode,
+      building_id: draft.buildingId,
+      timestamp: draft.occurredAt,
+      success: decision === 'granted',
+    },
+    draft.buildingId,
+  );
+
   return id;
 }
 

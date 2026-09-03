@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import db from '../../db';
 import speakeasy from 'speakeasy';
 import logger from '../../lib/logger';
+import * as behavior from '../../services/behaviorService';
 import * as chain from '../../services/chainService';
 import * as policyService from '../policy/policy.service';
 import type {
@@ -152,6 +153,15 @@ export const setStatus = async (
       });
     }
     await revokeDidOnChain(before.did);
+  }
+
+  if (to === 'offboarded') {
+    // The behaviour model is fitted from nothing but this person's own comings
+    // and goings, which makes it personal data of the same kind as the history
+    // it came from. Retiring the identity has to retire that too — and outside
+    // the `did` guard above, because the model is keyed by person: someone who
+    // never finished enrolling can still have been scored.
+    await behavior.forget(id);
   }
 
   // Suspension revokes policies but keeps the DID valid, so the person can

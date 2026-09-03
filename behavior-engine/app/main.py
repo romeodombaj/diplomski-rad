@@ -21,11 +21,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Deque
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from .features import AccessEvent
+from .features import AccessEvent, previous_before
 from .model import MIN_EVENTS_TO_FIT, ModelStore
+from .profile import Baseline, hhmm
 from .rules import evaluate
 from .synthetic import generate_history
 
@@ -66,6 +67,17 @@ class RuleHitOut(BaseModel):
     reason: str
 
 
+class FactorOut(BaseModel):
+    """One driver of a score. `factor` is a key the dashboard translates."""
+
+    factor: str
+    share: float
+    delta: float
+    value: str
+    usual: str
+    detail: str
+
+
 class ScoreOut(BaseModel):
     event_id: str
     anomaly_score: float = Field(ge=0.0, le=1.0)
@@ -75,8 +87,39 @@ class ScoreOut(BaseModel):
     # certainties, not probabilities, and a dashboard should not average them
     # into a number that looks like a confidence.
     rule_hits: list[RuleHitOut] = []
+    # Why the score is what it is, strongest first. A number nobody can argue
+    # with is a number everybody eventually ignores.
+    factors: list[FactorOut] = []
     model_trained: bool
     events_in_baseline: int
+
+
+class DoorShareOut(BaseModel):
+    door_code: str
+    count: int
+    share: float
+
+
+class ProfileOut(BaseModel):
+    """What the dashboard shows on a person's behaviour tab."""
+
+    person_id: str
+    model_trained: bool
+    events_in_baseline: int
+    min_events_to_fit: int = MIN_EVENTS_TO_FIT
+    # True when the baseline is generated rather than observed — the cold-start
+    # answer from BEHAVIOR_ENGINE_NOTES §1, which is only honest if it is said.
+    synthetic: bool = False
+    first_seen: datetime | None = None
+    last_seen: datetime | None = None
+    usual_from: str | None = None
+    usual_to: str | None = None
+    hour_histogram: list[int] = []
+    doors: list[DoorShareOut] = []
+    weekend_share: float = 0.0
+    night_share: float = 0.0
+    median_gap_minutes: float = 0.0
+    events_per_day: float = 0.0
 
 
 class SeedIn(BaseModel):
@@ -107,6 +150,27 @@ def _key(event: EventIn) -> str:
     fallback exists because a denied event may not resolve to a person at all.
     """
     return event.person_id or event.did
+
+
+def _profile_out(person_id: str, baseline: Baseline | None) -> ProfileOut:
+    if baseline is None or baseline.events == 0:
+        return ProfileOut(person_id=person_id, model_trained=False, events_in_baseline=0)
+    return ProfileOut(
+        person_id=person_id,
+        model_trained=True,
+        events_in_baseline=baseline.events,
+        synthetic=baseline.synthetic,
+        first_seen=baseline.first_seen,
+        last_seen=baseline.last_seen,
+        usual_from=hhmm(baseline.usual_from_minute),
+        usual_to=hhmm(baseline.usual_to_minute),
+        hour_histogram=baseline.hour_histogram,
+        doors=[DoorShareOut(**d.__dict__) for d in baseline.doors],
+        weekend_share=baseline.weekend_share,
+        night_share=baseline.night_share,
+        median_gap_minutes=baseline.median_gap_minutes,
+        events_per_day=baseline.events_per_day,
+    )
 
 
 def _to_domain(event: EventIn, key: str) -> AccessEvent:
@@ -145,10 +209,14 @@ def score_event(event: EventIn) -> ScoreOut:
     key = _key(event)
     domain = _to_domain(event, key)
     past = list(history[key])
-    previous = past[-1] if past else None
+    # The event this one is measured against is the last one *before* it, not
+    # the last one we happened to hear about: a baseline loaded from stored
+    # history ends later than a replayed or backfilled event begins.
+    previous = previous_before(past, domain.timestamp)
 
     verdict = store.score(key, domain, previous)
     hits = [RuleHitOut(**h.__dict__) for h in evaluate(domain, past)]
+    factors = [FactorOut(**f.__dict__) for f in verdict.factors]
 
     # Remember it, then refit periodically so the baseline follows genuine
     # change (a new shift pattern) rather than freezing at enrolment.
@@ -169,6 +237,7 @@ def score_event(event: EventIn) -> ScoreOut:
             is_anomaly=True,
             reason=high[0].reason,
             rule_hits=hits,
+            factors=factors,
             model_trained=verdict.model_trained,
             events_in_baseline=verdict.events_in_baseline,
         )
@@ -181,6 +250,7 @@ def score_event(event: EventIn) -> ScoreOut:
             is_anomaly=True,
             reason=medium[0].reason,
             rule_hits=hits,
+            factors=factors,
             model_trained=verdict.model_trained,
             events_in_baseline=verdict.events_in_baseline,
         )
@@ -191,14 +261,32 @@ def score_event(event: EventIn) -> ScoreOut:
         is_anomaly=verdict.is_anomaly,
         reason=verdict.reason,
         rule_hits=hits,
+        factors=factors,
         model_trained=verdict.model_trained,
         events_in_baseline=verdict.events_in_baseline,
     )
 
 
+@app.get("/behavior/profile/{person_id}", response_model=ProfileOut)
+def profile(person_id: str) -> ProfileOut:
+    """
+    The baseline a score is measured against.
+
+    Read by the dashboard's behaviour tab: a score on its own tells an operator
+    nothing they can check, so the hours, doors and rhythm the model was fitted
+    on are served next to it.
+    """
+    return _profile_out(person_id, store.baseline(person_id))
+
+
 @app.post("/behavior/train")
 def train(person_id: str, events: list[EventIn]) -> dict:
     """Fit a person's model from real history the backend already holds."""
+    if not events:
+        # Refuse rather than accept: this replaces the working history, so an
+        # empty call would erase a baseline instead of retraining it.
+        raise HTTPException(status_code=400, detail="no events to train on")
+
     domain = [_to_domain(e, person_id) for e in events]
     history[person_id] = deque(
         sorted(domain, key=lambda e: e.timestamp)[-HISTORY_WINDOW:],
