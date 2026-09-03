@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as doorController from './door.controller';
 import * as policyController from '../policy/policy.controller';
+import * as deviceController from '../device/device.controller';
 import { validate } from '../../middleware/validate';
 import { CreateDoorSchema, UpdateDoorSchema } from './door.schema';
 import { requireAuth } from '../../middleware/auth';
@@ -14,6 +15,9 @@ router.get('/:id', requireAuth, doorController.getById);
 // The inverse of effective-access, and the question a security review asks:
 // who can open this door, right now, and where does that come from.
 router.get('/:doorId/who-has-access', requireAuth, policyController.whoHasAccess);
+// The hardware attached to this door — beacon, indicator, lock.
+router.get('/:doorId/devices', requireAuth, deviceController.listForDoor);
+
 router.post('/', requireAuth, validate(CreateDoorSchema), doorController.create);
 router.patch('/:id', requireAuth, validate(UpdateDoorSchema), doorController.update);
 router.delete('/:id', requireAuth, doorController.remove);

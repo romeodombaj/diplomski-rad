@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { FormCheckbox, FormInput } from '@/UI/form-fields';
 import { Skeleton } from '@/UI/skeleton';
 import { Button } from '@/UI/button';
+import DoorDevices from '@/components/108_devices/components/DoorDevices';
 import { DoorService, type Door as DoorType } from '../services/door.service';
 
 interface Props {
@@ -105,6 +106,7 @@ export default function EditDoor({ id: propId, initialData, onSuccess, readOnly 
         <FormInput label="Door_code" value={door_code} onChange={setDoor_code} disabled={saving} error={errors.door_code} />
         <FormInput label="Mqtt_topic" value={mqtt_topic} onChange={setMqtt_topic} disabled={saving} error={errors.mqtt_topic} />
         <FormCheckbox label="Active" checked={active} onChange={setActive} disabled={saving} error={errors.active} />
+        {id && <DoorDevices doorId={Number(id)} disabled={saving} />}
       </div>
       <div className="grid grid-cols-2 gap-4 mt-6">
         <Button type="button" variant="outline" className="w-full" onClick={() => onSuccess ? onSuccess() : navigate('/doors')}>{t('common.cancel')}</Button>
