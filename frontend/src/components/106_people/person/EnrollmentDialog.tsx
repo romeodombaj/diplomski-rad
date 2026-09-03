@@ -74,12 +74,35 @@ export default function EnrollmentDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {dataUrl ? (
+        {dataUrl && invite ? (
           <div className="flex flex-col items-center gap-3">
             {/* White plate so the code stays scannable in dark theme */}
             <div className="rounded-lg bg-white p-3">
               <img src={dataUrl} alt={t('enrollment.qrAlt')} className="h-[240px] w-[240px]" />
             </div>
+            {/* The same token as the QR, for a phone that cannot scan — a cracked
+                lens, a denied camera permission, or a device being set up by
+                hand. It is 43 characters of base64url, so it is shown to be
+                copied rather than retyped, and wraps instead of being clipped. */}
+            <div className="w-full flex flex-col gap-1.5">
+              <p className="text-xs text-muted-foreground text-center">
+                {t('enrollment.manualEntry')}
+              </p>
+              <code
+                onClick={(e) => {
+                  const sel = window.getSelection();
+                  const range = document.createRange();
+                  range.selectNodeContents(e.currentTarget);
+                  sel?.removeAllRanges();
+                  sel?.addRange(range);
+                }}
+                className="block w-full select-all cursor-pointer rounded-md border bg-muted/50
+                           px-3 py-2 font-mono text-[11px] leading-relaxed break-all text-center"
+              >
+                {invite.token}
+              </code>
+            </div>
+
             {expires && (
               <p className="text-xs text-muted-foreground">
                 {t('enrollment.expires', { date: expires.toLocaleString() })}

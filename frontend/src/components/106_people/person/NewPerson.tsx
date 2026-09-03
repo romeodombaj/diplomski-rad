@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FormInput, FormSelect } from '@/UI/form-fields';
+import { FormInput, FormSelect, FormSuggestInput } from '@/UI/form-fields';
 import { Button } from '@/UI/button';
 import { PersonService, type EnrollmentInvite, type PersonType } from '../services/person.service';
 
@@ -11,6 +11,18 @@ interface Props {
 
 const TYPES: PersonType[] = ['employee', 'contractor', 'visitor', 'service'];
 
+/**
+ * Today, in the local timezone.
+ *
+ * Not `toISOString().slice(0, 10)` — that is UTC, so anyone filling this in
+ * after 01:00 in Zagreb would get handed tomorrow's date as the default.
+ */
+function todayISO(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 export default function NewPerson({ onSuccess, onCancel }: Props = {}) {
   const { t } = useTranslation();
   const [full_name, setFullName] = useState('');
@@ -20,9 +32,38 @@ export default function NewPerson({ onSuccess, onCancel }: Props = {}) {
   const [department, setDepartment] = useState('');
   const [job_title, setJobTitle] = useState('');
   const [person_type, setPersonType] = useState<PersonType>('employee');
-  const [employment_start, setEmploymentStart] = useState('');
+  // Defaults to today because that is the answer nearly every time; the field
+  // stays editable, and the date control brings its own calendar.
+  const [employment_start, setEmploymentStart] = useState(todayISO());
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  /**
+   * Departments already in use, offered as suggestions.
+   *
+   * `department` is a free-text column with no canonical list, so this is read
+   * off the people who exist rather than hardcoded — which also means it stops
+   * "Sales" and "sales" becoming two departments. Failure is silent: losing the
+   * suggestions must not stop someone creating a person.
+   */
+  const [departments, setDepartments] = useState<string[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    PersonService.getAll('', null, 200)
+      .then((page) => {
+        if (cancelled) return;
+        const seen = new Map<string, string>();
+        for (const p of page.data) {
+          const d = p.department?.trim();
+          // Keyed case-insensitively so one spelling wins, rather than listing
+          // every casing anyone has ever typed.
+          if (d && !seen.has(d.toLowerCase())) seen.set(d.toLowerCase(), d);
+        }
+        setDepartments([...seen.values()].sort((a, b) => a.localeCompare(b)));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -62,12 +103,24 @@ export default function NewPerson({ onSuccess, onCancel }: Props = {}) {
           options={TYPES.map((v) => ({ value: v, label: t(`person.type.${v}`) }))}
           error={errors.person_type}
         />
-        <FormInput label={t('person.fields.department')} value={department} onChange={setDepartment} error={errors.department} />
+        <FormSuggestInput
+          label={t('person.fields.department')}
+          value={department}
+          onChange={setDepartment}
+          options={departments}
+          error={errors.department}
+        />
         <FormInput label={t('person.fields.jobTitle')} value={job_title} onChange={setJobTitle} error={errors.job_title} />
         {/* Contact only — people never log into this dashboard */}
         <FormInput label={t('person.fields.email')} value={email} onChange={setEmail} error={errors.email} />
         <FormInput label={t('person.fields.phone')} value={phone} onChange={setPhone} error={errors.phone} />
-        <FormInput label={t('person.fields.employmentStart')} value={employment_start} onChange={setEmploymentStart} error={errors.employment_start} placeholder="YYYY-MM-DD" />
+        <FormInput
+          type="date"
+          label={t('person.fields.employmentStart')}
+          value={employment_start}
+          onChange={setEmploymentStart}
+          error={errors.employment_start}
+        />
       </div>
       <p className="text-xs text-muted-foreground mt-4">{t('person.createHint')}</p>
       <div className="grid grid-cols-2 gap-4 mt-4">

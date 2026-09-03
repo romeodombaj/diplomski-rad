@@ -14,7 +14,10 @@ import { Button } from "./button";
 // ── FormInput ─────────────────────────────────────────────────────────────────
 
 type FormInputProps = {
-    type?: "text" | "email" | "password" | "tel" | "url" | "number";
+    // "date" renders the browser's own date control: a text field you can type
+    // into AND a calendar picker, with no extra dependency. Its value is always
+    // an ISO yyyy-mm-dd string, which is what the API expects.
+    type?: "text" | "email" | "password" | "tel" | "url" | "number" | "date";
     value: string | number;
     onChange: (value: string) => void;
     label: string;
@@ -145,6 +148,63 @@ interface FormSelectProps {
     required?: boolean;
     disabled?: boolean;
     error?: string;
+}
+
+// ── FormSuggestInput ─────────────────────────────────────────────────────────
+
+type FormSuggestInputProps = {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    /** Suggestions. The field still accepts anything typed. */
+    options: string[];
+    placeholder?: string;
+    disabled?: boolean;
+    error?: string;
+};
+
+/**
+ * A text field with a dropdown of values already in use.
+ *
+ * For columns that are free text in the database but repeat in practice —
+ * department is the case this was built for. A hard <Select> would be wrong
+ * (there is no canonical list, and the first person entered could not pick
+ * anything), and a bare text field invites "Sales", "sales" and "Sales " as
+ * three departments. A native <datalist> gives the dropdown without taking
+ * away free entry, and needs no popover library.
+ *
+ * Not FormCombobox below: that one fetches options and only commits when one is
+ * clicked, which is right for choosing an existing record and wrong here.
+ */
+export function FormSuggestInput({
+    label,
+    value,
+    onChange,
+    options,
+    placeholder,
+    disabled,
+    error,
+}: FormSuggestInputProps) {
+    const listId = `combo-${label.replace(/\s+/g, "-").toLowerCase()}`;
+    return (
+        <div className="space-y-1">
+            <Label>{label}</Label>
+            <Input
+                list={listId}
+                value={value}
+                disabled={disabled}
+                placeholder={placeholder ?? label}
+                onChange={(e) => onChange(e.target.value)}
+                className={cn(error && "border-destructive focus-visible:ring-destructive")}
+            />
+            <datalist id={listId}>
+                {options.map((o) => (
+                    <option key={o} value={o} />
+                ))}
+            </datalist>
+            {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+    );
 }
 
 export function FormSelect({

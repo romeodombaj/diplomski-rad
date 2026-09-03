@@ -152,8 +152,18 @@ export function DataTable<TData>({
     return table.getRowModel().rows.map((row) => (
       <TableRow
         key={row.id}
-        onClick={() => setSelectedId(row.id)}
-        className={selectedId === row.id ? "bg-muted" : ""}
+        // Clicking anywhere on the row opens the record, matching the people
+        // table. Falls back to onEdit because doors have no separate read-only
+        // view — the edit sheet *is* the record. Action buttons already
+        // stopPropagation, so they still act alone.
+        onClick={() => {
+          setSelectedId(row.id);
+          (onView ?? onEdit)?.(row.original);
+        }}
+        className={[
+          selectedId === row.id ? "bg-muted" : "",
+          (onView ?? onEdit) ? "cursor-pointer" : "",
+        ].filter(Boolean).join(" ")}
       >
         {row.getVisibleCells().map((cell) => (
           <TableCell key={cell.id} className="py-0">

@@ -94,7 +94,11 @@ export default function GroupsTable() {
               </TableRow>
             )}
             {groups.map((g) => (
-              <TableRow key={g.id}>
+              <TableRow
+                key={g.id}
+                className="cursor-pointer"
+                onClick={() => { setEditing(g.id); setEditorOpen(true); }}
+              >
                 <TableCell className="font-medium">
                   {g.name}
                   {g.is_default && (
@@ -118,10 +122,11 @@ export default function GroupsTable() {
                 </TableCell>
                 <TableCell className="text-right">
                   <Button variant="ghost" size="icon"
-                    onClick={() => { setEditing(g.id); setEditorOpen(true); }}>
+                    onClick={(e) => { e.stopPropagation(); setEditing(g.id); setEditorOpen(true); }}>
                     <Pencil className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={() => setDeleting(g)}>
+                  <Button variant="ghost" size="icon"
+                    onClick={(e) => { e.stopPropagation(); setDeleting(g); }}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </TableCell>

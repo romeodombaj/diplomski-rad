@@ -72,7 +72,8 @@
     "users": "Users",
     "account": "Account",
     "logout": "Log out",
-    "access": "Access control"
+    "access": "Access control",
+    "devices": "Devices"
   },
   "backups": {
     "title": "Backups",
@@ -302,7 +303,9 @@
     "noActiveToken": "No active enrolment code. Reissue to create one.",
     "copyToken": "Copy token",
     "reissue": "Reissue",
-    "showQr": "Show enrolment QR"
+    "showQr": "Show enrolment QR",
+    "manualEntry": "Or type this code into the app",
+    "tokenCopied": "Code copied"
   },
   "access": {
     "title": "Access control",
@@ -437,6 +440,46 @@
       "nobody": "Nobody has access to this door.",
       "yes": "yes",
       "no": "no"
+    }
+  },
+  "devices": {
+    "title": "Devices",
+    "subtitle": "Hardware at your doors — beacons, indicator rings and locks.",
+    "add": "Add device",
+    "scan": "Scan",
+    "startScan": "Start scan",
+    "rescan": "Scan again",
+    "scanTitle": "Scan for devices",
+    "scanHint": "Listens to the MQTT broker for {{seconds}} seconds and lists everything that publishes. A device that is silent will not appear — add those by hand.",
+    "listening": "Listening for {{seconds}} seconds…",
+    "nothingHeard": "Nothing published while listening. Check the device is powered and talking to the broker, or add it by hand.",
+    "messages": "{{count}} msg",
+    "known": "Already added",
+    "addTitle": "Add device",
+    "editTitle": "Edit device",
+    "formHint": "Give it a name, say what it does, and attach it to a door.",
+    "nameRequired": "A name is required",
+    "unassigned": "Not attached",
+    "empty": "No devices yet.",
+    "deleteTitle": "Remove this device?",
+    "deleteHint": "{{name}} will be removed from the inventory and detached from its door. The hardware itself is untouched.",
+    "attachedTitle": "Attached devices",
+    "noneAttached": "No devices attached to this door yet.",
+    "pickToAttach": "Choose a device…",
+    "noneFree": "No unattached devices",
+    "attach": "Attach",
+    "detach": "Detach",
+    "fields": {
+      "name": "Name",
+      "kind": "Kind",
+      "address": "Address or MQTT topic",
+      "door": "Door"
+    },
+    "kind": {
+      "beacon": "Beacon",
+      "indicator": "Indicator",
+      "lock": "Lock",
+      "other": "Other"
     }
   }
 }

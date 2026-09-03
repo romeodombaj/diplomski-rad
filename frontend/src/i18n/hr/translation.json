@@ -72,7 +72,8 @@
     "users": "Korisnici",
     "account": "Račun",
     "logout": "Odjava",
-    "access": "Kontrola pristupa"
+    "access": "Kontrola pristupa",
+    "devices": "Uređaji"
   },
   "backups": {
     "title": "Sigurnosne kopije",
@@ -303,7 +304,9 @@
     "noActiveToken": "Nema aktivnog koda za upis. Izdajte novi.",
     "copyToken": "Kopiraj token",
     "reissue": "Izdaj novi",
-    "showQr": "Prikaži QR za upis"
+    "showQr": "Prikaži QR za upis",
+    "manualEntry": "Ili upišite ovaj kod u aplikaciju",
+    "tokenCopied": "Kod kopiran"
   },
   "access": {
     "title": "Kontrola pristupa",
@@ -438,6 +441,46 @@
       "nobody": "Nitko nema pristup ovim vratima.",
       "yes": "da",
       "no": "ne"
+    }
+  },
+  "devices": {
+    "title": "Uređaji",
+    "subtitle": "Oprema na vratima — odašiljači, prstenovi i brave.",
+    "add": "Dodaj uređaj",
+    "scan": "Skeniraj",
+    "startScan": "Pokreni skeniranje",
+    "rescan": "Skeniraj ponovno",
+    "scanTitle": "Skeniraj uređaje",
+    "scanHint": "Sluša MQTT broker {{seconds}} sekundi i popisuje sve što objavljuje. Uređaj koji šuti neće se pojaviti — takve dodajte ručno.",
+    "listening": "Slušam {{seconds}} sekundi…",
+    "nothingHeard": "Ništa nije objavljeno tijekom slušanja. Provjerite je li uređaj uključen i spojen na broker, ili ga dodajte ručno.",
+    "messages": "{{count}} poruka",
+    "known": "Već dodano",
+    "addTitle": "Dodaj uređaj",
+    "editTitle": "Uredi uređaj",
+    "formHint": "Dajte mu naziv, odredite čemu služi i povežite ga s vratima.",
+    "nameRequired": "Naziv je obavezan",
+    "unassigned": "Nije povezan",
+    "empty": "Još nema uređaja.",
+    "deleteTitle": "Ukloniti ovaj uređaj?",
+    "deleteHint": "{{name}} će biti uklonjen iz popisa i odvojen od vrata. Sama oprema ostaje netaknuta.",
+    "attachedTitle": "Povezani uređaji",
+    "noneAttached": "Na ova vrata još nije povezan nijedan uređaj.",
+    "pickToAttach": "Odaberite uređaj…",
+    "noneFree": "Nema slobodnih uređaja",
+    "attach": "Poveži",
+    "detach": "Odvoji",
+    "fields": {
+      "name": "Naziv",
+      "kind": "Vrsta",
+      "address": "Adresa ili MQTT tema",
+      "door": "Vrata"
+    },
+    "kind": {
+      "beacon": "Odašiljač",
+      "indicator": "Indikator",
+      "lock": "Brava",
+      "other": "Ostalo"
     }
   }
 }

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Building2, DoorOpen, GalleryVerticalEnd, KeyRound, Logs, Settings2, Users, DatabaseBackup, Contact } from "lucide-react";
+import { Cpu, DoorOpen, GalleryVerticalEnd, KeyRound, Logs, Settings2, Users, DatabaseBackup, Contact } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { NavMain } from "@/Layout/Navigation/nav-main";
@@ -25,14 +25,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
     const navMain = [
         { title: t('nav.dashboard'), url: "/", icon: GalleryVerticalEnd, items: [] },
-        // gt:tab:104_buildings
-    { title: t('nav.buildings'), url: '/buildings', icon: Building2, items: [] },
+        // Buildings deliberately has no nav item: BuildingSwitcher below is
+        // where a building is chosen, added, renamed and deleted, the way a
+        // project switcher works. A tab would be a second, competing place to
+        // do the same thing.
     // gt:tab:105_doors
     { title: t('nav.doors'), url: '/doors', icon: DoorOpen, items: [] },
     // gt:tab:106_people
     { title: t('nav.people'), url: '/people', icon: Contact, items: [] },
     // gt:tab:107_access
     { title: t('nav.access'), url: '/access', icon: KeyRound, items: [] },
+        // gt:tab:108_devices
+    { title: t('nav.devices'), url: '/devices', icon: Cpu, items: [] },
     // gt:nav
     ];
 

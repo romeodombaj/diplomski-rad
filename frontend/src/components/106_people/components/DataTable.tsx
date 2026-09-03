@@ -152,8 +152,17 @@ export function DataTable<TData>({
     return table.getRowModel().rows.map((row) => (
       <TableRow
         key={row.id}
-        onClick={() => setSelectedId(row.id)}
-        className={selectedId === row.id ? "bg-muted" : ""}
+        // Clicking anywhere on the row opens it, matching the view icon. The
+        // per-action buttons already stopPropagation, so they still act on
+        // their own without opening the record underneath.
+        onClick={() => {
+          setSelectedId(row.id);
+          onView?.(row.original);
+        }}
+        className={[
+          selectedId === row.id ? "bg-muted" : "",
+          onView ? "cursor-pointer" : "",
+        ].filter(Boolean).join(" ")}
       >
         {row.getVisibleCells().map((cell) => (
           <TableCell key={cell.id} className="py-0">
