@@ -113,11 +113,16 @@ export const config = {
    */
   proximity: {
     /**
-     * LED steps in a door's ring. The phone buckets RSSI into 0..levels and
-     * reports only on a change, so this is also the cap on how many messages
-     * one approach can produce.
+     * LED steps in a door's ring — one per physical LED, so twelve for the
+     * ReSpeaker. Reports above this are clamped, so a value smaller than the
+     * ring silently compresses the ramp: at 8 the door rescaled to twelve and
+     * left the intermediate positions uneven. Must match LED_LEVELS in
+     * mobile-app/src/lib/beacon.ts.
+     *
+     * The phone buckets RSSI into 0..levels and reports on change plus a
+     * keepalive, so this also bounds how many messages one approach produces.
      */
-    levels: num(process.env.PROXIMITY_LEVELS, 8),
+    levels: num(process.env.PROXIMITY_LEVELS, 12),
     /**
      * How stale a report may be. Far tighter than an access request: this is a
      * claim about where somebody is *now*, and the phone re-sends on every

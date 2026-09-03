@@ -14,8 +14,12 @@ export default function Login() {
   const { t } = useTranslation();
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  // TESTING CONVENIENCE — the login form comes up prefilled with the single
+  // operator account so the dashboard is one click away during development.
+  // Remove both defaults before this is shown to anyone but the author: a
+  // password in the shipped JS bundle is readable by anyone who opens the page.
+  const [email, setEmail] = useState(import.meta.env.VITE_DEV_EMAIL ?? 'romeodombaj@gmail.com');
+  const [password, setPassword] = useState(import.meta.env.VITE_DEV_PASSWORD ?? 'Romeodombaj1');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 

@@ -24,8 +24,8 @@ const mqtt = require('mqtt');
 
 const API = `http://127.0.0.1:${process.env.BACKEND_PORT || 5001}`;
 const MQTT_URL = `mqtt://127.0.0.1:${process.env.MQTT_PORT || 1883}`;
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@gtnet.hr';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'gtnet123';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'romeodombaj@gmail.com';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Romeodombaj1';
 
 // Unique per run so repeated runs against a persistent volume do not collide.
 const SUFFIX = randomUUID().slice(0, 6).toUpperCase();
