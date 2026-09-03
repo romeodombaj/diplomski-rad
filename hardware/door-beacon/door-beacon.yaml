@@ -58,29 +58,40 @@ ota:
   - platform: esphome
 
 # ── The beacon ──────────────────────────────────────────────────────────────
-esp32_ble_beacon:
-  type: IBEACON
-  # ONE uuid for the whole access-control system. The phone filters on it, so
-  # it ignores every other iBeacon in the building (shop beacons, AirTags,
-  # someone else's ESP32). Keep it identical across every door.
-  uuid: "8f1d2a60-4c3b-4e91-9a77-2b5c6d8e0f13"
-  # iBeacon's two 16-bit fields carry which building and which door.
-  major: ${building_id}
-  minor: ${door_id}
-  # 100 ms: the phone notices the door within a fraction of a second of the
-  # user walking up. Slower saves power the door does not need (it is mains
-  # powered); much faster mostly adds radio noise.
-  min_interval: 100ms
-  max_interval: 100ms
-  # Reference RSSI at 1 m, used by the phone to turn signal strength into a
-  # rough distance. CALIBRATE THIS per physical install: stand 1 m from the
-  # mounted beacon, read the RSSI the app reports, and put that number here.
-  # Walls, metal door frames and mounting height all change it, so the default
-  # is a starting point rather than a value to trust.
-  measured_power: -59
-  # 3dBm is the ESP32 default. Lower it if the beacon carries too far and the
-  # button lights up from the corridor; raise it if the door is missed.
-  tx_power: 3dBm
+# DO NOT use `esp32_ble_beacon` here. It was tried and it never transmits on
+# ESPHome 2026.8: the component sets its payload with
+# esp_ble_gap_config_adv_data_raw() and only calls start_advertising() when the
+# resulting ADV_DATA_RAW_SET_COMPLETE event arrives — but it first checks a flag
+# that ESPHome's advertising scheduler clears whenever the rotation returns to
+# the name advertisement, so the start call is dropped without a word. Confirmed
+# from a phone: every frame from the board's MAC arrived with the device name
+# and manufacturerData null, over many full cycles, at both 1s and the default
+# 10s advertising_cycle_time.
+#
+# `esp32_ble_server`'s manufacturer_data rides in the ordinary advertisement,
+# which is broadcast continuously with no rotation and no async handshake to
+# lose. Verified working end to end.
+#
+# ── Payload (8 bytes) ───────────────────────────────────────────────────────
+#   FF FF   company id 0xFFFF — the id reserved for testing / no company
+#   AC 01   marker: Access Control, format version 1
+#   hi lo   building_id, big-endian   → buildings.id
+#   hi lo   door_id, big-endian       → doors.id
+#
+# A full iBeacon frame is 25 bytes and, with the flags and a device name, breaks
+# BLE's 31-byte advertisement limit. This carries the same two facts in eight.
+# The phone maps (building_id, door_id) back to a door_code using the door list
+# it received at enrolment — see mobile-app/src/lib/beacon.ts, which still
+# accepts real iBeacons too.
+#
+# EDIT THESE TWO BYTE PAIRS for each door. They must match the `doors` row.
+esp32_ble_server:
+  manufacturer_data: [0xFF, 0xFF, 0xAC, 0x01, 0x00, 0x01, 0x00, 0x01]
+
+esp32_ble:
+  # Short on purpose: the advertisement must hold flags, tx power, the
+  # manufacturer data above and this name within 31 bytes.
+  name: "dr"
 
 # A visible heartbeat, so it is obvious at a glance that a door beacon is alive
 # without connecting anything to it.

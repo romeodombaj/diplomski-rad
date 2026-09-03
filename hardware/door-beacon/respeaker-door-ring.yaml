@@ -1,0 +1,258 @@
+# =============================================================================
+# ReSpeaker XVF3800 — door proximity ring ONLY
+# =============================================================================
+# A stripped build for the access-control system. No voice assistant, no wake
+# word, no microphone, no speaker, no media player. The board does exactly one
+# thing: subscribe to an MQTT topic and light its LED ring.
+#
+#   door beacon (ESP32) --BLE--> phone --HTTP--> backend --MQTT--> here
+#
+# WHY A SEPARATE FILE. The satellite config pulls a patched i2s_audio fork
+# (`formatBCE/esphome`, branch-tracked) purely to make the microphone work.
+# That fork is the component that rotted and made the old config unbuildable.
+# With no audio there is nothing to patch, so this file depends only on the
+# Respeaker component itself — far less to go wrong before a defense.
+#
+# NOTHING HERE OPENS A DOOR. The backend decides access from signature + TOTP +
+# face + on-chain policy and drives the lock on its own topic. This is a light.
+#
+# To go back to the voice assistant:
+#   ~/.venvs/esphome/bin/esphome run ~/server/respeaker-satellite.yaml
+# =============================================================================
+
+substitutions:
+  name: respeaker-door-ring
+  friendly_name: Door Ring
+
+  # Ref of the Respeaker component repo. Pinned deliberately: the old config
+  # tracked moving branches with `refresh: 0s` and silently stopped building.
+  respeaker_ref: main
+
+  # MUST equal this door's `doors.mqtt_topic` in the backend — the backend
+  # publishes to whatever that column says, not a name chosen here.
+  door_topic: "doors/front-01/cmd"
+
+  # BLE beacon identity. `building_id` is the iBeacon major, `door_id` the
+  # minor; the phone turns that pair back into a door_code using the door list
+  # it received at enrolment. Both MUST match the `doors` row above —
+  # FRONT-01 is doors.id 4 in buildings.id 2.
+  building_id: "2"
+  door_id: "4"
+
+  # The machine running `docker compose up broker`.
+  mqtt_broker: "192.168.88.219"
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  min_version: 2026.6.0
+
+esp32:
+  board: esp32-s3-devkitc-1
+  cpu_frequency: 240MHz
+  variant: esp32s3
+  flash_size: 8MB
+  framework:
+    type: esp-idf
+    version: recommended
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+logger:
+  # DEBUG so dump_config (which logs at CONFIG level) is visible — that is the
+  # only way to confirm the BLE beacon actually initialised.
+  level: DEBUG
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "Door ring fallback"
+
+# Kept so the board stays adoptable and OTA-updatable without USB.
+api:
+  actions:
+    # Drive the ring directly, without MQTT. Two uses: proving the LED path
+    # works when the broker is unreachable (a blocked firewall port, a stopped
+    # container), and setting a level by hand during RSSI calibration.
+    #
+    # Callable from Home Assistant, or over the API from a script — see
+    # hardware/door-beacon/ring-test.py in the access-control repo.
+    - action: set_ring_level
+      variables:
+        level: int
+      then:
+        - lambda: |-
+            id(prox_level) = level < 0 ? 0 : (level > 12 ? 12 : level);
+            id(prox_last_ms) = millis();
+            ESP_LOGI("door_ring", "set_ring_level -> %d of 12", id(prox_level));
+ota:
+  - platform: esphome
+    id: ota_esphome
+    password: !secret ota_password
+
+# Pins are fixed by the board layout — do not change.
+i2c:
+  - id: internal_i2c
+    sda: GPIO5
+    scl: GPIO6
+    scan: true
+    frequency: 100kHz
+
+external_components:
+  - source:
+      type: git
+      url: https://github.com/formatBCE/Respeaker-XVF3800-ESPHome-integration
+      ref: ${respeaker_ref}
+    components:
+      - respeaker_xvf3800
+
+# The XMOS DSP. Only reached here for `set_led_ring()`; the mic array and the
+# audio path it normally fronts are simply not configured.
+respeaker_xvf3800:
+  id: respeaker
+  address: 0x2C
+  dfu_version:
+    name: "Firmware Version"
+    update_interval: 120s
+  firmware:
+    url: https://github.com/formatBCE/Respeaker-XVF3800-ESPHome-integration/raw/${respeaker_ref}/application_xvf3800_inthost-lr48-sqr-i2c-v1.0.7-release.bin
+    version: "1.0.7"
+    md5: 043a848f544ff2c7265ac19685daf5de
+
+# ── The door beacon ─────────────────────────────────────────────────────────
+# Advertises this door's identity so the phone can tell it is standing here and
+# offer "Verify for Front door". The phone only ever listens; this board never
+# scans, so nothing here learns anything about who walks past.
+#
+# NOT A SECURITY BOUNDARY. The payload carries no secret and anyone can forge
+# it — see hardware/door-beacon/README.md. All it decides is which door the app
+# offers; the backend re-checks signature, TOTP, face and on-chain policy.
+#
+# ── Why this is not `esp32_ble_beacon` ──────────────────────────────────────
+# It was, and it never transmitted. That component sets its payload with
+# esp_ble_gap_config_adv_data_raw() and starts advertising only when the
+# resulting ADV_DATA_RAW_SET_COMPLETE event arrives — but it first checks a flag
+# that ESPHome's advertising scheduler clears whenever the rotation moves back
+# to the name advertisement. The start call is dropped, silently. Verified from
+# the phone: every single frame from this board's MAC arrived with the name and
+# manufacturerData null, across many full cycles, at both 1s and the default 10s
+# cycle time.
+#
+# `esp32_ble_server`'s manufacturer_data rides in the ordinary advertisement
+# instead, which is broadcast continuously with no rotation and no async
+# handshake to lose.
+#
+# ── Payload (8 bytes) ───────────────────────────────────────────────────────
+#   FF FF   company id 0xFFFF, the id reserved for testing / no company
+#   AC 01   our marker: Access Control, format version 1
+#   00 02   building_id, big-endian  → buildings.id = 2
+#   00 04   door_id, big-endian      → doors.id = 4 (FRONT-01)
+#
+# A full iBeacon frame is 25 bytes, which with the flags and a device name
+# overruns BLE's 31-byte advertisement limit. This carries the same information
+# — which building, which door — in eight, and the phone maps the pair back to a
+# door_code exactly as before. Keep these bytes in step with the `doors` row.
+esp32_ble_server:
+  manufacturer_data: [0xFF, 0xFF, 0xAC, 0x01, 0x00, 0x02, 0x00, 0x04]
+
+esp32_ble:
+  # Short, because the advertisement must hold flags, tx power, the manufacturer
+  # data above and the name inside 31 bytes. The full device name is 19
+  # characters and would not fit.
+  name: "dr"
+
+# Watch the heap. If free internal RAM trends toward zero with the beacon
+# running, the beacon is not viable on this board and belongs on its own ESP32.
+debug:
+  update_interval: 30s
+
+sensor:
+  - platform: debug
+    free:
+      name: "Free heap"
+
+globals:
+  - id: prox_level
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: prox_last_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  # Non-zero while the post-unlock green flash is showing.
+  - id: prox_flash_until_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+
+number:
+  # Lets you dim the ring from Home Assistant without reflashing.
+  - platform: template
+    name: "Ring brightness"
+    id: ring_brightness
+    optimistic: true
+    min_value: 0.05
+    max_value: 1.0
+    step: 0.05
+    initial_value: 0.6
+    restore_value: true
+
+interval:
+  - interval: 100ms
+    then:
+      - lambda: |-
+          // Remember what was last drawn, so an idle ring is not rewritten over
+          // I2C ten times a second forever.
+          static int last_drawn = -1;
+          const uint32_t now = millis();
+
+          // Reports stop when the user walks away, backgrounds the app, loses
+          // WiFi or runs the battery flat — nothing ever sends a final zero.
+          // Absence is the only reliable signal, and this is what reads it.
+          if (id(prox_level) > 0 && (now - id(prox_last_ms)) > 3000) {
+            id(prox_level) = 0;
+          }
+
+          const bool flashing = now < id(prox_flash_until_ms);
+          const int lit = flashing ? 12 : std::min(id(prox_level), 12);
+          const int key = flashing ? 99 : lit;
+          if (key == last_drawn) return;
+          last_drawn = key;
+
+          uint32_t colors[12] = {0};
+          const float master = id(ring_brightness).state;
+          const uint32_t color = flashing
+            ? ((uint32_t)(uint8_t)(255.0f * master) << 8)
+            : (((uint32_t)(uint8_t)(200.0f * master) << 8) | (uint8_t)(60.0f * master));
+          for (int i = 0; i < lit; i++) colors[i] = color;
+          id(respeaker).set_led_ring(colors);
+
+mqtt:
+  broker: ${mqtt_broker}
+  discovery: false
+  birth_message:
+  will_message:
+
+  on_json_message:
+    # Somebody is approaching. Payload from mqttService.publishProximity.
+    - topic: "${door_topic}/proximity"
+      then:
+        - lambda: |-
+            const int levels = x["levels"];
+            // Rescale the backend's step count onto this ring's 12 LEDs, so the
+            // two never have to agree on a number.
+            id(prox_level) = levels > 0 ? ((int) x["level"] * 12) / levels : 0;
+            id(prox_last_ms) = millis();
+
+    # The door opened. Payload from mqttService.publishUnlock.
+    - topic: "${door_topic}"
+      then:
+        - lambda: |-
+            if (x["action"] == "unlock") {
+              id(prox_flash_until_ms) = millis() + 2000;
+              id(prox_level) = 0;
+            }
