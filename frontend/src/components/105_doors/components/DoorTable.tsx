@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { useRef, useState } from 'react';
 import { Plus, RefreshCw, X, Users } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/UI/sheet';
@@ -9,6 +10,7 @@ import { Button } from '@/UI/button';
 import { DataTable } from '../components/DataTable';
 import { columns } from '../components/columns';
 import { useDoor } from '../hooks/useDoor';
+import UnlockButton from './UnlockButton';
 import { DoorService, type Door as DoorType } from '../services/door.service';
 import { SearchInput } from '@/UI/SearchInput';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/UI/select';
@@ -24,13 +26,14 @@ import {
 } from '@/UI/alert-dialog';
 
 export default function DoorTable() {
+  const navigate = useNavigate();
   const [accessDoor, setAccessDoor] = useState<DoorType | null>(null);
   const { t } = useTranslation();
   const { data, loading, error, remove, refresh, search, setSearch, filters, setFilter, clearFilters, sortField, sortDir, setSort, page, nextPage, prevPage, hasMore, total } = useDoor();
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
-  const [editData, setEditData] = useState<DoorType | null>(null);
+  const [editData] = useState<DoorType | null>(null);
   const [resetKey, setResetKey] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const lastRefreshRef = useRef(0);
@@ -123,16 +126,22 @@ export default function DoorTable() {
         onExport={handleExport}
         onCreate={search === '' && Object.keys(filters).length === 0 ? () => { setEditId(null); setFormOpen(true); } : undefined}
         hasActiveFilters={search !== '' || Object.keys(filters).length > 0}
-        onEdit={(row) => { setEditId((row as DoorType).id as number); setEditData(row as DoorType); setFormOpen(true); }}
+        onView={(row) => navigate(`/doors/${(row as DoorType).id}`)}
+        onEdit={(row) => navigate(`/doors/${(row as DoorType).id}`)}
         rowActions={(row: unknown) => {
           const d = row as DoorType;
           return (
-            <Button
-              variant="ghost" size="sm" title={t('doors.access.button')}
-              onClick={(e) => { e.stopPropagation(); setAccessDoor(d); }}
-            >
-              <Users className="h-4 w-4" />
-            </Button>
+            // Row clicks open the door page, so both controls stop propagation
+            // — a mis-aimed click must never open a door.
+            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+              <UnlockButton door={d} variant="ghost" />
+              <Button
+                variant="ghost" size="sm" title={t('doors.access.button')}
+                onClick={(e) => { e.stopPropagation(); setAccessDoor(d); }}
+              >
+                <Users className="h-4 w-4" />
+              </Button>
+            </div>
           );
         }}
         onDelete={(row) => setDeleteId(row.id as number)}

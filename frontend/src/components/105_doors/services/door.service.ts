@@ -35,6 +35,15 @@ export type Door = {
 
 export type DoorPage = { data: Door[]; nextCursor: string | null; hasMore: boolean; total?: number };
 
+export type UnlockResult = {
+  /** Whether the broker took the message. False is an operational fault. */
+  unlocked: boolean;
+  /** The access-history row this override created. */
+  event_id: string;
+  event_hash: string;
+  door: { id: number; code: string; name: string };
+};
+
 export const DoorService = {
   getAll: (q = '', cursor: string | null = null, limit = 20, count = false, filters: Record<string, string> = {}, sort = '', order: 'asc' | 'desc' = 'asc', page = 1) => {
     const p = new URLSearchParams({ limit: String(limit) });
@@ -59,4 +68,13 @@ export const DoorService = {
   create:  (body: Partial<Door>)     => req<Door>(BASE,           { method: 'POST',   body: JSON.stringify(body) }),
   update:  (id: number, body: Partial<Door>) => req<Door>(`${BASE}/${id}`, { method: 'PATCH',    body: JSON.stringify(body) }),
   remove:  (id: number)                   => req<void>(`${BASE}/${id}`, { method: 'DELETE' }),
+
+  /**
+   * Open a door from the dashboard, for the flat phone and the forgotten badge.
+   *
+   * `unlocked: false` is a successful call: the override was authorised and
+   * written to the access history, and only the broker was unreachable. The UI
+   * has to say which of those happened rather than showing a generic error.
+   */
+  unlock: (id: number) => req<UnlockResult>(`${BASE}/${id}/unlock`, { method: 'POST' }),
 };

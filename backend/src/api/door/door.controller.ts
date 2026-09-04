@@ -45,6 +45,25 @@ export const update = async (req: Request, res: Response, next: NextFunction) =>
   }
 };
 
+export const unlock = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const buildingId = req.user.buildingId!;
+    const result = await doorService.unlock(buildingId, Number(req.params.id), {
+      userId: req.user.userId,
+      email: req.user.email,
+    });
+    if (!result) return next(new AppError('door not found', 404));
+    // 200 even when `unlocked` is false: the override was authorised and
+    // recorded, and an unreachable broker is a fault to report rather than a
+    // refusal. The caller reads `unlocked` to know whether the lock moved.
+    response.ok(res, result);
+  } catch (err) {
+    const status = (err as any)?.status;
+    if (status === 409) return next(new AppError('door is out of service', 409));
+    next(err);
+  }
+};
+
 export const remove = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const buildingId = req.user.buildingId!;

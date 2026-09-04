@@ -492,6 +492,15 @@
       "nobody": "Nitko nema pristup ovim vratima.",
       "yes": "da",
       "no": "ne"
+    },
+    "unlock": {
+      "action": "Otključaj",
+      "opened": "Vrata otvorena",
+      "recordedOnly": "Zabilježeno, ali upravljačka elektronika nije odgovorila",
+      "inactive": "Vrata su izvan pogona",
+      "failed": "Otključavanje nije uspjelo",
+      "confirmTitle": "Otključati {{name}}?",
+      "confirmBody": "Ovime se {{code}} otvaraju odmah. Zahvat se zapisuje u evidenciju pristupa pod vašim računom, jednako kao i svaki drugi ulazak."
     }
   },
   "devices": {

@@ -4,7 +4,7 @@ import * as policyController from '../policy/policy.controller';
 import * as deviceController from '../device/device.controller';
 import { validate } from '../../middleware/validate';
 import { CreateDoorSchema, UpdateDoorSchema } from './door.schema';
-import { requireAuth } from '../../middleware/auth';
+import { requireAuth, requireAdmin } from '../../middleware/auth';
 
 const router = Router();
 
@@ -17,6 +17,10 @@ router.get('/:id', requireAuth, doorController.getById);
 router.get('/:doorId/who-has-access', requireAuth, policyController.whoHasAccess);
 // The hardware attached to this door — beacon, indicator, lock.
 router.get('/:doorId/devices', requireAuth, deviceController.listForDoor);
+
+// Open a door from the dashboard. Admin-only, and recorded as an access event
+// like any other entry — see the comment on doorService.unlock.
+router.post('/:id/unlock', requireAuth, requireAdmin, doorController.unlock);
 
 router.post('/', requireAuth, validate(CreateDoorSchema), doorController.create);
 router.patch('/:id', requireAuth, validate(UpdateDoorSchema), doorController.update);

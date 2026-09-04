@@ -30,6 +30,9 @@ describe('Door API', () => {
   });
 
   beforeEach(async () => {
+    // Events reference doors, so they go first — and clearing them keeps the
+    // unlock tests from counting rows an earlier test left behind.
+    await db('access_events').del();
     await db('doors').truncate();
   });
 
@@ -113,5 +116,79 @@ describe('Door API', () => {
       .get(`/api/doors/${id}`)
       .set('Cookie', authCookie);
     expect(gone.status).toBe(404);
+  });
+  /**
+   * The dashboard override. The point of these is not that a message reaches
+   * the broker (it will not, in a test) but that the event is recorded either
+   * way — an unlock nobody logged is the exact outcome the system exists to
+   * rule out.
+   */
+  describe('POST /doors/:id/unlock', () => {
+    const makeDoor = (over: Record<string, unknown> = {}) =>
+      request(app).post('/api/doors').set('Cookie', authCookie).send({
+        name: 'Front', door_code: 'FRONT-01', mqtt_topic: 'doors/front-01/cmd', active: true, ...over,
+      });
+
+    it('records a granted admin_unlock event', async () => {
+      const created = await makeDoor();
+      const id = created.body.data.id;
+
+      const res = await request(app)
+        .post(`/api/doors/${id}/unlock`)
+        .set('Cookie', authCookie);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.event_id).toBeDefined();
+      expect(res.body.data.door.code).toBe('FRONT-01');
+
+      const event = await db('access_events').where({ id: res.body.data.event_id }).first();
+      expect(event.decision).toBe('granted');
+      expect(event.reason).toBe('admin_unlock');
+      expect(event.door_id).toBe(id);
+      expect(event.did).toBe(`admin:${userId}`);
+      // No signature was presented, so none may be claimed as verified.
+      expect(Boolean(event.signature_verified)).toBe(false);
+      expect(event.signature).toBeNull();
+      expect(event.event_hash).toMatch(/^0x[0-9a-f]{64}$/);
+    });
+
+    it('reports the broker being unreachable without failing the request', async () => {
+      const created = await makeDoor({ door_code: 'FRONT-02' });
+      const res = await request(app)
+        .post(`/api/doors/${created.body.data.id}/unlock`)
+        .set('Cookie', authCookie);
+      // Authorised and recorded; the lock simply did not move.
+      expect(res.status).toBe(200);
+      expect(res.body.data.unlocked).toBe(false);
+    });
+
+    it('refuses a door that is out of service', async () => {
+      const created = await makeDoor({ door_code: 'FRONT-03', active: false });
+      const res = await request(app)
+        .post(`/api/doors/${created.body.data.id}/unlock`)
+        .set('Cookie', authCookie);
+      expect(res.status).toBe(409);
+      expect(await db('access_events').count('* as c').first()).toMatchObject({ c: 0 });
+    });
+
+    it('404s for a door in another building', async () => {
+      const [otherBuilding] = await db('buildings').insert({
+        name: 'Other', address: 'x', contract_address: 'x', is_sandbox: false,
+      });
+      const [foreignId] = await db('doors').insert({
+        building_id: otherBuilding, name: 'Annex', door_code: 'ANX-01',
+        mqtt_topic: 'doors/anx/cmd', active: true,
+      });
+      const res = await request(app)
+        .post(`/api/doors/${foreignId}/unlock`)
+        .set('Cookie', authCookie);
+      expect(res.status).toBe(404);
+    });
+
+    it('requires authentication', async () => {
+      const created = await makeDoor({ door_code: 'FRONT-04' });
+      const res = await request(app).post(`/api/doors/${created.body.data.id}/unlock`);
+      expect(res.status).toBe(401);
+    });
   });
 })

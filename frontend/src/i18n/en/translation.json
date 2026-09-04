@@ -491,6 +491,15 @@
       "nobody": "Nobody has access to this door.",
       "yes": "yes",
       "no": "no"
+    },
+    "unlock": {
+      "action": "Unlock",
+      "opened": "Door opened",
+      "recordedOnly": "Recorded, but the door controller did not answer",
+      "inactive": "This door is out of service",
+      "failed": "Unlock failed",
+      "confirmTitle": "Unlock {{name}}?",
+      "confirmBody": "This opens {{code}} now. The override is written to the access history under your account, the same as any other entry."
     }
   },
   "devices": {
