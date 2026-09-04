@@ -21,13 +21,29 @@ export interface Device {
   door_code: string | null;
 }
 
-/** One topic seen while listening to the broker. */
+/** One raw topic heard while listening to the broker. */
+export interface DiscoveredTopic {
+  topic: string;
+  messages: number;
+  sample: string | null;
+}
+
+/**
+ * One device heard while listening to the broker.
+ *
+ * The backend groups an ESPHome node's topics — discovery, debug and one per
+ * entity — onto a single entry, so a ReSpeaker ring is one row rather than five.
+ * `topics` carries the evidence for that grouping.
+ */
 export interface DiscoveredDevice {
   topic: string;
+  name: string | null;
+  ip: string | null;
   messages: number;
   sample: string | null;
   /** Already registered — the UI offers this as a hint, not an add. */
   known: boolean;
+  topics: DiscoveredTopic[];
 }
 
 export interface DevicePage {

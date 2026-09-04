@@ -79,30 +79,61 @@ export default function ScanDialog({ open, onOpenChange, onAdd }: Props) {
               </p>
             )}
             {found.map((d) => (
-              <div
-                key={d.topic}
-                className="flex items-start justify-between gap-3 rounded-md border p-2.5"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="font-mono text-xs break-all">{d.topic}</p>
-                  {d.sample && (
-                    <p className="font-mono text-[10px] text-muted-foreground break-all mt-0.5">
-                      {d.sample}
-                    </p>
-                  )}
+              <div key={d.topic} className="rounded-md border p-2.5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    {d.name && <p className="text-sm font-medium truncate">{d.name}</p>}
+                    <p className="font-mono text-xs break-all">{d.topic}</p>
+                    {d.ip && (
+                      <p className="font-mono text-[10px] text-muted-foreground mt-0.5">{d.ip}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Badge variant="outline" className="tabular-nums">
+                      {t('devices.messages', { count: d.messages })}
+                    </Badge>
+                    {d.known ? (
+                      <Badge variant="secondary">{t('devices.known')}</Badge>
+                    ) : (
+                      <Button size="sm" variant="outline" onClick={() => onAdd(d.topic)}>
+                        <Plus className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Badge variant="outline" className="tabular-nums">
-                    {t('devices.messages', { count: d.messages })}
-                  </Badge>
-                  {d.known ? (
-                    <Badge variant="secondary">{t('devices.known')}</Badge>
-                  ) : (
-                    <Button size="sm" variant="outline" onClick={() => onAdd(d.topic)}>
-                      <Plus className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                </div>
+
+                {/*
+                  One device usually means several topics. Showing the count and
+                  hiding the list keeps the row readable, but the list has to be
+                  reachable — it is the evidence that these really are one node,
+                  and an operator debugging a silent ring needs to see which of
+                  its topics actually arrived.
+                */}
+                {d.topics.length > 1 && (
+                  <details className="mt-1.5">
+                    <summary className="cursor-pointer text-[11px] text-muted-foreground hover:text-foreground">
+                      {t('devices.topicCount', { count: d.topics.length })}
+                    </summary>
+                    <div className="mt-1.5 space-y-1 border-l pl-2">
+                      {d.topics.map((topic) => (
+                        <div key={topic.topic}>
+                          <p className="font-mono text-[10px] break-all">{topic.topic}</p>
+                          {topic.sample && (
+                            <p className="font-mono text-[10px] text-muted-foreground break-all">
+                              {topic.sample}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+
+                {d.topics.length === 1 && d.sample && (
+                  <p className="font-mono text-[10px] text-muted-foreground break-all mt-0.5">
+                    {d.sample}
+                  </p>
+                )}
               </div>
             ))}
           </div>

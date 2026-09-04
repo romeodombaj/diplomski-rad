@@ -114,6 +114,59 @@ export const listForDoor = async (buildingId: number, doorId: number): Promise<D
     .select('*');
 
 /**
+ * ESPHome publishes one topic per entity, so a single node appears on the wire
+ * as a handful of unrelated-looking topics. These are the component prefixes it
+ * uses in `<node>/<component>/<object>/state`.
+ */
+const ESPHOME_COMPONENTS = new Set([
+  'alarm_control_panel', 'binary_sensor', 'button', 'climate', 'cover', 'datetime',
+  'event', 'fan', 'light', 'lock', 'number', 'select', 'sensor', 'switch', 'text',
+  'text_sensor', 'update', 'valve',
+]);
+
+/** Topics an ESPHome node publishes about itself rather than about an entity. */
+const ESPHOME_NODE_TOPICS = new Set(['debug', 'status']);
+
+/**
+ * Which device a topic belongs to.
+ *
+ * Deliberately conservative: only shapes that are *recognisably* one node's
+ * sub-topics are folded together. Everything else stays its own row, because a
+ * door's command topic looks like `doors/front-01/cmd`, and grouping by first
+ * segment would merge every door in the building into a single "doors" device.
+ */
+export function deviceRoot(topic: string): string {
+  const parts = topic.split('/');
+
+  // `esphome/discover/<node>` — the node announcing itself at boot.
+  if (parts.length === 3 && parts[0] === 'esphome' && parts[1] === 'discover') return parts[2];
+
+  // `<node>/debug`, `<node>/status`
+  if (parts.length === 2 && ESPHOME_NODE_TOPICS.has(parts[1])) return parts[0];
+
+  // `<node>/<component>/<object>/state|command|config`
+  if (parts.length === 4 && ESPHOME_COMPONENTS.has(parts[1])) return parts[0];
+
+  return topic;
+}
+
+/** Pull the friendly name and address out of an ESPHome discovery payload. */
+function parseDiscovery(sample: string | null): { name: string | null; ip: string | null } {
+  if (!sample) return { name: null, ip: null };
+  try {
+    const json = JSON.parse(sample);
+    return {
+      name: json.friendly_name ?? json.name ?? null,
+      ip: json.ip ?? null,
+    };
+  } catch {
+    // The sample is truncated to 120 chars, so a long discovery payload will
+    // not parse. A missing name is not an error — the operator types one.
+    return { name: null, ip: null };
+  }
+}
+
+/**
  * Listen to the broker and report which devices are talking.
  *
  * This is the only discovery mechanism that needs nothing new: the broker is
@@ -121,9 +174,11 @@ export const listForDoor = async (buildingId: number, doorId: number): Promise<D
  * multicast does not cross Docker's bridge network and a port scan tells you
  * an address but never what the thing is.
  *
- * It reports topics, not devices — the operator names them and says what they
- * are. A silent device simply will not appear, which is why the UI also allows
- * adding one by hand.
+ * Results are grouped by device, not by topic. One ESPHome node publishes a
+ * discovery topic, a debug/log topic and one topic per entity it exposes, so an
+ * ungrouped list showed a single ReSpeaker ring as five separate "devices" and
+ * invited the operator to register all five. A silent device still will not
+ * appear at all, which is why the UI also allows adding one by hand.
  */
 export const scan = async (buildingId: number, seconds = 8): Promise<DiscoveredDevice[]> => {
   if (!config.mqtt.url) return [];
@@ -170,14 +225,45 @@ export const scan = async (buildingId: number, seconds = 8): Promise<DiscoveredD
       .pluck('address')) as string[],
   );
 
-  return [...seen.entries()]
-    .map(([topic, v]) => ({
-      topic,
-      messages: v.messages,
-      sample: v.sample,
-      // A device's address is the base topic, so anything published beneath it
+  // Fold the raw topics into one entry per device.
+  const devices = new Map<string, DiscoveredDevice>();
+  for (const [topic, v] of seen) {
+    const root = deviceRoot(topic);
+    const device = devices.get(root) ?? {
+      topic: root,
+      name: null,
+      ip: null,
+      messages: 0,
+      sample: null,
+      known: false,
+      topics: [],
+    };
+    device.messages += v.messages;
+    device.topics.push({ topic, messages: v.messages, sample: v.sample });
+
+    // The discovery payload is the one that actually names the device, so it
+    // wins over whichever entity happened to publish most.
+    if (topic.startsWith('esphome/discover/')) {
+      const { name, ip } = parseDiscovery(v.sample);
+      device.name = name ?? device.name;
+      device.ip = ip ?? device.ip;
+      device.sample = v.sample;
+    } else if (device.sample === null) {
+      device.sample = v.sample;
+    }
+
+    devices.set(root, device);
+  }
+
+  return [...devices.values()]
+    .map((d) => ({
+      ...d,
+      // A device's address is its base topic, so anything published beneath it
       // still counts as that device rather than a new one.
-      known: known.has(topic) || [...known].some((a) => topic.startsWith(`${a}/`)),
+      known:
+        known.has(d.topic) ||
+        [...known].some((a) => d.topic === a || d.topic.startsWith(`${a}/`)),
+      topics: d.topics.sort((a, b) => b.messages - a.messages || a.topic.localeCompare(b.topic)),
     }))
     .sort((a, b) => b.messages - a.messages || a.topic.localeCompare(b.topic));
 };

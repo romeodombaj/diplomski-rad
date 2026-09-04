@@ -53,13 +53,34 @@ export interface DeviceCursorPage {
   total?: number;
 }
 
-/** One topic seen during an MQTT scan. */
-export interface DiscoveredDevice {
+/** One raw topic heard during an MQTT scan. */
+export interface DiscoveredTopic {
   topic: string;
-  /** How many messages arrived on it during the scan. */
+  messages: number;
+  sample: string | null;
+}
+
+/**
+ * One device heard during an MQTT scan.
+ *
+ * A device is not a topic: an ESPHome node publishes a discovery topic, a debug
+ * topic and one topic per entity, all of which belong to the same piece of
+ * hardware. `topics` keeps the evidence so the operator can see why these were
+ * grouped.
+ */
+export interface DiscoveredDevice {
+  /** The base topic, and what gets stored as the device's address. */
+  topic: string;
+  /** Friendly name, when the device announced one. */
+  name: string | null;
+  /** Address, when the device announced one. */
+  ip: string | null;
+  /** Messages across every topic this device published on. */
   messages: number;
   /** The most recent payload, truncated — enough to recognise the device. */
   sample: string | null;
   /** True when a device row already claims this topic. */
   known: boolean;
+  /** Every topic seen for this device, most active first. */
+  topics: DiscoveredTopic[];
 }

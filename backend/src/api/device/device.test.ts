@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import app from '../../app';
 import db from '../../db';
 import { config } from '../../config/conifg';
+import { deviceRoot } from './device.service';
 
 /**
  * Devices — the hardware at a door, as distinct from the door itself.
@@ -139,7 +140,42 @@ describe('Devices', () => {
     expect(list.body.data).toHaveLength(0);
   });
 
-  it('requires authentication', async () => {
+    it('requires authentication', async () => {
     expect((await request(app).get('/api/devices')).status).toBe(401);
+  });
+});
+
+/**
+ * Topic grouping for the MQTT scan.
+ *
+ * A single ESPHome node publishes a discovery topic, a debug topic and one
+ * topic per entity. Before grouping, one ReSpeaker ring showed up as five
+ * separate rows in the scan dialog, each inviting the operator to register it.
+ */
+describe('deviceRoot', () => {
+  it('folds an ESPHome node\'s topics onto one device', () => {
+    const topics = [
+      'respeaker-door-ring/debug',
+      'esphome/discover/respeaker-door-ring',
+      'respeaker-door-ring/number/ring_brightness/state',
+      'respeaker-door-ring/sensor/firmware_version/state',
+      'respeaker-door-ring/sensor/free_heap/state',
+      'respeaker-door-ring/status',
+    ];
+    const roots = new Set(topics.map(deviceRoot));
+    expect([...roots]).toEqual(['respeaker-door-ring']);
+  });
+
+  it('keeps unrelated door topics apart', () => {
+    // The important negative case: grouping by first segment would merge every
+    // door in the building into a single "doors" device.
+    expect(deviceRoot('doors/front-01/cmd')).toBe('doors/front-01/cmd');
+    expect(deviceRoot('doors/side-02/cmd')).toBe('doors/side-02/cmd');
+    expect(deviceRoot('doors/front-01/cmd/proximity')).toBe('doors/front-01/cmd/proximity');
+  });
+
+  it('leaves an unrecognised topic as its own device', () => {
+    expect(deviceRoot('some/random/thing')).toBe('some/random/thing');
+    expect(deviceRoot('flat')).toBe('flat');
   });
 });

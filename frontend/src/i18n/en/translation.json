@@ -501,7 +501,7 @@
     "startScan": "Start scan",
     "rescan": "Scan again",
     "scanTitle": "Scan for devices",
-    "scanHint": "Listens to the MQTT broker for {{seconds}} seconds and lists everything that publishes. A device that is silent will not appear — add those by hand.",
+    "scanHint": "Listens to the MQTT broker for {{seconds}} seconds and groups what it hears by device. A device that is silent will not appear — add those by hand.",
     "listening": "Listening for {{seconds}} seconds…",
     "nothingHeard": "Nothing published while listening. Check the device is powered and talking to the broker, or add it by hand.",
     "messages": "{{count}} msg",
@@ -531,6 +531,7 @@
       "indicator": "Indicator",
       "lock": "Lock",
       "other": "Other"
-    }
+    },
+    "topicCount": "{{count}} topics"
   }
 }
