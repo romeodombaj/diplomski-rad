@@ -19,7 +19,8 @@ import { config } from '../../config/conifg';
 import { verifyTOTP } from '../../services/totpService';
 import * as behavior from '../../services/behaviorService';
 import * as chain from '../../services/chainService';
-import * as mqttService from '../../services/mqttService';
+import * as lockService from '../../services/lockService';
+import * as deviceService from '../device/device.service';
 import * as scheduleService from '../../services/scheduleService';
 import type { AccessRequestInput } from './access.schema';
 
@@ -436,7 +437,12 @@ export async function decide(input: AccessRequestInput): Promise<AccessDecision>
   // The unlock itself is not allowed to fail the request: the decision is made
   // and recorded, and an unreachable broker is an operational fault to report
   // (`unlocked: false`), not a reason to pretend access was denied.
-  const unlocked = await mqttService.publishUnlock(door.mqtt_topic, {
+  // How this door opens is a property of the lock mounted at it, not of the
+  // door: a smart plug, a Shelly relay and firmware written for this system all
+  // want different topics and payloads. lockService resolves that, and falls
+  // back to the door's own topic when no lock device is registered.
+  const lock = await deviceService.lockForDoor(door.id);
+  const { delivered: unlocked } = await lockService.actuate(door, lock, {
     doorId: door.id,
     doorCode: door.door_code,
     did,

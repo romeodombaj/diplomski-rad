@@ -3,7 +3,8 @@ import { ethers } from 'ethers';
 import db from '../../db';
 import logger from '../../lib/logger';
 import * as chain from '../../services/chainService';
-import * as mqttService from '../../services/mqttService';
+import * as lockService from '../../services/lockService';
+import * as deviceService from '../device/device.service';
 import type { Door, CreateDoorDto, UpdateDoorDto, DoorSearchParams, DoorCursorPage } from './door.types';
 
 export const getAll = async (buildingId: number, params: DoorSearchParams): Promise<DoorCursorPage> => {
@@ -125,7 +126,10 @@ export const unlock = async (
     occurred_at: occurredAt,
   });
 
-  const unlocked = await mqttService.publishUnlock(door.mqtt_topic, {
+  // The lock device says how this door opens; the door's own topic is the
+  // fallback for a door with no lock registered yet. See lockService.
+  const lock = await deviceService.lockForDoor(door.id);
+  const { delivered } = await lockService.actuate(door, lock, {
     doorId: door.id,
     doorCode: door.door_code,
     did: actor,
@@ -136,11 +140,11 @@ export const unlock = async (
 
   logger.warn(
     `[access] ADMIN UNLOCK | door=${door.door_code} by=${operator.email ?? actor} ` +
-      `unlocked=${unlocked} event=${eventId}`,
+      `unlocked=${delivered} event=${eventId}`,
   );
 
   return {
-    unlocked,
+    unlocked: delivered,
     event_id: eventId,
     event_hash: eventHash,
     door: { id: door.id, code: door.door_code, name: door.name },

@@ -6,6 +6,7 @@ import type {
   Device, DeviceWithDoor, CreateDeviceDto, UpdateDeviceDto,
   DeviceSearchParams, DeviceCursorPage, DiscoveredDevice,
 } from './device.types';
+import type { LockDevice } from '../../services/lockService';
 
 const SORTABLE = new Set(['id', 'name', 'kind', 'address', 'active', 'created_at', 'updated_at']);
 
@@ -79,8 +80,37 @@ async function assertDoorInBuilding(buildingId: number, doorId: number | null | 
   if (!door) throw Object.assign(new Error('door_not_found'), { status: 404 });
 }
 
+/**
+ * Refuse a second lock on a door that already has one.
+ *
+ * A unique index enforces this in the database, but a constraint violation
+ * surfaces as a 500 and a message about an index name. The operator's actual
+ * question is "which lock is already there", so answer that.
+ *
+ * Two relays on one door is not a configuration but a mistake: the access path
+ * would have to pick one, and picking silently means an unlock that opens
+ * whichever row happened to sort first.
+ */
+async function assertNoOtherLock(
+  buildingId: number,
+  doorId: number | null | undefined,
+  kind: string | undefined,
+  selfId?: number,
+) {
+  if (kind !== 'lock' || !doorId) return;
+  const existing = await db('devices')
+    .where({ door_id: doorId, kind: 'lock', building_id: buildingId })
+    .whereNull('deleted_at')
+    .modify((q) => { if (selfId) q.whereNot('id', selfId); })
+    .first();
+  if (existing) {
+    throw Object.assign(new Error(`door already has a lock: ${existing.name}`), { status: 409 });
+  }
+}
+
 export const create = async (buildingId: number, data: CreateDeviceDto): Promise<DeviceWithDoor> => {
   await assertDoorInBuilding(buildingId, data.door_id);
+  await assertNoOtherLock(buildingId, data.door_id, data.kind);
   const [id] = await db('devices').insert({ ...data, building_id: buildingId });
   return (await getById(buildingId, id)) as DeviceWithDoor;
 };
@@ -91,6 +121,19 @@ export const update = async (
   data: UpdateDeviceDto,
 ): Promise<DeviceWithDoor | undefined> => {
   await assertDoorInBuilding(buildingId, data.door_id);
+
+  // A PATCH may move a device to a door, turn it into a lock, or both, so the
+  // check runs against the row as it will be rather than as it is.
+  const current = await db('devices').where({ id, building_id: buildingId }).whereNull('deleted_at').first();
+  if (current) {
+    await assertNoOtherLock(
+      buildingId,
+      data.door_id === undefined ? current.door_id : data.door_id,
+      data.kind ?? current.kind,
+      id,
+    );
+  }
+
   await db('devices')
     .where({ id, building_id: buildingId })
     .whereNull('deleted_at')
@@ -266,4 +309,18 @@ export const scan = async (buildingId: number, seconds = 8): Promise<DiscoveredD
       topics: d.topics.sort((a, b) => b.messages - a.messages || a.topic.localeCompare(b.topic)),
     }))
     .sort((a, b) => b.messages - a.messages || a.topic.localeCompare(b.topic));
+};
+
+/**
+ * The lock attached to one door, if any.
+ *
+ * The unique index added in 20260904120000 guarantees at most one, so this is a
+ * `first()` on a set that cannot have two members rather than an arbitrary pick.
+ */
+export const lockForDoor = async (doorId: number): Promise<LockDevice | null> => {
+  const row = await db('devices')
+    .where({ door_id: doorId, kind: 'lock' })
+    .whereNull('deleted_at')
+    .first();
+  return (row as LockDevice) ?? null;
 };

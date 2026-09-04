@@ -5,6 +5,16 @@ const BASE = '/api/devices';
 export const DEVICE_KINDS = ['beacon', 'indicator', 'lock', 'other'] as const;
 export type DeviceKind = (typeof DEVICE_KINDS)[number];
 
+/**
+ * How a lock is driven. Must stay in step with backend/src/services/lockService.
+ * `native_json` is firmware written for this system; the rest are the topic and
+ * payload conventions of off-the-shelf relays.
+ */
+export const LOCK_PROFILES = [
+  'native_json', 'tasmota', 'shelly', 'esphome_switch', 'zigbee2mqtt', 'custom',
+] as const;
+export type LockProfile = (typeof LOCK_PROFILES)[number];
+
 export interface Device {
   id: number;
   building_id: number;
@@ -14,6 +24,12 @@ export interface Device {
   door_id: number | null;
   active: boolean;
   notes: string | null;
+  /** Lock actuation — null on every kind but `lock`. */
+  lock_profile: string | null;
+  command_topic: string | null;
+  unlock_payload: string | null;
+  lock_payload: string | null;
+  hold_seconds: number | null;
   created_at: string;
   updated_at: string;
   /** Joined from the door, so the list can show where hardware lives. */

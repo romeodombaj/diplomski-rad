@@ -25,6 +25,9 @@ export async function create(req: Request, res: Response, next: NextFunction) {
     res.status(201).json({ success: true, data: device });
   } catch (err: any) {
     if (err?.status === 404) return res.status(404).json({ success: false, message: 'Door not found' });
+    // The message names the lock already on that door — the operator's actual
+    // next question, and not something a generic conflict body would carry.
+    if (err?.status === 409) return res.status(409).json({ success: false, message: err.message });
     next(err);
   }
 }
@@ -38,6 +41,9 @@ export async function update(req: Request, res: Response, next: NextFunction) {
     res.json({ success: true, data: device });
   } catch (err: any) {
     if (err?.status === 404) return res.status(404).json({ success: false, message: 'Door not found' });
+    // The message names the lock already on that door — the operator's actual
+    // next question, and not something a generic conflict body would carry.
+    if (err?.status === 409) return res.status(409).json({ success: false, message: err.message });
     next(err);
   }
 }

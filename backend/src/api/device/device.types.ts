@@ -11,6 +11,13 @@ export interface Device {
   door_id: number | null;
   active: boolean;
   notes: string | null;
+
+  /** Lock actuation. Null on every kind but `lock` — see services/lockService. */
+  lock_profile: string | null;
+  command_topic: string | null;
+  unlock_payload: string | null;
+  lock_payload: string | null;
+  hold_seconds: number | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -29,6 +36,11 @@ export interface CreateDeviceDto {
   door_id?: number | null;
   active?: boolean;
   notes?: string | null;
+  lock_profile?: string | null;
+  command_topic?: string | null;
+  unlock_payload?: string | null;
+  lock_payload?: string | null;
+  hold_seconds?: number | null;
 }
 
 export type UpdateDeviceDto = Partial<CreateDeviceDto>;

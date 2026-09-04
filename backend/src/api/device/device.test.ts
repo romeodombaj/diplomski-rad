@@ -20,6 +20,7 @@ describe('Devices', () => {
   let cookie: string;
   let doorId: number;
   let otherDoorId: number;
+  let secondDoorId: number;
 
   const post = (body: Record<string, unknown>) =>
     request(app).post('/api/devices').set('Cookie', cookie).send(body);
@@ -54,6 +55,12 @@ describe('Devices', () => {
     [otherDoorId] = await db('doors').insert({
       building_id: otherBuildingId, name: 'Annex', door_code: `A-${randomUUID().slice(0, 5)}`,
       mqtt_topic: 'doors/annex/cmd', active: true,
+    });
+    // A second door in the SAME building — the lock-exclusivity tests need one,
+    // and otherDoorId is deliberately in another building.
+    [secondDoorId] = await db('doors').insert({
+      building_id: buildingId, name: 'Side', door_code: `S-${randomUUID().slice(0, 5)}`,
+      mqtt_topic: 'doors/side/cmd', active: true,
     });
   });
 
@@ -142,6 +149,61 @@ describe('Devices', () => {
 
     it('requires authentication', async () => {
     expect((await request(app).get('/api/devices')).status).toBe(401);
+  });
+
+  /**
+   * One lock per door.
+   *
+   * Two relays wired to one door is not a configuration but a mistake: the
+   * access path has to pick one, and picking silently means an unlock that
+   * opens whichever row sorted first.
+   */
+  describe('lock exclusivity', () => {
+    it('refuses a second lock on the same door', async () => {
+      await post({ name: 'Plug A', kind: 'lock', door_id: doorId, lock_profile: 'tasmota' });
+      const second = await post({ name: 'Plug B', kind: 'lock', door_id: doorId });
+      expect(second.status).toBe(409);
+      // The message names the lock already there — the operator's next question.
+      expect(second.body.message).toContain('Plug A');
+    });
+
+    it('allows a second lock on a different door', async () => {
+      await post({ name: 'Plug A', kind: 'lock', door_id: doorId });
+      const other = await post({ name: 'Plug B', kind: 'lock', door_id: secondDoorId });
+      expect(other.status).toBe(201);
+    });
+
+    it('allows other kinds alongside a lock', async () => {
+      await post({ name: 'Plug A', kind: 'lock', door_id: doorId });
+      expect((await post({ name: 'Ring', kind: 'indicator', door_id: doorId })).status).toBe(201);
+      expect((await post({ name: 'Beacon', kind: 'beacon', door_id: doorId })).status).toBe(201);
+    });
+
+    it('refuses moving a second lock onto an occupied door', async () => {
+      await post({ name: 'Plug A', kind: 'lock', door_id: doorId });
+      const spare = await post({ name: 'Spare', kind: 'lock', door_id: null });
+      const res = await request(app)
+        .patch(`/api/devices/${spare.body.data.id}`)
+        .set('Cookie', cookie)
+        .send({ door_id: doorId });
+      expect(res.status).toBe(409);
+    });
+
+    it('frees the slot when the lock is deleted', async () => {
+      const first = await post({ name: 'Plug A', kind: 'lock', door_id: doorId });
+      await request(app).delete(`/api/devices/${first.body.data.id}`).set('Cookie', cookie);
+      expect((await post({ name: 'Plug B', kind: 'lock', door_id: doorId })).status).toBe(201);
+    });
+
+    it('stores the actuation fields', async () => {
+      const made = await post({
+        name: 'Front plug', kind: 'lock', door_id: doorId, address: 'plug-front',
+        lock_profile: 'tasmota', hold_seconds: 4,
+      });
+      expect(made.status).toBe(201);
+      expect(made.body.data.lock_profile).toBe('tasmota');
+      expect(made.body.data.hold_seconds).toBe(4);
+    });
   });
 });
 

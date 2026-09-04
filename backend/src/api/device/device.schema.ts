@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { DEVICE_KINDS } from './device.types';
+import { LOCK_PROFILES } from '../../services/lockService';
 
 const base = {
   name: z.string().trim().min(1).max(120),
@@ -12,6 +13,22 @@ const base = {
   door_id: z.number().int().positive().nullable().optional(),
   active: z.boolean().optional(),
   notes: z.string().trim().max(2000).nullable().optional(),
+
+  /**
+   * How to operate this lock. Meaningless on any other kind, and left null
+   * there rather than defaulted, so a beacon never looks like a lock that
+   * happens to speak Tasmota.
+   */
+  lock_profile: z.enum(LOCK_PROFILES).nullable().optional(),
+  /** Overrides the topic the profile would derive. Rarely needed. */
+  command_topic: z.string().trim().max(200).nullable().optional(),
+  unlock_payload: z.string().max(500).nullable().optional(),
+  lock_payload: z.string().max(500).nullable().optional(),
+  /**
+   * Bounded at five minutes: a hold longer than that is a door propped open,
+   * not a lock released, and it is far more likely to be a typo than an intent.
+   */
+  hold_seconds: z.number().int().min(1).max(300).nullable().optional(),
 };
 
 export const CreateDeviceSchema = z.object(base);

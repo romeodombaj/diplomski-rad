@@ -1,10 +1,10 @@
 /**
- * Publishes the unlock command to the physical door.
+ * The broker connection, and the two things published over it.
  *
- * This replaces the three console.log lines in the old verificationService,
- * which meant no door had ever actually been told to open. Each door row
- * carries its own `mqtt_topic`; per specs/HARDWARE_ACCESS_NOTES.md the topic
- * currently drives a WiFi smart plug whose click stands in for a real lock.
+ * What to publish for an unlock is lockService's problem, not this file's: a
+ * Tasmota plug, a Shelly relay and firmware written for this system all want
+ * different topics and payloads, and baking one of them in here is what made
+ * the lock unswappable. This owns the client and the delivery guarantees.
  *
  * DEGRADED MODE: with no MQTT_URL configured the publish is logged and skipped
  * rather than throwing. An unreachable broker must not turn into a 500 on a
@@ -48,29 +48,18 @@ export const status = () => ({
   url: config.mqtt.url || null,
 });
 
-export interface UnlockCommand {
-  doorId: number;
-  doorCode: string;
-  did: string;
-  eventId: string;
-  holdSeconds?: number;
-}
-
 /**
- * Publish an unlock to one door's topic.
- * @returns whether the broker actually took the message.
+ * Publish one message, verbatim.
+ *
+ * This replaces `publishUnlock`, which built one fixed JSON payload — right for
+ * firmware written for this system and wrong for every off-the-shelf relay.
+ * Lock commands now come from lockService, which knows each profile's topic and
+ * payload, so what it needs here is a transport with no opinions.
+ *
+ * QoS 1: an unlock that silently fails to arrive is a person standing at a
+ * door that never opened.
  */
-export async function publishUnlock(topic: string, cmd: UnlockCommand): Promise<boolean> {
-  const payload = JSON.stringify({
-    action: 'unlock',
-    door_id: cmd.doorId,
-    door_code: cmd.doorCode,
-    did: cmd.did,
-    event_id: cmd.eventId,
-    hold_seconds: cmd.holdSeconds ?? config.mqtt.holdSeconds,
-    timestamp: Date.now(),
-  });
-
+export async function publishRaw(topic: string, payload: string): Promise<boolean> {
   if (!client?.connected) {
     logger.warn(`[mqtt] not connected — would publish to ${topic}: ${payload}`);
     return false;
@@ -82,7 +71,6 @@ export async function publishUnlock(topic: string, cmd: UnlockCommand): Promise<
         logger.error(`[mqtt] publish to ${topic} failed: ${err.message}`);
         return resolve(false);
       }
-      logger.info(`[mqtt] unlock → ${topic} (door ${cmd.doorCode})`);
       resolve(true);
     });
   });
@@ -102,7 +90,7 @@ export interface ProximityUpdate {
 /**
  * Publish an LED proximity update to one door's ring.
  *
- * Three deliberate differences from `publishUnlock`, all because this is
+ * Three deliberate differences from an unlock publish, all because this is
  * cosmetic and continuous rather than consequential and rare:
  *
  *  - **QoS 0.** An unlock must arrive; a position update must be *current*. QoS
