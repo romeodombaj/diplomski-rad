@@ -13,6 +13,7 @@ import { rateLimiter, v1RateLimiter, authRateLimiter, mobileRateLimiter } from '
 import authRoutes from './api/auth/auth.routes';
 import doorRoutes from './api/door/door.routes';
 import deviceRoutes from './api/device/device.routes';
+import dashboardRoutes from './api/dashboard/dashboard.routes';
 import personRoutes from './api/person/person.routes';
 import totp_secretRoutes from './api/totp_secret/totp_secret.routes';
 import accessEventRoutes from './api/access_event/access_event.routes';
@@ -52,6 +53,7 @@ app.use('/api/totp_secrets', totp_secretRoutes);
 // nothing was mounted there. Backed by access_events.
 app.use('/api/audit-logs', accessEventRoutes);
 app.use('/api/policies', policyRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 app.use('/mobile', mobileRoutes);
 // gt:routes
 

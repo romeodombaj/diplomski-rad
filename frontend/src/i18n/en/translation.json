@@ -557,7 +557,13 @@
       "name": "Name",
       "kind": "Kind",
       "address": "Address or MQTT topic",
-      "door": "Door"
+      "door": "Door",
+      "lockProfile": "How this lock is driven",
+      "holdSeconds": "Hold (seconds)",
+      "unlockPayload": "Unlock payload",
+      "lockPayload": "Release payload",
+      "commandTopic": "Command topic override",
+      "commandTopicPlaceholder": "leave empty to use the profile’s topic"
     },
     "kind": {
       "beacon": "Beacon",
@@ -565,6 +571,65 @@
       "lock": "Lock",
       "other": "Other"
     },
-    "topicCount": "{{count}} topics"
+    "topicCount": "{{count}} topics",
+    "lockProfile": {
+      "native_json": "This system’s firmware",
+      "tasmota": "Tasmota plug or relay",
+      "shelly": "Shelly relay",
+      "esphome_switch": "ESPHome switch",
+      "zigbee2mqtt": "Zigbee2MQTT device",
+      "custom": "Custom topic and payload"
+    },
+    "lockProfileHint": {
+      "native_json": "Publishes this system’s JSON to the address, and the firmware releases itself after the hold.",
+      "tasmota": "Publishes ON to cmnd/<address>/POWER, then OFF after the hold. Set PulseTime on the plug too, so a backend restart cannot leave it closed.",
+      "shelly": "Publishes on to <address>/relay/0/command, then off after the hold.",
+      "esphome_switch": "Publishes ON to <address>/command, then OFF. Address is the entity path, e.g. node/switch/strike.",
+      "zigbee2mqtt": "Publishes {\"state\":\"ON\"} to <address>/set, then OFF after the hold.",
+      "custom": "Sends exactly what you type below. Leave the release payload empty and nothing is sent to close it."
+    }
+  },
+  "dashboard": {
+    "title": "Today",
+    "subtitle": "What happened, and the doors you can open.",
+    "refresh": "Refresh",
+    "stats": {
+      "grantedToday": "Entries today",
+      "deniedToday": "Refused today",
+      "doors": "Doors in service",
+      "locks": "Locks configured"
+    },
+    "health": {
+      "mqttDown": "The message broker is unreachable — unlocks will be recorded but no door will open.",
+      "chainOff": "The chain client is disabled — policy and revocation are not being checked."
+    },
+    "doors": {
+      "title": "Doors",
+      "empty": "No doors yet. Add one under Doors.",
+      "outOfService": "Out of service",
+      "opensToday": "{{count}} today",
+      "denialsToday": "{{count}} refused",
+      "lastOpened": "Last {{time}} · {{who}}",
+      "notOpenedToday": "Not opened today",
+      "unknownWho": "unknown",
+      "noLock": "No lock registered",
+      "noLockHint": "Falls back to the door topic {{topic}} — nothing may be listening there.",
+      "lockInactive": "Lock disabled"
+    },
+    "activity": {
+      "title": "Traffic by hour",
+      "subtitle": "Every attempt at every door today.",
+      "granted": "Opened",
+      "denied": "Refused",
+      "empty": "Nothing yet today.",
+      "hourLabel": "{{hour}}:00"
+    },
+    "openers": {
+      "title": "Who came in",
+      "subtitle_one": "{{count}} person today",
+      "subtitle_other": "{{count}} people today",
+      "empty": "Nobody has come in today.",
+      "opens": "{{count}}×"
+    }
   }
 }

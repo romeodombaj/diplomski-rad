@@ -558,7 +558,13 @@
       "name": "Naziv",
       "kind": "Vrsta",
       "address": "Adresa ili MQTT tema",
-      "door": "Vrata"
+      "door": "Vrata",
+      "lockProfile": "Kako se brava pokreće",
+      "holdSeconds": "Zadržavanje (sekundi)",
+      "unlockPayload": "Sadržaj za otključavanje",
+      "lockPayload": "Sadržaj za otpuštanje",
+      "commandTopic": "Zaobilaženje teme naredbe",
+      "commandTopicPlaceholder": "ostavite prazno za temu iz profila"
     },
     "kind": {
       "beacon": "Odašiljač",
@@ -566,6 +572,66 @@
       "lock": "Brava",
       "other": "Ostalo"
     },
-    "topicCount": "tema: {{count}}"
+    "topicCount": "tema: {{count}}",
+    "lockProfile": {
+      "native_json": "Firmware ovog sustava",
+      "tasmota": "Tasmota utičnica ili relej",
+      "shelly": "Shelly relej",
+      "esphome_switch": "ESPHome sklopka",
+      "zigbee2mqtt": "Zigbee2MQTT uređaj",
+      "custom": "Vlastita tema i sadržaj"
+    },
+    "lockProfileHint": {
+      "native_json": "Objavljuje JSON ovog sustava na adresu, a firmware se sam otpušta nakon zadržavanja.",
+      "tasmota": "Objavljuje ON na cmnd/<adresa>/POWER, pa OFF nakon zadržavanja. Postavite i PulseTime na utičnici kako ponovno pokretanje poslužitelja ne bi ostavilo bravu zatvorenom.",
+      "shelly": "Objavljuje on na <adresa>/relay/0/command, pa off nakon zadržavanja.",
+      "esphome_switch": "Objavljuje ON na <adresa>/command, pa OFF. Adresa je put entiteta, npr. node/switch/strike.",
+      "zigbee2mqtt": "Objavljuje {\"state\":\"ON\"} na <adresa>/set, pa OFF nakon zadržavanja.",
+      "custom": "Šalje točno ono što upišete. Ostavite li sadržaj za otpuštanje prazan, ništa se ne šalje za zatvaranje."
+    }
+  },
+  "dashboard": {
+    "title": "Danas",
+    "subtitle": "Što se dogodilo i vrata koja možete otvoriti.",
+    "refresh": "Osvježi",
+    "stats": {
+      "grantedToday": "Ulazaka danas",
+      "deniedToday": "Odbijeno danas",
+      "doors": "Vrata u pogonu",
+      "locks": "Podešenih brava"
+    },
+    "health": {
+      "mqttDown": "Posrednik poruka nije dostupan — otključavanja će biti zabilježena, ali se vrata neće otvoriti.",
+      "chainOff": "Klijent lanca je isključen — pravila i opozivi se ne provjeravaju."
+    },
+    "doors": {
+      "title": "Vrata",
+      "empty": "Još nema vrata. Dodajte ih pod Vrata.",
+      "outOfService": "Izvan pogona",
+      "opensToday": "{{count}} danas",
+      "denialsToday": "{{count}} odbijeno",
+      "lastOpened": "Zadnje {{time}} · {{who}}",
+      "notOpenedToday": "Danas nisu otvarana",
+      "unknownWho": "nepoznato",
+      "noLock": "Brava nije registrirana",
+      "noLockHint": "Vraća se na temu vrata {{topic}} — možda je nitko ne sluša.",
+      "lockInactive": "Brava isključena"
+    },
+    "activity": {
+      "title": "Promet po satu",
+      "subtitle": "Svi pokušaji na svim vratima danas.",
+      "granted": "Otvoreno",
+      "denied": "Odbijeno",
+      "empty": "Danas još ništa.",
+      "hourLabel": "{{hour}}:00"
+    },
+    "openers": {
+      "title": "Tko je ušao",
+      "subtitle_one": "{{count}} osoba danas",
+      "subtitle_few": "{{count}} osobe danas",
+      "subtitle_other": "{{count}} osoba danas",
+      "empty": "Danas nitko nije ušao.",
+      "opens": "{{count}}×"
+    }
   }
 }

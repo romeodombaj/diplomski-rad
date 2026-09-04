@@ -10,6 +10,15 @@
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
+    /*
+     * Chart series. Blue for granted, amber for denied — NOT green/red, which
+     * is the one pair a deuteranope cannot separate, and this chart's whole job
+     * is telling those two apart. Validated with the dataviz palette checker:
+     * protanopia ΔE 29.3 against a floor of 8, and both sit inside the light
+     * lightness band with contrast >= 3:1 on the card surface.
+     */
+    --chart-granted: 213 74% 53%;   /* #2D6FE0 */
+    --chart-denied: 31 76% 44%;     /* #C4761A */
     --primary: 222.2 47.4% 11.2%;
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96.1%;
@@ -41,6 +50,13 @@
     --card-foreground: 0 0% 98%;
     --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
+    /*
+     * Re-picked for the dark surface rather than flipped: the validator's dark
+     * lightness band (0.48–0.67) is LOWER than the light one, so the naive
+     * "lighten everything" move fails it. protanopia ΔE 25.7 here.
+     */
+    --chart-granted: 213 76% 60%;   /* #4A90E8 */
+    --chart-denied: 33 61% 45%;     /* #B87A2E */
     --primary: 0 0% 98%;
     --primary-foreground: 240 5.9% 10%;
     --secondary: 240 3.7% 15.9%;
