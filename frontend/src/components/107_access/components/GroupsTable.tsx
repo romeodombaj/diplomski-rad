@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Plus, Pencil, Trash2, Users, DoorOpen } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users, DoorOpen, Maximize2 } from 'lucide-react';
 import { Button } from '@/UI/button';
 import { Badge } from '@/UI/badge';
 import { Input } from '@/UI/input';
@@ -14,6 +15,7 @@ import GroupEditor from '../group/GroupEditor';
 
 export default function GroupsTable() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [groups, setGroups] = useState<AccessGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -97,7 +99,7 @@ export default function GroupsTable() {
               <TableRow
                 key={g.id}
                 className="cursor-pointer"
-                onClick={() => { setEditing(g.id); setEditorOpen(true); }}
+                onClick={() => navigate(`/access/groups/${g.id}`)}
               >
                 <TableCell className="font-medium">
                   {g.name}
@@ -121,9 +123,15 @@ export default function GroupsTable() {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="icon"
+                  {/* Two ways in on purpose: the sheet for a quick door tick,
+                      the page for membership and anything that needs room. */}
+                  <Button variant="ghost" size="icon" title={t('access.groups.edit')}
                     onClick={(e) => { e.stopPropagation(); setEditing(g.id); setEditorOpen(true); }}>
                     <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" title={t('access.groups.openFull')}
+                    onClick={(e) => { e.stopPropagation(); navigate(`/access/groups/${g.id}`); }}>
+                    <Maximize2 className="h-4 w-4" />
                   </Button>
                   <Button variant="ghost" size="icon"
                     onClick={(e) => { e.stopPropagation(); setDeleting(g); }}>

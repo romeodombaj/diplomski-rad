@@ -371,7 +371,17 @@
       "fanOutTitle": "Ovo će zapisati na lanac",
       "fanOutBody": "{{added}} vrata dodano, {{removed}} uklonjeno, za {{members}} član(ova) — otprilike {{transactions}} transakcija na lancu.",
       "deleteTitle": "Obrisati {{name}}?",
-      "deleteBody": "Sva pravila nastala iz ove grupe bit će opozvana na lancu — otprilike {{count}} transakcija. Ovo se odavde ne može poništiti."
+      "deleteBody": "Sva pravila nastala iz ove grupe bit će opozvana na lancu — otprilike {{count}} transakcija. Ovo se odavde ne može poništiti.",
+      "back": "Sve grupe",
+      "openFull": "Otvori kao stranicu",
+      "summary": "{{doors}} vrata · {{members}} članova",
+      "noMembers": "U ovoj grupi još nema nikoga",
+      "addMember": "Dodaj osobu",
+      "removeMember": "Ukloni iz grupe",
+      "searchPeople": "Pretraži aktivne osobe…",
+      "noMatches": "Nema aktivne osobe koja odgovara",
+      "everyoneIn": "Sve pronađene osobe već su članovi",
+      "memberFanOut": "Svaka dodana osoba stoji {{doors}} transakcija na lancu."
     },
     "schedules": {
       "name": "Naziv",
@@ -492,6 +502,20 @@
       "nobody": "Nitko nema pristup ovim vratima.",
       "yes": "da",
       "no": "ne"
+    },
+    "detail": {
+      "back": "Natrag na vrata",
+      "active": "Aktivna",
+      "inactive": "Izvan pogona",
+      "tabs": {
+        "details": "Detalji",
+        "devices": "Uređaji",
+        "access": "Tko može otvoriti"
+      },
+      "person": "Osoba",
+      "via": "Putem",
+      "hours": "Radno vrijeme",
+      "noAccess": "Nitko još nema pristup ovim vratima."
     },
     "unlock": {
       "action": "Otključaj",

@@ -16,9 +16,11 @@ import Backups from "./components/103_Backups/Backups";
 import ErrorBoundary from "./components/ErrorBoundary";
 import Docs from "./components/0_Docs/Docs";
 import Doors from './components/105_doors/doors'
+import DoorDetail from './components/105_doors/door/DoorDetail'
 import People from './components/106_people/people'
 import PersonDetail from './components/106_people/person/PersonDetail'
 import Access from './components/107_access/access'
+import GroupDetail from './components/107_access/group/GroupDetail'
 import Devices from './components/108_devices/devices'
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
@@ -40,12 +42,14 @@ function AppRoutes() {
                             <Route index element={<Dashboard />} />
             {/* gt:buildings-routes */}
             <Route path="/doors" element={<Doors />} />
+            <Route path="/doors/:id" element={<DoorDetail />} />
             {/* gt:doors-routes */}
             <Route path="/people" element={<People />} />
             <Route path="/people/:id" element={<PersonDetail />} />
             {/* gt:people-routes */}
             {/* gt:tab:107_access */}
             <Route path="/access" element={<Access />} />
+            <Route path="/access/groups/:id" element={<GroupDetail />} />
             {/* gt:tab:108_devices */}
             <Route path="/devices" element={<Devices />} />
             {/* gt:nav-routes */}

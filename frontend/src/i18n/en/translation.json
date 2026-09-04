@@ -370,7 +370,17 @@
       "fanOutTitle": "This will write to the chain",
       "fanOutBody": "{{added}} door(s) added, {{removed}} removed, across {{members}} member(s) — about {{transactions}} on-chain transactions.",
       "deleteTitle": "Delete {{name}}?",
-      "deleteBody": "Every policy this group produced will be revoked on chain — about {{count}} transactions. This cannot be undone from here."
+      "deleteBody": "Every policy this group produced will be revoked on chain — about {{count}} transactions. This cannot be undone from here.",
+      "back": "All groups",
+      "openFull": "Open as a page",
+      "summary": "{{doors}} doors · {{members}} members",
+      "noMembers": "Nobody is in this group yet",
+      "addMember": "Add a person",
+      "removeMember": "Remove from group",
+      "searchPeople": "Search active people…",
+      "noMatches": "No active person matches",
+      "everyoneIn": "Everyone found is already a member",
+      "memberFanOut": "Each person added costs {{doors}} on-chain transactions."
     },
     "schedules": {
       "name": "Name",
@@ -491,6 +501,20 @@
       "nobody": "Nobody has access to this door.",
       "yes": "yes",
       "no": "no"
+    },
+    "detail": {
+      "back": "Back to doors",
+      "active": "Active",
+      "inactive": "Out of service",
+      "tabs": {
+        "details": "Details",
+        "devices": "Devices",
+        "access": "Who can open it"
+      },
+      "person": "Person",
+      "via": "Via",
+      "hours": "Hours",
+      "noAccess": "Nobody has access to this door yet."
     },
     "unlock": {
       "action": "Unlock",
