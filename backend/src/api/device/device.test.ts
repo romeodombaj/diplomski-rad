@@ -66,16 +66,16 @@ describe('Devices', () => {
 
   it('creates a device and reports the door it is attached to', async () => {
     const res = await post({
-      name: 'Front ring', kind: 'indicator', address: 'doors/front/cmd', door_id: doorId,
+      name: 'Front ring', kind: 'proximity', address: 'doors/front/cmd', door_id: doorId,
     });
     expect(res.status).toBe(201);
     expect(res.body.data).toMatchObject({
-      name: 'Front ring', kind: 'indicator', door_id: doorId, door_name: 'Front',
+      name: 'Front ring', kind: 'proximity', door_id: doorId, door_name: 'Front',
     });
   });
 
   it('accepts a device with no door yet', async () => {
-    const res = await post({ name: 'Spare beacon', kind: 'beacon' });
+    const res = await post({ name: 'Spare sensor', kind: 'proximity' });
     expect(res.status).toBe(201);
     expect(res.body.data.door_id).toBeNull();
   });
@@ -93,8 +93,8 @@ describe('Devices', () => {
   });
 
   it('lists only this building\'s devices', async () => {
-    await post({ name: 'Mine', kind: 'beacon' });
-    await db('devices').insert({ building_id: otherBuildingId, name: 'Theirs', kind: 'beacon' });
+    await post({ name: 'Mine', kind: 'proximity' });
+    await db('devices').insert({ building_id: otherBuildingId, name: 'Theirs', kind: 'proximity' });
     const res = await request(app).get('/api/devices').set('Cookie', cookie);
     expect(res.body.data.map((d: any) => d.name)).toEqual(['Mine']);
   });
@@ -117,17 +117,18 @@ describe('Devices', () => {
   });
 
   it('lists the devices attached to a door', async () => {
-    await post({ name: 'Ring', kind: 'indicator', door_id: doorId });
-    await post({ name: 'Beacon', kind: 'beacon', door_id: doorId });
+    // One of each kind — which is all a door can hold.
+    await post({ name: 'Sensor', kind: 'proximity', door_id: doorId });
+    await post({ name: 'Plug', kind: 'lock', door_id: doorId });
     await post({ name: 'Elsewhere', kind: 'lock' });
     const res = await request(app).get(`/api/doors/${doorId}/devices`).set('Cookie', cookie);
-    expect(res.body.data.map((d: any) => d.name).sort()).toEqual(['Beacon', 'Ring']);
+    expect(res.body.data.map((d: any) => d.name).sort()).toEqual(['Plug', 'Sensor']);
   });
 
   it('keeps the device when its door is deleted', async () => {
     // The hardware still exists on a wall somewhere and can be reassigned;
     // deleting the policy object must not erase the inventory record.
-    const made = await post({ name: 'Ring', kind: 'indicator', door_id: doorId });
+    const made = await post({ name: 'Ring', kind: 'proximity', door_id: doorId });
     await request(app).delete(`/api/doors/${doorId}`).set('Cookie', cookie);
     const after = await db('devices').where({ id: made.body.data.id }).first();
     expect(after).toBeTruthy();
@@ -173,10 +174,18 @@ describe('Devices', () => {
       expect(other.status).toBe(201);
     });
 
-    it('allows other kinds alongside a lock', async () => {
+    it('allows one of each kind on the same door', async () => {
       await post({ name: 'Plug A', kind: 'lock', door_id: doorId });
-      expect((await post({ name: 'Ring', kind: 'indicator', door_id: doorId })).status).toBe(201);
-      expect((await post({ name: 'Beacon', kind: 'beacon', door_id: doorId })).status).toBe(201);
+      expect((await post({ name: 'Sensor', kind: 'proximity', door_id: doorId })).status).toBe(201);
+    });
+
+    it('refuses a second proximity device on the same door', async () => {
+      // A door senses you once. Two sensors means the code picks one silently,
+      // and the ring then reports whichever row sorted first.
+      await post({ name: 'Sensor A', kind: 'proximity', door_id: doorId });
+      const second = await post({ name: 'Sensor B', kind: 'proximity', door_id: doorId });
+      expect(second.status).toBe(409);
+      expect(second.body.message).toContain('Sensor A');
     });
 
     it('refuses moving a second lock onto an occupied door', async () => {

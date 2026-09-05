@@ -11,6 +11,7 @@ import {
 import { DoorService, type Door } from '../services/door.service';
 import { PolicyService, type DoorAccessRow } from '@/components/107_access/services/policy.service';
 import DoorDevices from '@/components/108_devices/components/DoorDevices';
+import DoorLockdownButton from '@/components/109_lockdown/DoorLockdownButton';
 import UnlockButton from '../components/UnlockButton';
 import EditDoor from './EditDoor';
 
@@ -75,9 +76,17 @@ export default function DoorDetail() {
           {door.active ? t('doors.detail.active') : t('doors.detail.inactive')}
         </Badge>
         <span className="text-muted-foreground font-mono text-sm">{door.door_code}</span>
-        {/* Right-aligned: it is the one action on this page with a physical
-            effect, so it does not sit in the run of identifying labels. */}
-        <div className="ml-auto flex items-center">
+        {(door as any).locked_down && (
+          <Badge variant="destructive">{t('lockdown.lockedDown')}</Badge>
+        )}
+        {/* Right-aligned: these are the actions on this page with a physical
+            effect, so they do not sit in the run of identifying labels. */}
+        <div className="ml-auto flex items-center gap-2">
+          <DoorLockdownButton
+            doorId={Number(id)}
+            lockedDown={Boolean((door as any).locked_down)}
+            onChanged={load}
+          />
           <UnlockButton door={door} onUnlocked={load} />
         </div>
       </div>

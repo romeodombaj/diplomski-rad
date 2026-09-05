@@ -145,6 +145,34 @@ describe('Mobile access path', () => {
     expect(res.body.data.reason).toBe('unknown_door');
   });
 
+  it('denies a door that is locked down', async () => {
+    // Enforced on the access path, not just hidden in the UI: the phone signs
+    // its own request, so a modified client could ask regardless of any screen.
+    await db('doors').where({ door_code: DOOR }).update({ locked_down: true });
+    const res = await post();
+    expect(res.body.data.reason).toBe('door_locked_down');
+    expect(res.body.data.granted).toBe(false);
+    await db('doors').where({ door_code: DOOR }).update({ locked_down: false });
+  });
+
+  it('denies everyone while the building is in emergency lockdown', async () => {
+    await db('buildings').where({ id: buildingId }).update({ lockdown_at: new Date().toISOString() });
+    const res = await post();
+    expect(res.body.data.reason).toBe('building_lockdown');
+    expect(res.body.data.granted).toBe(false);
+    await db('buildings').where({ id: buildingId }).update({ lockdown_at: null });
+  });
+
+  it('records a lockdown refusal as an access event', async () => {
+    // "Who tried to get in during the lockdown" has to be answerable after.
+    await db('doors').where({ door_code: DOOR }).update({ locked_down: true });
+    await post();
+    const [event] = await db('access_events').where({ reason: 'door_locked_down' });
+    expect(event).toBeTruthy();
+    expect(event.decision).toBe('denied');
+    await db('doors').where({ door_code: DOOR }).update({ locked_down: false });
+  });
+
   it('denies a door that is out of service', async () => {
     const res = await post({ door_code: SIDE_DOOR });
     expect(res.body.data.reason).toBe('door_inactive');

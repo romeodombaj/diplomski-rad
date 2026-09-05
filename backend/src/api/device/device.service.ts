@@ -87,30 +87,33 @@ async function assertDoorInBuilding(buildingId: number, doorId: number | null | 
  * surfaces as a 500 and a message about an index name. The operator's actual
  * question is "which lock is already there", so answer that.
  *
- * Two relays on one door is not a configuration but a mistake: the access path
+ * Two of a kind on one door is not a configuration but a mistake: the code
  * would have to pick one, and picking silently means an unlock that opens
- * whichever row happened to sort first.
+ * whichever row happened to sort first, or a ring reporting the wrong distance.
  */
-async function assertNoOtherLock(
+async function assertNoOtherOfKind(
   buildingId: number,
   doorId: number | null | undefined,
   kind: string | undefined,
   selfId?: number,
 ) {
-  if (kind !== 'lock' || !doorId) return;
+  if (!kind || !doorId) return;
   const existing = await db('devices')
-    .where({ door_id: doorId, kind: 'lock', building_id: buildingId })
+    .where({ door_id: doorId, kind, building_id: buildingId })
     .whereNull('deleted_at')
     .modify((q) => { if (selfId) q.whereNot('id', selfId); })
     .first();
   if (existing) {
-    throw Object.assign(new Error(`door already has a lock: ${existing.name}`), { status: 409 });
+    throw Object.assign(
+      new Error(`door already has a ${kind} device: ${existing.name}`),
+      { status: 409 },
+    );
   }
 }
 
 export const create = async (buildingId: number, data: CreateDeviceDto): Promise<DeviceWithDoor> => {
   await assertDoorInBuilding(buildingId, data.door_id);
-  await assertNoOtherLock(buildingId, data.door_id, data.kind);
+  await assertNoOtherOfKind(buildingId, data.door_id, data.kind);
   const [id] = await db('devices').insert({ ...data, building_id: buildingId });
   return (await getById(buildingId, id)) as DeviceWithDoor;
 };
@@ -126,7 +129,7 @@ export const update = async (
   // check runs against the row as it will be rather than as it is.
   const current = await db('devices').where({ id, building_id: buildingId }).whereNull('deleted_at').first();
   if (current) {
-    await assertNoOtherLock(
+    await assertNoOtherOfKind(
       buildingId,
       data.door_id === undefined ? current.door_id : data.door_id,
       data.kind ?? current.kind,

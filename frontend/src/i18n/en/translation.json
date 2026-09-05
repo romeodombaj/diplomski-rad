@@ -566,10 +566,8 @@
       "commandTopicPlaceholder": "leave empty to use the profile’s topic"
     },
     "kind": {
-      "beacon": "Beacon",
-      "indicator": "Indicator",
-      "lock": "Lock",
-      "other": "Other"
+      "proximity": "Proximity",
+      "lock": "Lock"
     },
     "topicCount": "{{count}} topics",
     "lockProfile": {
@@ -587,6 +585,15 @@
       "esphome_switch": "Publishes ON to <address>/command, then OFF. Address is the entity path, e.g. node/switch/strike.",
       "zigbee2mqtt": "Publishes {\"state\":\"ON\"} to <address>/set, then OFF after the hold.",
       "custom": "Sends exactly what you type below. Leave the release payload empty and nothing is sent to close it."
+    },
+    "slot": {
+      "proximity": "Proximity sensor",
+      "lock": "Lock"
+    },
+    "slotNone": "None attached",
+    "slotEmpty": {
+      "proximity": "No unattached proximity device. Add one on the Devices tab.",
+      "lock": "No unattached lock. Add one on the Devices tab."
     }
   },
   "dashboard": {
@@ -631,5 +638,18 @@
       "empty": "Nobody has come in today.",
       "opens": "{{count}}×"
     }
+  },
+  "lockdown": {
+    "engage": "Emergency lockdown",
+    "release": "Release lockdown",
+    "activeSince": "Locked down {{time}} by {{by}}",
+    "activeNow": "Lockdown active",
+    "confirmEngageTitle": "Lock down the whole building?",
+    "confirmEngageHint": "Every door refuses everyone until you release it, whoever they are and whatever access they hold. Doors already locked individually stay locked afterwards.",
+    "confirmReleaseTitle": "Release the lockdown?",
+    "confirmReleaseHint": "Normal access rules resume — signature, code, face, policy and hours all apply again. Doors you locked individually stay locked.",
+    "lockDoor": "Lock down",
+    "unlockDoor": "Release",
+    "lockedDown": "Locked down"
   }
 }

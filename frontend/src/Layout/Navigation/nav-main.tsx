@@ -1,3 +1,4 @@
+import EmergencyLockdown from "@/components/109_lockdown/EmergencyLockdown";
 import { ChevronRight, type LucideIcon } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -33,6 +34,11 @@ export function NavMain({
     const { setOpenMobile } = useSidebar();
     return (
         <SidebarGroup>
+            {/* Above everything, and reachable from every page: an emergency is
+                not something to go hunting through tabs for. */}
+            <div className="px-2 pb-2 group-data-[collapsible=icon]:hidden">
+                <EmergencyLockdown />
+            </div>
             <SidebarGroupLabel>{t('nav.platform')}</SidebarGroupLabel>
             <SidebarMenu>
                 {items.map((item) =>

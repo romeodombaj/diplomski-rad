@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/UI/button';
 import { Badge } from '@/UI/badge';
@@ -29,8 +29,20 @@ const SCAN_SECONDS = 8;
 export default function ScanDialog({ open, onOpenChange, onAdd }: Props) {
   const { t } = useTranslation();
   const [scanning, setScanning] = useState(false);
+  /** Seconds left in the current scan, so the dialog is visibly working. */
+  const [remaining, setRemaining] = useState(SCAN_SECONDS);
   const [found, setFound] = useState<DiscoveredDevice[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Tick the countdown while a scan is open. Driven off `scanning` rather than
+  // started inside run(), so the interval is cleaned up on unmount and cannot
+  // outlive a dialog the operator closed mid-scan.
+  useEffect(() => {
+    if (!scanning) return;
+    setRemaining(SCAN_SECONDS);
+    const id = setInterval(() => setRemaining((r) => (r > 0 ? r - 1 : 0)), 1000);
+    return () => clearInterval(id);
+  }, [scanning]);
 
   async function run() {
     setScanning(true);
@@ -66,7 +78,7 @@ export default function ScanDialog({ open, onOpenChange, onAdd }: Props) {
           <div className="flex flex-col items-center gap-3 py-10">
             <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
-              {t('devices.listening', { seconds: SCAN_SECONDS })}
+              {t('devices.listening', { seconds: remaining })}
             </p>
           </div>
         )}

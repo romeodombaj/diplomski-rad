@@ -140,6 +140,8 @@ const REASON_TEXT: Record<string, string> = {
   person_inactive: 'Your access is not active',
   unknown_door: 'Unknown door',
   door_inactive: 'This door is out of service',
+  door_locked_down: 'This door is locked down',
+  building_lockdown: 'The building is in emergency lockdown',
   door_not_in_scope: 'You do not have access to this location',
   no_public_key: 'Identity not registered — re-enrol',
   invalid_signature: 'Could not verify this device',

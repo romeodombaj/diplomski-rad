@@ -1,121 +1,102 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/UI/button';
-import { Badge } from '@/UI/badge';
 import { Label } from '@/UI/label';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/UI/select';
-import { Plus, X, Cpu } from 'lucide-react';
-import { DeviceService, type Device } from '../services/device.service';
+import { Radio, Lock } from 'lucide-react';
+import { DeviceService, type Device, type DeviceKind } from '../services/device.service';
 
 interface Props {
   doorId: number;
   disabled?: boolean;
 }
 
+const NONE = 'none';
+
 /**
- * The hardware attached to one door, attachable from inside the door editor.
+ * The hardware at one door: exactly one proximity device and one lock.
  *
- * Attachment lives on the device (`devices.door_id`), not on the door, because
- * hardware outlives the door it happens to be mounted at — a beacon can be
- * moved, and deleting a door leaves its devices intact and unassigned rather
- * than destroying the inventory record.
+ * Presented as two fixed slots rather than a list you add to, because that is
+ * what a door physically has — something that senses you approaching and
+ * something that lets you in. A free list made the operator decide how many of
+ * each was sensible, and the answer is always one.
+ *
+ * Attachment lives on the device (`devices.door_id`), not the door, because
+ * hardware outlives the door it is mounted at: deleting a door leaves its
+ * devices intact and unassigned rather than destroying inventory records.
  */
 export default function DoorDevices({ doorId, disabled }: Props) {
   const { t } = useTranslation();
   const [attached, setAttached] = useState<Device[]>([]);
-  const [available, setAvailable] = useState<Device[]>([]);
-  const [picked, setPicked] = useState('');
+  const [free, setFree] = useState<Device[]>([]);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const [mine, free] = await Promise.all([
+    const [mine, unassigned] = await Promise.all([
       DeviceService.forDoor(doorId),
       DeviceService.getAll({ door_id: 'none' }),
     ]);
     setAttached(mine);
-    setAvailable(free.data);
+    setFree(unassigned.data);
   }, [doorId]);
 
   useEffect(() => { load().catch(() => {}); }, [load]);
 
-  async function attach() {
-    if (!picked) return;
+  /** Attach the chosen device to this slot, detaching whatever held it. */
+  async function choose(kind: DeviceKind, value: string) {
     setBusy(true);
     try {
-      await DeviceService.update(Number(picked), { door_id: doorId });
-      setPicked('');
+      const current = attached.find((d) => d.kind === kind);
+      // Detach first: a door has one slot per kind, so putting a new device in
+      // implies the old one comes out. Doing it in this order means a failure
+      // half way leaves the door with nothing rather than with two.
+      if (current) await DeviceService.update(current.id, { door_id: null });
+      if (value !== NONE) await DeviceService.update(Number(value), { door_id: doorId });
       await load();
     } finally {
       setBusy(false);
     }
   }
 
-  async function detach(id: number) {
-    setBusy(true);
-    try {
-      await DeviceService.update(id, { door_id: null });
-      await load();
-    } finally {
-      setBusy(false);
-    }
-  }
+  const slot = (kind: DeviceKind, icon: React.ReactNode) => {
+    const current = attached.find((d) => d.kind === kind);
+    // Offer the unassigned devices of this kind, plus whatever is already here.
+    const options = [...free.filter((d) => d.kind === kind), ...(current ? [current] : [])];
+
+    return (
+      <div className="space-y-1.5">
+        <Label className="flex items-center gap-1.5">
+          {icon}{t(`devices.slot.${kind}`)}
+        </Label>
+        <Select
+          value={current ? String(current.id) : NONE}
+          onValueChange={(v) => choose(kind, v)}
+          disabled={disabled || busy}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder={t('devices.slotNone')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={NONE}>{t('devices.slotNone')}</SelectItem>
+            {options.map((d) => (
+              <SelectItem key={d.id} value={String(d.id)}>
+                {d.name}{d.address ? ` · ${d.address}` : ''}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {options.length === 0 && !current && (
+          <p className="text-muted-foreground text-xs">{t(`devices.slotEmpty.${kind}`)}</p>
+        )}
+      </div>
+    );
+  };
 
   return (
-    <div className="space-y-2">
-      <Label>{t('devices.attachedTitle')}</Label>
-
-      <div className="rounded-md border divide-y">
-        {attached.length === 0 && (
-          <p className="text-muted-foreground p-3 text-sm">{t('devices.noneAttached')}</p>
-        )}
-        {attached.map((d) => (
-          <div key={d.id} className="flex items-center justify-between gap-2 p-2.5">
-            <div className="flex min-w-0 items-center gap-2">
-              <Cpu className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              <span className="truncate text-sm">{d.name}</span>
-              <Badge variant="outline" className="shrink-0">{t(`devices.kind.${d.kind}`)}</Badge>
-              {d.address && (
-                <span className="truncate font-mono text-[11px] text-muted-foreground">
-                  {d.address}
-                </span>
-              )}
-            </div>
-            <Button
-              type="button" variant="ghost" size="icon"
-              disabled={disabled || busy}
-              onClick={() => detach(d.id)}
-              aria-label={t('devices.detach')}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        ))}
-      </div>
-
-      {!disabled && (
-        <div className="flex gap-2">
-          <Select value={picked} onValueChange={setPicked}>
-            <SelectTrigger className="flex-1">
-              <SelectValue placeholder={t('devices.pickToAttach')} />
-            </SelectTrigger>
-            <SelectContent>
-              {available.length === 0 && (
-                <div className="text-muted-foreground p-2 text-sm">{t('devices.noneFree')}</div>
-              )}
-              {available.map((d) => (
-                <SelectItem key={d.id} value={String(d.id)}>
-                  {d.name} · {t(`devices.kind.${d.kind}`)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button type="button" variant="outline" onClick={attach} disabled={!picked || busy}>
-            <Plus className="mr-1 h-4 w-4" />{t('devices.attach')}
-          </Button>
-        </div>
-      )}
+    <div className="grid gap-4 sm:grid-cols-2">
+      {slot('proximity', <Radio className="h-3.5 w-3.5 text-muted-foreground" />)}
+      {slot('lock', <Lock className="h-3.5 w-3.5 text-muted-foreground" />)}
     </div>
   );
 }

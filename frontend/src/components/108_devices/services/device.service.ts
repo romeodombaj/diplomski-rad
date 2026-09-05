@@ -2,7 +2,12 @@ import { apiFetch } from '@/lib/apiFetch';
 
 const BASE = '/api/devices';
 
-export const DEVICE_KINDS = ['beacon', 'indicator', 'lock', 'other'] as const;
+/**
+ * The two roles a device plays at a door. A ReSpeaker is one object doing one
+ * job — telling the phone it is here and showing how close somebody is — so it
+ * is one kind, not a beacon plus an indicator.
+ */
+export const DEVICE_KINDS = ['proximity', 'lock'] as const;
 export type DeviceKind = (typeof DEVICE_KINDS)[number];
 
 /**

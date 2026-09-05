@@ -23,7 +23,7 @@ const UNASSIGNED = 'none';
 export default function DeviceForm({ open, onOpenChange, device, presetAddress, onSaved }: Props) {
   const { t } = useTranslation();
   const [name, setName] = useState('');
-  const [kind, setKind] = useState<DeviceKind>('other');
+  const [kind, setKind] = useState<DeviceKind>('proximity');
   const [address, setAddress] = useState('');
   const [doorId, setDoorId] = useState<string>(UNASSIGNED);
   const [lockProfile, setLockProfile] = useState<LockProfile>('native_json');
@@ -39,7 +39,7 @@ export default function DeviceForm({ open, onOpenChange, device, presetAddress, 
     if (!open) return;
     setError(null);
     setName(device?.name ?? '');
-    setKind(device?.kind ?? 'other');
+    setKind(device?.kind ?? 'proximity');
     setAddress(device?.address ?? presetAddress ?? '');
     setDoorId(device?.door_id ? String(device.door_id) : UNASSIGNED);
     setLockProfile((device?.lock_profile as LockProfile) ?? 'native_json');

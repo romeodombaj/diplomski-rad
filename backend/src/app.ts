@@ -13,6 +13,7 @@ import { rateLimiter, v1RateLimiter, authRateLimiter, mobileRateLimiter } from '
 import authRoutes from './api/auth/auth.routes';
 import doorRoutes from './api/door/door.routes';
 import deviceRoutes from './api/device/device.routes';
+import lockdownRoutes from './api/lockdown/lockdown.routes';
 import dashboardRoutes from './api/dashboard/dashboard.routes';
 import personRoutes from './api/person/person.routes';
 import totp_secretRoutes from './api/totp_secret/totp_secret.routes';
@@ -47,6 +48,7 @@ app.use('/auth', authRoutes)
 app.use('/api/health', healthRoutes);
 app.use('/api/doors', doorRoutes);
 app.use('/api/devices', deviceRoutes);
+app.use('/api/lockdown', lockdownRoutes);
 app.use('/api/people', personRoutes);
 app.use('/api/totp_secrets', totp_secretRoutes);
 // The dashboard's audit page has always called /api/audit-logs; until now

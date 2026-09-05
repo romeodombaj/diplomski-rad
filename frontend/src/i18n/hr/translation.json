@@ -567,10 +567,8 @@
       "commandTopicPlaceholder": "ostavite prazno za temu iz profila"
     },
     "kind": {
-      "beacon": "Odašiljač",
-      "indicator": "Indikator",
-      "lock": "Brava",
-      "other": "Ostalo"
+      "proximity": "Blizina",
+      "lock": "Brava"
     },
     "topicCount": "tema: {{count}}",
     "lockProfile": {
@@ -588,6 +586,15 @@
       "esphome_switch": "Objavljuje ON na <adresa>/command, pa OFF. Adresa je put entiteta, npr. node/switch/strike.",
       "zigbee2mqtt": "Objavljuje {\"state\":\"ON\"} na <adresa>/set, pa OFF nakon zadržavanja.",
       "custom": "Šalje točno ono što upišete. Ostavite li sadržaj za otpuštanje prazan, ništa se ne šalje za zatvaranje."
+    },
+    "slot": {
+      "proximity": "Senzor blizine",
+      "lock": "Brava"
+    },
+    "slotNone": "Nije povezano",
+    "slotEmpty": {
+      "proximity": "Nema slobodnog senzora blizine. Dodajte ga u kartici Uređaji.",
+      "lock": "Nema slobodne brave. Dodajte je u kartici Uređaji."
     }
   },
   "dashboard": {
@@ -633,5 +640,18 @@
       "empty": "Danas nitko nije ušao.",
       "opens": "{{count}}×"
     }
+  },
+  "lockdown": {
+    "engage": "Zaključaj sve",
+    "release": "Otključaj sve",
+    "activeSince": "Zaključano {{time}}, {{by}}",
+    "activeNow": "Zaključavanje aktivno",
+    "confirmEngageTitle": "Zaključati cijelu zgradu?",
+    "confirmEngageHint": "Sva vrata odbijaju svakoga dok ne otključate, bez obzira na dozvole. Pojedinačno zaključana vrata ostaju zaključana i nakon toga.",
+    "confirmReleaseTitle": "Otključati zgradu?",
+    "confirmReleaseHint": "Vraćaju se uobičajena pravila — potpis, kod, lice, pravila i radno vrijeme. Pojedinačno zaključana vrata ostaju zaključana.",
+    "lockDoor": "Zaključaj",
+    "unlockDoor": "Otključaj",
+    "lockedDown": "Zaključano"
   }
 }

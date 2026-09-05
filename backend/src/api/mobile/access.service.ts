@@ -33,6 +33,8 @@ export type DenialReason =
   | 'person_inactive'
   | 'unknown_door'
   | 'door_inactive'
+  | 'door_locked_down'
+  | 'building_lockdown'
   | 'door_not_in_scope'
   | 'no_public_key'
   | 'invalid_signature'
@@ -356,6 +358,24 @@ export async function decide(input: AccessRequestInput): Promise<AccessDecision>
   draft.buildingId = door.building_id;
 
   if (!door.active) return deny(draft, 'door_inactive', 'This door is out of service');
+
+  // Lockdown, checked here rather than in the UI, because a UI-only lock is not
+  // a lock: the phone signs its own request and could be modified to send one
+  // regardless of what any screen shows. Deliberately placed BEFORE the TOTP,
+  // chain and face checks — a locked door should refuse everyone identically
+  // and cheaply, and there is no reason to spend an RPC round trip working out
+  // whether somebody who cannot come in anyway is otherwise authorised.
+  //
+  // Both states are still recorded as ordinary access events, so "who tried to
+  // get in during the lockdown" is answerable afterwards.
+  if (door.locked_down) {
+    return deny(draft, 'door_locked_down', 'This door is locked down');
+  }
+
+  const building = await db('buildings').where({ id: door.building_id }).first();
+  if (building?.lockdown_at) {
+    return deny(draft, 'building_lockdown', 'The building is in emergency lockdown');
+  }
 
   // 7. TOTP — the second factor, scoped to this door's building. The endpoint
   //    this replaces looked up `where({ did })` with no building scope at all.
