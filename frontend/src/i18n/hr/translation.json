@@ -595,7 +595,8 @@
     "slotEmpty": {
       "proximity": "Nema slobodnog senzora blizine. Dodajte ga u kartici Uređaji.",
       "lock": "Nema slobodne brave. Dodajte je u kartici Uređaji."
-    }
+    },
+    "attachHint": "Uređaj povežite s vratima na stranici tih vrata."
   },
   "dashboard": {
     "title": "Danas",

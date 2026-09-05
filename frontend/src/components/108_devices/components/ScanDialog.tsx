@@ -5,7 +5,7 @@ import { Badge } from '@/UI/badge';
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@/UI/dialog';
-import { Radio, Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
 import { DeviceService, type DiscoveredDevice } from '../services/device.service';
 
 interface Props {
@@ -37,6 +37,20 @@ export default function ScanDialog({ open, onOpenChange, onAdd }: Props) {
   // Tick the countdown while a scan is open. Driven off `scanning` rather than
   // started inside run(), so the interval is cleaned up on unmount and cannot
   // outlive a dialog the operator closed mid-scan.
+  // Start listening as soon as the dialog opens. Scanning is the only thing
+  // this dialog does, so making the operator press a second button to begin was
+  // a step that could only ever be answered one way.
+  useEffect(() => {
+    if (!open) {
+      setFound(null);
+      setError(null);
+      return;
+    }
+    void run();
+    // run is stable enough for this: it closes over setters only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   useEffect(() => {
     if (!scanning) return;
     setRemaining(SCAN_SECONDS);
@@ -66,13 +80,6 @@ export default function ScanDialog({ open, onOpenChange, onAdd }: Props) {
             {t('devices.scanHint', { seconds: SCAN_SECONDS })}
           </DialogDescription>
         </DialogHeader>
-
-        {found === null && !scanning && (
-          <div className="flex flex-col items-center gap-3 py-8">
-            <Radio className="h-8 w-8 text-muted-foreground" />
-            <Button onClick={run}><Radio className="mr-2 h-4 w-4" />{t('devices.startScan')}</Button>
-          </div>
-        )}
 
         {scanning && (
           <div className="flex flex-col items-center gap-3 py-10">

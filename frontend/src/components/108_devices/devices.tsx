@@ -9,7 +9,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/UI/alert-dialog';
-import { Plus, Radio, Pencil, Trash2, DoorOpen, Cpu } from 'lucide-react';
+import { Radio, Pencil, Trash2, DoorOpen, Cpu } from 'lucide-react';
 import { DeviceService, type Device } from './services/device.service';
 import DeviceForm from './device/DeviceForm';
 import ScanDialog from './components/ScanDialog';
@@ -62,11 +62,8 @@ export default function Devices() {
           <p className="text-muted-foreground text-sm">{t('devices.subtitle')}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setScanOpen(true)}>
+          <Button size="sm" onClick={() => setScanOpen(true)}>
             <Radio className="mr-2 h-4 w-4" />{t('devices.scan')}
-          </Button>
-          <Button size="sm" onClick={() => add()}>
-            <Plus className="mr-2 h-4 w-4" />{t('devices.add')}
           </Button>
         </div>
       </div>
@@ -95,7 +92,7 @@ export default function Devices() {
                 <div className="flex flex-col items-center gap-2">
                   <Cpu className="h-7 w-7 text-muted-foreground" />
                   <p className="text-sm text-muted-foreground">{t('devices.empty')}</p>
-                  <Button size="sm" variant="outline" onClick={() => setScanOpen(true)}>
+                  <Button size="sm" onClick={() => setScanOpen(true)}>
                     <Radio className="mr-2 h-4 w-4" />{t('devices.scan')}
                   </Button>
                 </div>

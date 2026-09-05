@@ -594,7 +594,8 @@
     "slotEmpty": {
       "proximity": "No unattached proximity device. Add one on the Devices tab.",
       "lock": "No unattached lock. Add one on the Devices tab."
-    }
+    },
+    "attachHint": "Attach this device to a door from that door's page."
   },
   "dashboard": {
     "title": "Today",

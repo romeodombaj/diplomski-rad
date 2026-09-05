@@ -6,7 +6,6 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@/UI/dialog';
 import { DeviceService, DEVICE_KINDS, LOCK_PROFILES, type Device, type DeviceKind, type LockProfile } from '../services/device.service';
-import { DoorService, type Door } from '@/components/105_doors/services/door.service';
 
 interface Props {
   open: boolean;
@@ -18,20 +17,16 @@ interface Props {
   onSaved: () => void;
 }
 
-const UNASSIGNED = 'none';
-
 export default function DeviceForm({ open, onOpenChange, device, presetAddress, onSaved }: Props) {
   const { t } = useTranslation();
   const [name, setName] = useState('');
   const [kind, setKind] = useState<DeviceKind>('proximity');
   const [address, setAddress] = useState('');
-  const [doorId, setDoorId] = useState<string>(UNASSIGNED);
   const [lockProfile, setLockProfile] = useState<LockProfile>('native_json');
   const [commandTopic, setCommandTopic] = useState('');
   const [unlockPayload, setUnlockPayload] = useState('');
   const [lockPayload, setLockPayload] = useState('');
   const [holdSeconds, setHoldSeconds] = useState('');
-  const [doors, setDoors] = useState<Door[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,13 +36,11 @@ export default function DeviceForm({ open, onOpenChange, device, presetAddress, 
     setName(device?.name ?? '');
     setKind(device?.kind ?? 'proximity');
     setAddress(device?.address ?? presetAddress ?? '');
-    setDoorId(device?.door_id ? String(device.door_id) : UNASSIGNED);
     setLockProfile((device?.lock_profile as LockProfile) ?? 'native_json');
     setCommandTopic(device?.command_topic ?? '');
     setUnlockPayload(device?.unlock_payload ?? '');
     setLockPayload(device?.lock_payload ?? '');
     setHoldSeconds(device?.hold_seconds != null ? String(device.hold_seconds) : '');
-    DoorService.getAll('', null, 100).then((p) => setDoors(p.data)).catch(() => setDoors([]));
   }, [open, device, presetAddress]);
 
   async function save() {
@@ -61,7 +54,6 @@ export default function DeviceForm({ open, onOpenChange, device, presetAddress, 
         // Empty string would be stored as an address of "", which reads as
         // configured-but-blank rather than genuinely unset.
         address: address.trim() || null,
-        door_id: doorId === UNASSIGNED ? null : Number(doorId),
         // Actuation belongs to a lock and to nothing else. Sent as null on any
         // other kind so a beacon never looks like a lock that happens to speak
         // Tasmota — including when a device is changed from lock to something
@@ -114,15 +106,6 @@ export default function DeviceForm({ open, onOpenChange, device, presetAddress, 
             value={address}
             onChange={setAddress}
             placeholder="doors/front-01/cmd"
-          />
-          <FormSelect
-            label={t('devices.fields.door')}
-            value={doorId}
-            onChange={setDoorId}
-            options={[
-              { value: UNASSIGNED, label: t('devices.unassigned') },
-              ...doors.map((d) => ({ value: String(d.id), label: `${d.name} (${d.door_code})` })),
-            ]}
           />
 
           {/*
@@ -178,6 +161,12 @@ export default function DeviceForm({ open, onOpenChange, device, presetAddress, 
               />
             </div>
           )}
+
+          {/* No door picker here on purpose: a device is attached from the
+              door's own page, where the two slots make it obvious a door holds
+              one sensor and one lock. Two places to set the same field meant
+              two places to get it wrong. */}
+          <p className="text-muted-foreground text-xs">{t('devices.attachHint')}</p>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
