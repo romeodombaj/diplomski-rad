@@ -57,6 +57,12 @@ export interface DiscoveredTopic {
  * `topics` carries the evidence for that grouping.
  */
 export interface DiscoveredDevice {
+  /**
+   * How it was found. An 'mqtt' result identifies itself; a 'tuya' one is only
+   * an address that answered on the right port, because the device id travels
+   * in a broadcast the backend's container cannot receive.
+   */
+  source: 'mqtt' | 'tuya';
   topic: string;
   name: string | null;
   ip: string | null;

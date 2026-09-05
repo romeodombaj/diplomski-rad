@@ -100,6 +100,10 @@ services:
 
       # Must match LED_LEVELS in mobile-app/src/lib/beacon.ts. If the backend
       # says 12 while an older app still reports 8, the door paints 8 of 12.
+      # LAN to sweep for devices that speak their own protocol instead of MQTT
+      # (Tuya plugs answer on 6668). Must be given: this container sits on a
+      # bridge network and its own interface says 172.x. Empty disables it.
+      DEVICE_SCAN_SUBNET: ${DEVICE_SCAN_SUBNET:-}
       PROXIMITY_LEVELS: ${PROXIMITY_LEVELS:-12}
       ACCESS_REQUIRE_FACE: ${ACCESS_REQUIRE_FACE:-true}
       ACCESS_FACE_THRESHOLD: ${ACCESS_FACE_THRESHOLD:-0.7}

@@ -531,11 +531,9 @@
     "subtitle": "Hardware at your doors — beacons, indicator rings and locks.",
     "add": "Add device",
     "scan": "Scan",
-    "startScan": "Start scan",
     "rescan": "Scan again",
     "scanTitle": "Scan for devices",
-    "scanHint": "Listens to the MQTT broker for {{seconds}} seconds and groups what it hears by device. A device that is silent will not appear — add those by hand.",
-    "listening": "Listening for {{seconds}} seconds…",
+    "scanHint": "Listens to the MQTT broker for {{seconds}} seconds and lists everything that publishes. A device that is silent will not appear.",
     "nothingHeard": "Nothing published while listening. Check the device is powered and talking to the broker, or add it by hand.",
     "messages": "{{count}} msg",
     "known": "Already added",
@@ -595,7 +593,10 @@
       "proximity": "No unattached proximity device. Add one on the Devices tab.",
       "lock": "No unattached lock. Add one on the Devices tab."
     },
-    "attachHint": "Attach this device to a door from that door's page."
+    "attachHint": "Attach this device to a door from that door's page.",
+    "scanning": "Scanning the broker…",
+    "tuyaDevice": "Tuya device",
+    "foundOnPort": "answers on 6668"
   },
   "dashboard": {
     "title": "Today",

@@ -532,11 +532,9 @@
     "subtitle": "Oprema na vratima — odašiljači, prstenovi i brave.",
     "add": "Dodaj uređaj",
     "scan": "Skeniraj",
-    "startScan": "Pokreni skeniranje",
     "rescan": "Skeniraj ponovno",
     "scanTitle": "Skeniraj uređaje",
-    "scanHint": "Sluša MQTT posrednika {{seconds}} sekundi i grupira ono što čuje po uređaju. Uređaj koji šuti neće se pojaviti — takve dodajte ručno.",
-    "listening": "Slušam {{seconds}} sekundi…",
+    "scanHint": "Sluša MQTT broker {{seconds}} sekundi i popisuje sve što objavljuje. Uređaj koji šuti neće se pojaviti.",
     "nothingHeard": "Ništa nije objavljeno tijekom slušanja. Provjerite je li uređaj uključen i spojen na broker, ili ga dodajte ručno.",
     "messages": "{{count}} poruka",
     "known": "Već dodano",
@@ -596,7 +594,10 @@
       "proximity": "Nema slobodnog senzora blizine. Dodajte ga u kartici Uređaji.",
       "lock": "Nema slobodne brave. Dodajte je u kartici Uređaji."
     },
-    "attachHint": "Uređaj povežite s vratima na stranici tih vrata."
+    "attachHint": "Uređaj povežite s vratima na stranici tih vrata.",
+    "scanning": "Skeniram broker…",
+    "tuyaDevice": "Tuya uređaj",
+    "foundOnPort": "odgovara na 6668"
   },
   "dashboard": {
     "title": "Danas",

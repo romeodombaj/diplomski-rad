@@ -34,10 +34,7 @@ export default function ScanDialog({ open, onOpenChange, onAdd }: Props) {
   const [found, setFound] = useState<DiscoveredDevice[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Tick the countdown while a scan is open. Driven off `scanning` rather than
-  // started inside run(), so the interval is cleaned up on unmount and cannot
-  // outlive a dialog the operator closed mid-scan.
-  // Start listening as soon as the dialog opens. Scanning is the only thing
+  // Start scanning as soon as the dialog opens. Scanning is the only thing
   // this dialog does, so making the operator press a second button to begin was
   // a step that could only ever be answered one way.
   useEffect(() => {
@@ -51,6 +48,9 @@ export default function ScanDialog({ open, onOpenChange, onAdd }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // Tick the countdown while a scan runs. Driven off `scanning` rather than
+  // started inside run(), so the interval is cleaned up on unmount and cannot
+  // outlive a dialog the operator closed mid-scan.
   useEffect(() => {
     if (!scanning) return;
     setRemaining(SCAN_SECONDS);
@@ -84,9 +84,8 @@ export default function ScanDialog({ open, onOpenChange, onAdd }: Props) {
         {scanning && (
           <div className="flex flex-col items-center gap-3 py-10">
             <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              {t('devices.listening', { seconds: remaining })}
-            </p>
+            <p className="text-sm text-muted-foreground">{t('devices.scanning')}</p>
+            <p className="text-2xl font-semibold tabular-nums">{remaining}s</p>
           </div>
         )}
 
@@ -102,6 +101,9 @@ export default function ScanDialog({ open, onOpenChange, onAdd }: Props) {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     {d.name && <p className="text-sm font-medium truncate">{d.name}</p>}
+                    {d.source === 'tuya' && !d.name && (
+                      <p className="text-sm font-medium">{t('devices.tuyaDevice')}</p>
+                    )}
                     <p className="font-mono text-xs break-all">{d.topic}</p>
                     {d.ip && (
                       <p className="font-mono text-[10px] text-muted-foreground mt-0.5">{d.ip}</p>
@@ -109,7 +111,9 @@ export default function ScanDialog({ open, onOpenChange, onAdd }: Props) {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <Badge variant="outline" className="tabular-nums">
-                      {t('devices.messages', { count: d.messages })}
+                      {d.source === 'tuya'
+                        ? t('devices.foundOnPort')
+                        : t('devices.messages', { count: d.messages })}
                     </Badge>
                     {d.known ? (
                       <Badge variant="secondary">{t('devices.known')}</Badge>

@@ -111,6 +111,20 @@ export const config = {
    * The door LED ring driven by BLE proximity. Cosmetic throughout — see
    * api/mobile/proximity.service.ts. Nothing here affects an access decision.
    */
+  devices: {
+    /**
+     * Subnet to sweep for devices that speak their own protocol instead of
+     * MQTT — Tuya plugs answer on 6668, and nothing about them reaches the
+     * broker.
+     *
+     * It has to be configured rather than detected: this process runs on a
+     * Docker bridge network, so its own interface says 172.x and the LAN is
+     * invisible from here. Empty disables the sweep, which is the right default
+     * for anyone whose hardware is all on MQTT.
+     */
+    scanSubnet: process.env.DEVICE_SCAN_SUBNET || '',
+  },
+
   proximity: {
     /**
      * LED steps in a door's ring — one per physical LED, so twelve for the

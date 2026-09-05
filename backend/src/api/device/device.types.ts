@@ -89,7 +89,16 @@ export interface DiscoveredTopic {
  * grouped.
  */
 export interface DiscoveredDevice {
-  /** The base topic, and what gets stored as the device's address. */
+  /**
+   * How this was found.
+   *
+   * 'mqtt' results identify themselves — a topic and payload say what they are.
+   * 'tuya' results are only an address that answered on the right port: the
+   * device id travels in a UDP broadcast that cannot cross this container's
+   * bridge network, so there is nothing more honest to report.
+   */
+  source: 'mqtt' | 'tuya';
+  /** The base topic, or an IP for a device that speaks its own protocol. */
   topic: string;
   /** Friendly name, when the device announced one. */
   name: string | null;

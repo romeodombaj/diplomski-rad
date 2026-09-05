@@ -1,3 +1,4 @@
+import net from 'net';
 import mqtt from 'mqtt';
 import db from '../../db';
 import logger from '../../lib/logger';
@@ -226,10 +227,67 @@ function parseDiscovery(sample: string | null): { name: string | null; ip: strin
  * invited the operator to register all five. A silent device still will not
  * appear at all, which is why the UI also allows adding one by hand.
  */
+/** Tuya's local control port. Nothing else commonly answers on it. */
+const TUYA_PORT = 6668;
+
+/**
+ * Find devices that speak their own protocol rather than MQTT.
+ *
+ * A Tuya plug never touches the broker, so an MQTT scan is blind to it however
+ * long it listens. Its identity travels in a UDP broadcast, which cannot cross
+ * this container's bridge network — verified: zero packets in eight seconds
+ * bound to 6667 — so the only thing reachable from here is a TCP connect, and
+ * the only thing it proves is that something Tuya-shaped is at this address.
+ *
+ * That is still worth reporting. The operator knows which plug is on which
+ * door; what they cannot do is guess its IP.
+ */
+async function sweepTuya(subnet: string, timeoutMs = 700): Promise<string[]> {
+  // Expect a /24 like 192.168.88.0/24; anything else is not worth guessing at.
+  const match = /^(\d+)\.(\d+)\.(\d+)\.\d+\/24$/.exec(subnet.trim());
+  if (!match) {
+    if (subnet.trim()) logger.warn(`[devices] DEVICE_SCAN_SUBNET must be a /24, got "${subnet}"`);
+    return [];
+  }
+  const [, a, b, c] = match;
+
+  const probe = (host: string) =>
+    new Promise<string | null>((resolve) => {
+      const socket = new net.Socket();
+      const finish = (hit: boolean) => {
+        socket.destroy();
+        resolve(hit ? host : null);
+      };
+      socket.setTimeout(timeoutMs);
+      socket.once('connect', () => finish(true));
+      socket.once('timeout', () => finish(false));
+      socket.once('error', () => finish(false));
+      socket.connect(TUYA_PORT, host);
+    });
+
+  // In batches: 254 sockets at once trips file-descriptor limits on small
+  // containers, and the whole sweep still finishes well inside the scan window.
+  const hosts = Array.from({ length: 254 }, (_, i) => `${a}.${b}.${c}.${i + 1}`);
+  const found: string[] = [];
+  const BATCH = 64;
+  for (let i = 0; i < hosts.length; i += BATCH) {
+    const results = await Promise.all(hosts.slice(i, i + BATCH).map(probe));
+    found.push(...results.filter((h): h is string => h !== null));
+  }
+  return found;
+}
+
 export const scan = async (buildingId: number, seconds = 8): Promise<DiscoveredDevice[]> => {
   if (!config.mqtt.url) return [];
 
   const seen = new Map<string, { messages: number; sample: string | null }>();
+
+  // Started here so the sweep runs during the MQTT listen rather than after it;
+  // the two cost the same wall-clock window together as either alone.
+  const tuyaScan = sweepTuya(config.devices.scanSubnet).catch((err) => {
+    logger.warn(`[devices] tuya sweep: ${(err as Error).message}`);
+    return [] as string[];
+  });
 
   await new Promise<void>((resolve) => {
     const client = mqtt.connect(config.mqtt.url, {
@@ -275,7 +333,8 @@ export const scan = async (buildingId: number, seconds = 8): Promise<DiscoveredD
   const devices = new Map<string, DiscoveredDevice>();
   for (const [topic, v] of seen) {
     const root = deviceRoot(topic);
-    const device = devices.get(root) ?? {
+    const device: DiscoveredDevice = devices.get(root) ?? {
+      source: 'mqtt' as const,
       topic: root,
       name: null,
       ip: null,
@@ -299,6 +358,27 @@ export const scan = async (buildingId: number, seconds = 8): Promise<DiscoveredD
     }
 
     devices.set(root, device);
+  }
+
+  // Anything on the broker wins its address: a device that both publishes and
+  // answers on 6668 is one device, and the MQTT entry is the one that can say
+  // what it is.
+  const byMqttIp = new Set(
+    [...devices.values()].map((d) => d.ip).filter((ip): ip is string => Boolean(ip)),
+  );
+  for (const host of await tuyaScan) {
+    if (byMqttIp.has(host) || devices.has(host)) continue;
+    devices.set(host, {
+      source: 'tuya',
+      topic: host,
+      name: null,
+      ip: host,
+      // Nothing was counted: a TCP connect is not traffic.
+      messages: 0,
+      sample: null,
+      known: false,
+      topics: [],
+    });
   }
 
   return [...devices.values()]
