@@ -34,7 +34,12 @@ IMPOSSIBLE_TRAVEL_MINUTES = 15
 # A door nobody normally reaches without passing a main entrance first.
 # Configurable per building in a fuller system; hardcoded here to the pattern
 # the spec names explicitly.
-ENTRY_DOOR_HINTS = ("MAIN", "ENTRY", "LOBBY", "ULAZ")
+# "FRONT" and "GATE" were missing, and a building whose entrance is called
+# FRONT-01 had every interior door flagged for "no entrance first" — the
+# rule fired on ordinary movement all day and buried the real hits. The
+# backend keeps the same list (behavior.service `seed`), and the two must
+# not drift: one decides what to generate, the other what to suspect.
+ENTRY_DOOR_HINTS = ("MAIN", "ENTRY", "ENTRANCE", "LOBBY", "ULAZ", "FRONT", "GATE", "RECEPTION")
 
 NIGHT_START_MINUTE = 0      # 00:00
 NIGHT_END_MINUTE = 5 * 60   # 05:00

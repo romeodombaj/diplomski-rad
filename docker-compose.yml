@@ -75,6 +75,12 @@ services:
       NODE_ENV: production
       PORT: 5000
 
+      # The building's wall clock. The behaviour engine reasons in local time —
+      # "03:00 is unusual for this person" is a claim about the clock on the
+      # wall, not about UTC — and these images default to UTC, which shifted
+      # every hour it saw by the offset. Both containers must agree.
+      TZ: ${TZ:-Europe/Zagreb}
+
       # Change these before running this anywhere but a laptop.
       JWT_SECRET: ${JWT_SECRET:-dev-only-change-me}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-only-change-me-too}
@@ -122,6 +128,12 @@ services:
     container_name: dr-behavior
     ports:
       - "${BEHAVIOR_PORT:-8000}:8000"
+    environment:
+      # Must match the backend's. This engine normalises every timestamp to
+      # local wall-clock time on purpose (behavior-engine/app/features.py), so
+      # running it in UTC against a CEST building moved every entry an hour or
+      # two and made ordinary mornings look like unusual ones.
+      TZ: ${TZ:-Europe/Zagreb}
     volumes:
       # Fitted models. A baseline can represent two weeks of real usage, which
       # a container rebuild has no business discarding.
