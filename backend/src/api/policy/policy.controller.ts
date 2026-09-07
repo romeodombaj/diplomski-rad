@@ -103,6 +103,15 @@ export const listForPerson = async (req: Request, res: Response, next: NextFunct
   }
 };
 
+/** The groups this person is a member of — the Access tab's other half. */
+export const listGroupsForPerson = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    response.ok(res, await groupService.groupsForPerson(req.user.buildingId!, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const whoHasAccess = async (req: Request, res: Response, next: NextFunction) => {
   try {
     response.ok(res, await policyService.whoHasAccess(Number(req.params.doorId)));

@@ -55,6 +55,16 @@ export type GroupMember = {
 
 export type GroupDetail = AccessGroup & { doors: GroupDoor[]; members: GroupMember[] };
 
+/** One group a person belongs to, as shown on their Access tab. */
+export type PersonGroup = {
+  id: number;
+  name: string;
+  description: string | null;
+  is_default: boolean;
+  door_count: number;
+  granted_at: string;
+};
+
 export type AccessSchedule = {
   id: number;
   building_id: number;
@@ -155,6 +165,8 @@ export const PolicyService = {
 
   effectiveAccess: (personId: string) =>
     req<EffectiveAccess[]>(`/api/people/${personId}/effective-access`),
+  personGroups: (personId: string) =>
+    req<PersonGroup[]>(`/api/people/${personId}/groups`),
   whoHasAccess: (doorId: number) =>
     req<DoorAccessRow[]>(`/api/doors/${doorId}/who-has-access`),
 };

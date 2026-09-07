@@ -34,6 +34,10 @@ router.post('/:id/enrollment', requireAuth, personController.issueEnrollment);
 // is the point: "can open the server room" is useless without "via Engineering".
 router.get('/:id/effective-access', requireAuth, policyController.listForPerson);
 
+// Membership, as opposed to the doors membership produces. A person can be in
+// a group that grants nothing yet, and that is not the same as ungrouped.
+router.get('/:id/groups', requireAuth, policyController.listGroupsForPerson);
+
 // Behaviour — the anomaly engine's view of this person, delegated the same way
 // as effective-access above. It is not part of the person record, but it is
 // where an operator looks for it.

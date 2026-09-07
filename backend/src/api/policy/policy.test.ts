@@ -184,6 +184,42 @@ describe('Policy API', () => {
     expect(group.fan_out).toBe(2);
   });
 
+  it("lists the groups a person belongs to, including one that grants nothing", async () => {
+    const withDoors = await createGroup('Has doors');
+    const empty = await createGroup('Empty group');
+    await request(app).put(`/api/policies/groups/${withDoors}/doors`).set('Cookie', cookie)
+      .send({ doors: [{ door_id: mainDoorId }, { door_id: sideDoorId }] });
+    await request(app).post('/api/policies/assignments').set('Cookie', cookie)
+      .send({ person_id: personId, group_id: withDoors });
+    await request(app).post('/api/policies/assignments').set('Cookie', cookie)
+      .send({ person_id: personId, group_id: empty });
+
+    const res = await request(app).get(`/api/people/${personId}/groups`)
+      .set('Cookie', cookie).expect(200);
+
+    expect(res.body.data).toHaveLength(2);
+    expect(res.body.data.find((g: any) => g.id === withDoors).door_count).toBe(2);
+    // The reason this endpoint exists rather than deriving membership from the
+    // effective-access rows: a group with no doors produces no rows there, and
+    // the person is still in it.
+    expect(res.body.data.find((g: any) => g.id === empty).door_count).toBe(0);
+  });
+
+  it('drops a person from the list once they are unassigned', async () => {
+    const groupId = await createGroup('Temporary');
+    await request(app).put(`/api/policies/groups/${groupId}/doors`).set('Cookie', cookie)
+      .send({ doors: [{ door_id: mainDoorId }] });
+    await request(app).post('/api/policies/assignments').set('Cookie', cookie)
+      .send({ person_id: personId, group_id: groupId });
+
+    // 202: the membership row is gone immediately, the chain revocation is queued.
+    await request(app).delete(`/api/policies/assignments/${personId}/${groupId}`)
+      .set('Cookie', cookie).expect(202);
+
+    const res = await request(app).get(`/api/people/${personId}/groups`).set('Cookie', cookie);
+    expect(res.body.data).toHaveLength(0);
+  });
+
   it('queues every policy for revocation when a group is deleted', async () => {
     const groupId = await createGroup();
     await request(app).put(`/api/policies/groups/${groupId}/doors`).set('Cookie', cookie)

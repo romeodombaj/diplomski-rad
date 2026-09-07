@@ -56,6 +56,35 @@ export const listGroups = async (buildingId: number) => {
   );
 };
 
+/**
+ * The groups one person belongs to.
+ *
+ * The effective-access table already names the group behind each door, but it
+ * says nothing about a group whose door list is empty, or one whose doors were
+ * all revoked — the person is still a member, and an operator looking at "no
+ * access" needs to see that membership rather than conclude there is none.
+ *
+ * `door_count` comes along because it is the number that explains the rows
+ * above it: a group contributing three doors and one contributing none look
+ * identical without it.
+ */
+export const groupsForPerson = async (buildingId: number, personId: string) => {
+  const rows = await db('person_access_groups as pg')
+    .where('pg.person_id', personId)
+    .join('access_groups as g', 'g.id', 'pg.group_id')
+    .where('g.building_id', buildingId)
+    .whereNull('g.deleted_at')
+    .orderBy('g.name')
+    .select('g.id', 'g.name', 'g.description', 'g.is_default', 'pg.granted_at');
+
+  return Promise.all(
+    rows.map(async (row: any) => {
+      const [doors] = await db('access_group_doors').where({ group_id: row.id }).count('* as c');
+      return { ...row, is_default: Boolean(row.is_default), door_count: Number((doors as any).c) };
+    }),
+  );
+};
+
 export const getGroup = async (buildingId: number, id: number) => {
   const group = await db('access_groups')
     .where({ id, building_id: buildingId })
