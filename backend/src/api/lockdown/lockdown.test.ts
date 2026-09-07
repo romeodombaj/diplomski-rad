@@ -40,6 +40,7 @@ describe('Lockdown', () => {
   afterAll(async () => { await db.destroy(); });
 
   beforeEach(async () => {
+    await db('access_events').del();
     await db('doors').where({ building_id: buildingId }).del();
     await db('buildings').where({ id: buildingId }).update({ lockdown_at: null, lockdown_by: null });
     [doorId] = await db('doors').insert({
@@ -97,6 +98,62 @@ describe('Lockdown', () => {
 
     const doors = (await state()).body.data.doors;
     expect(doors.find((d: any) => d.id === doorId).locked_down).toBe(true);
+  });
+
+  // ── The operator override ────────────────────────────────────────────────
+  // The dashboard unlock exists for when policy cannot help. A lockdown is the
+  // case where policy is working and the answer is deliberately "nobody", so
+  // the override has to be the one thing it does not outrank.
+
+  it('refuses the admin unlock while the door is locked down', async () => {
+    await request(app).post(`/api/lockdown/doors/${doorId}`)
+      .set('Cookie', cookie).send({ locked_down: true }).expect(200);
+
+    const res = await request(app).post(`/api/doors/${doorId}/unlock`)
+      .set('Cookie', cookie).expect(423);
+    expect(res.body.message).toMatch(/locked down/i);
+
+    // Nothing was granted, and the attempt is on the record.
+    const events = await db('access_events').where({ door_id: doorId });
+    expect(events).toHaveLength(1);
+    expect(events[0].decision).toBe('denied');
+    expect(events[0].reason).toBe('door_locked_down');
+  });
+
+  it('refuses the admin unlock while the building is in emergency lockdown', async () => {
+    await request(app).post('/api/lockdown/building')
+      .set('Cookie', cookie).send({ active: true }).expect(200);
+
+    // Every door, not only the one somebody thought to lock.
+    for (const id of [doorId, otherDoorId]) {
+      const res = await request(app).post(`/api/doors/${id}/unlock`)
+        .set('Cookie', cookie).expect(423);
+      expect(res.body.message).toMatch(/emergency lockdown/i);
+    }
+
+    const events = await db('access_events').whereIn('door_id', [doorId, otherDoorId]);
+    expect(events).toHaveLength(2);
+    expect(events.every((e: any) => e.decision === 'denied')).toBe(true);
+    expect(events.every((e: any) => e.reason === 'building_lockdown')).toBe(true);
+  });
+
+  it('opens again once the lockdown is released', async () => {
+    await request(app).post('/api/lockdown/building')
+      .set('Cookie', cookie).send({ active: true }).expect(200);
+    await request(app).post(`/api/doors/${doorId}/unlock`).set('Cookie', cookie).expect(423);
+
+    await request(app).post('/api/lockdown/building')
+      .set('Cookie', cookie).send({ active: false }).expect(200);
+
+    // 200 with unlocked=false: the broker is not running in tests, which is an
+    // operational fault rather than a refusal. The decision is what matters.
+    const res = await request(app).post(`/api/doors/${doorId}/unlock`)
+      .set('Cookie', cookie).expect(200);
+    expect(res.body.data.event_id).toBeTruthy();
+
+    const granted = await db('access_events')
+      .where({ door_id: doorId, decision: 'granted' }).first();
+    expect(granted.reason).toBe('admin_unlock');
   });
 
   it('refuses a door in another building', async () => {

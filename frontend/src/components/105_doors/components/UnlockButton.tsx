@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DoorOpen, Loader2, Check, AlertTriangle } from 'lucide-react';
+import { DoorOpen, Loader2, Check, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { Button } from '@/UI/button';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/UI/alert-dialog';
 import { DoorService, type Door } from '../services/door.service';
+import { useLockdown } from '@/components/109_lockdown/LockdownContext';
 
 interface Props {
-  door: Pick<Door, 'id' | 'name' | 'door_code' | 'active'>;
+  door: Pick<Door, 'id' | 'name' | 'door_code' | 'active'> & { locked_down?: boolean };
   size?: 'sm' | 'default';
   variant?: 'default' | 'outline' | 'ghost';
   /** Called after a successful override, so a detail page can refresh history. */
@@ -34,9 +35,20 @@ type Result =
  * message is not a failure of the request: the override was authorised and
  * written to the access history, and the operator needs to know the lock did
  * not move so they can go and open it by hand.
+ *
+ * Under a lockdown the button is disabled and says so. That is presentation
+ * only — the backend refuses the request and records the attempt as a denied
+ * event either way, because a disabled button is not a security control. The
+ * point of showing it here is that the operator learns why *before* clicking,
+ * and knows the fix is to release the lockdown rather than to try again.
  */
 export default function UnlockButton({ door, size = 'sm', variant = 'outline', onUnlocked }: Props) {
   const { t } = useTranslation();
+  const { buildingLocked, isDoorBlocked } = useLockdown();
+  // `door.locked_down` covers the door detail page, which holds a freshly
+  // loaded door; isDoorBlocked covers the rest, and catches a lockdown engaged
+  // after this row was fetched.
+  const blocked = isDoorBlocked(door.id) || Boolean(door.locked_down);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
@@ -64,16 +76,22 @@ export default function UnlockButton({ door, size = 'sm', variant = 'outline', o
       <Button
         size={size}
         variant={variant}
-        disabled={busy || !door.active}
+        disabled={busy || !door.active || blocked}
         onClick={() => setConfirming(true)}
-        title={door.active ? undefined : t('doors.unlock.inactive')}
+        title={
+          blocked
+            ? (buildingLocked ? t('doors.unlock.buildingLockdown') : t('doors.unlock.lockedDown'))
+            : door.active ? undefined : t('doors.unlock.inactive')
+        }
       >
         {busy ? (
           <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+        ) : blocked ? (
+          <ShieldAlert className="mr-1 h-4 w-4" />
         ) : (
           <DoorOpen className="mr-1 h-4 w-4" />
         )}
-        {t('doors.unlock.action')}
+        {blocked ? t('doors.unlock.blocked') : t('doors.unlock.action')}
       </Button>
 
       {result && (

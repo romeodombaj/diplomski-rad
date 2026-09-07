@@ -76,7 +76,7 @@ export default function DoorDetail() {
           {door.active ? t('doors.detail.active') : t('doors.detail.inactive')}
         </Badge>
         <span className="text-muted-foreground font-mono text-sm">{door.door_code}</span>
-        {(door as any).locked_down && (
+        {door.locked_down && (
           <Badge variant="destructive">{t('lockdown.lockedDown')}</Badge>
         )}
         {/* Right-aligned: these are the actions on this page with a physical
@@ -84,7 +84,7 @@ export default function DoorDetail() {
         <div className="ml-auto flex items-center gap-2">
           <DoorLockdownButton
             doorId={Number(id)}
-            lockedDown={Boolean((door as any).locked_down)}
+            lockedDown={Boolean(door.locked_down)}
             onChanged={load}
           />
           <UnlockButton door={door} onUnlocked={load} />

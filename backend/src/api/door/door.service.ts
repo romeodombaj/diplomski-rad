@@ -68,6 +68,45 @@ export interface UnlockResult {
 }
 
 /**
+ * Write the denied event behind a refused override.
+ *
+ * Same table and same shape as a granted override, so a refusal turns up in the
+ * ordinary history rather than in a separate quiet log — `signature_verified`
+ * and `chain_checked` stay false because nothing was presented or consulted.
+ */
+async function recordRefusal(
+  door: Door,
+  operator: { userId?: string; email?: string },
+  reason: string,
+): Promise<void> {
+  const actor = `admin:${operator.userId ?? 'unknown'}`;
+  const eventId = crypto.randomUUID();
+  const message = `${actor}|${door.door_code}|${Math.floor(Date.now() / 1000)}|${eventId}`;
+
+  await db('access_events').insert({
+    id: eventId,
+    building_id: door.building_id,
+    door_id: door.id,
+    door_code: door.door_code,
+    person_id: null,
+    did: actor,
+    decision: 'denied',
+    reason,
+    face_score: null,
+    signature_verified: false,
+    chain_checked: false,
+    event_hash: ethers.keccak256(ethers.toUtf8Bytes(message)),
+    signature: null,
+    occurred_at: new Date().toISOString(),
+  });
+
+  logger.warn(
+    `[access] ADMIN UNLOCK REFUSED | door=${door.door_code} ` +
+      `by=${operator.email ?? actor} reason=${reason} event=${eventId}`,
+  );
+}
+
+/**
  * Open a door from the dashboard, without a phone.
  *
  * There has to be a way to let somebody in when their handset is flat, and a
@@ -96,6 +135,31 @@ export const unlock = async (
   const door = await getById(buildingId, id);
   if (!door) return undefined;
   if (!door.active) throw Object.assign(new Error('door_inactive'), { status: 409 });
+
+  // Lockdown outranks the override, including for an admin.
+  //
+  // The override exists for the case where policy cannot help — a flat handset,
+  // a visitor with no phone. A lockdown is the opposite situation: policy is
+  // working and the answer is deliberately "nobody". An operator with the right
+  // to lift the lockdown can still open this door; they have to lift it first,
+  // and that release is itself a recorded, deliberate act with a name attached.
+  // An override that punched quietly through an emergency would make the whole
+  // lockdown advisory, which is the same as not having one.
+  //
+  // The refusal is recorded rather than merely thrown: someone reaching for a
+  // door during a lockdown is exactly the entry an incident review looks for,
+  // and it would otherwise exist only in the process log.
+  const building = await db('buildings').where({ id: door.building_id }).first();
+  const blocked = door.locked_down
+    ? 'door_locked_down'
+    : building?.lockdown_at
+      ? 'building_lockdown'
+      : null;
+
+  if (blocked) {
+    await recordRefusal(door, operator, blocked);
+    throw Object.assign(new Error(blocked), { status: 423 });
+  }
 
   // Not a DID — there is no key behind it, and the `admin:` prefix keeps it
   // from ever colliding with the `did:ethr:` namespace a phone registers under.

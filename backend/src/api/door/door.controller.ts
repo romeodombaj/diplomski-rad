@@ -60,6 +60,18 @@ export const unlock = async (req: Request, res: Response, next: NextFunction) =>
   } catch (err) {
     const status = (err as any)?.status;
     if (status === 409) return next(new AppError('door is out of service', 409));
+    // 423 Locked, not 403: the operator is permitted to do this, the door is
+    // the thing refusing. The message names which lockdown is in the way, so
+    // the operator knows whether to release one door or the building.
+    if (status === 423) {
+      const reason = (err as Error).message;
+      return next(new AppError(
+        reason === 'building_lockdown'
+          ? 'the building is in emergency lockdown'
+          : 'this door is locked down',
+        423,
+      ));
+    }
     next(err);
   }
 };

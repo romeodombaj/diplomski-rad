@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/UI/button';
 import {
@@ -6,7 +6,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/UI/alert-dialog';
 import { ShieldAlert, ShieldCheck } from 'lucide-react';
-import { LockdownService, type LockdownState } from './lockdown.service';
+import { useLockdown } from './LockdownContext';
 
 /**
  * Building-wide emergency lockdown.
@@ -24,22 +24,16 @@ import { LockdownService, type LockdownState } from './lockdown.service';
  */
 export default function EmergencyLockdown() {
   const { t } = useTranslation();
-  const [state, setState] = useState<LockdownState | null>(null);
+  // Shared rather than local: every unlock button in the app disables itself
+  // from this same state the moment the lockdown is engaged here.
+  const { state, buildingLocked: active, setBuilding } = useLockdown();
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
-
-  const load = useCallback(async () => {
-    try { setState(await LockdownService.get()); } catch { /* leave the last known state */ }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  const active = state?.building.active ?? false;
 
   async function toggle() {
     setBusy(true);
     try {
-      setState(await LockdownService.setBuilding(!active));
+      await setBuilding(!active);
       setConfirming(false);
     } finally {
       setBusy(false);

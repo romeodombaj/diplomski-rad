@@ -26,6 +26,9 @@ export type Door = {
   door_code: string;
   mqtt_topic: string;
   active: boolean;
+  /** Hard lock on this door. Separate from `active`, which is administrative. */
+  locked_down?: boolean;
+  locked_down_at?: string | null;
   created_at?: string;
   updated_at?: string;
   // Kept so the generated table/columns code that reads arbitrary keys still

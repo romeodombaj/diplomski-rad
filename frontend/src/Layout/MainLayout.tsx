@@ -24,6 +24,7 @@ import {
 } from "@/UI/breadcrumb";
 import { Separator } from "@/UI/separator";
 import { Fragment } from "react/jsx-runtime";
+import { LockdownProvider } from "@/components/109_lockdown/LockdownContext";
 
 export default function MainLayout() {
     const { t } = useTranslation();
@@ -50,6 +51,7 @@ export default function MainLayout() {
     const { theme, toggleTheme } = useTheme();
 
     return (
+        <LockdownProvider>
         <SidebarProvider className="h-svh">
             <div
                 className={`fixed bottom-0 left-0 right-0 z-50 h-[6px] bg-amber-400 origin-left transition-transform duration-[1400ms] ease-in-out ${
@@ -130,7 +132,7 @@ export default function MainLayout() {
                                         </a>
                                     </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>Documentation</TooltipContent>
+                                <TooltipContent>{t('nav.docs')}</TooltipContent>
                             </Tooltip>
                             <Tooltip>
                                 <TooltipTrigger asChild>
@@ -140,7 +142,7 @@ export default function MainLayout() {
                                         </a>
                                     </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>Help</TooltipContent>
+                                <TooltipContent>{t('nav.help')}</TooltipContent>
                             </Tooltip>
                             <Tooltip>
                                 <TooltipTrigger asChild>
@@ -150,7 +152,7 @@ export default function MainLayout() {
                                         </a>
                                     </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>Contact us / Report bug</TooltipContent>
+                                <TooltipContent>{t('nav.reportBug')}</TooltipContent>
                             </Tooltip>
                             <Separator orientation="vertical" className="mx-1 data-[orientation=vertical]:h-4" />
                             <Tooltip>
@@ -159,7 +161,7 @@ export default function MainLayout() {
                                         {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
                                     </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>{theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}</TooltipContent>
+                                <TooltipContent>{theme === 'dark' ? t('nav.lightMode') : t('nav.darkMode')}</TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
                     </div>
@@ -172,5 +174,6 @@ export default function MainLayout() {
                 </main>
             </SidebarInset>
         </SidebarProvider>
+        </LockdownProvider>
     );
 }
