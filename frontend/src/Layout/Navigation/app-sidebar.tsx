@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Cpu, DoorOpen, GalleryVerticalEnd, KeyRound, Logs, Settings2, Users, DatabaseBackup, Contact } from "lucide-react";
+import { Cpu, DoorOpen, GalleryVerticalEnd, KeyRound, Logs, Users, Contact } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { NavMain } from "@/Layout/Navigation/nav-main";
@@ -42,16 +42,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
     const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
-    const navSecondary = [
-        ...(isAdmin
-            ? [
-                { title: t('nav.users'), url: "/users", icon: Users },
-                { title: t('nav.auditLogs'), url: "/audit-logs", icon: Logs },
-                { title: t('nav.backups'), url: "/backups", icon: DatabaseBackup },
-              ]
-            : []),
-        { title: t('nav.settings'), url: "/settings", icon: Settings2 },
-    ];
+    // Operators and the audit trail only. Settings and Backups were removed:
+    // both were stubs with no backend behind them, and a nav entry that leads
+    // to a page which cannot do anything is worse than no entry at all.
+    const navSecondary = isAdmin
+        ? [
+            { title: t('nav.users'), url: "/users", icon: Users },
+            { title: t('nav.auditLogs'), url: "/audit-logs", icon: Logs },
+          ]
+        : [];
 
     return (
         <Sidebar collapsible="icon" {...props}>
