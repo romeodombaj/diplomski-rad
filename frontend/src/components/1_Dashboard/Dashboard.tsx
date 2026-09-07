@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RefreshCw, WifiOff, Link2Off } from 'lucide-react';
+import { RefreshCw, Link2Off } from 'lucide-react';
 import { Button } from '@/UI/button';
 import { Card, CardContent } from '@/UI/card';
 import { Skeleton } from '@/UI/skeleton';
@@ -100,22 +100,15 @@ export default function Dashboard() {
       {error && <p className="text-destructive text-sm">{error}</p>}
 
       {/*
-        Infrastructure warnings first. A broker that is down means every unlock
-        button on this page will record an event and open nothing, and the
-        operator needs that before they press one, not after.
+        The broker warning was removed by request. The chain one stays: a
+        missing chain changes what an unlock *means* (no policy was consulted),
+        which is not something the operator can see anywhere else on the page.
       */}
-      {(!health.mqtt || !health.chain) && (
+      {!health.chain && (
         <div className="flex flex-wrap gap-4 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
-          {!health.mqtt && (
-            <span className="flex items-center gap-1.5">
-              <WifiOff className="h-4 w-4" />{t('dashboard.health.mqttDown')}
-            </span>
-          )}
-          {!health.chain && (
-            <span className="flex items-center gap-1.5">
-              <Link2Off className="h-4 w-4" />{t('dashboard.health.chainOff')}
-            </span>
-          )}
+          <span className="flex items-center gap-1.5">
+            <Link2Off className="h-4 w-4" />{t('dashboard.health.chainOff')}
+          </span>
         </div>
       )}
 

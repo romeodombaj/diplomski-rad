@@ -81,7 +81,7 @@ export default function EditBuilding({ id: propId, initialData, onSuccess, readO
           <p className="text-sm font-medium">{address || '—'}</p>
         </div>
         <div className="space-y-1">
-          <p className="text-xs text-muted-foreground">Contract address</p>
+          <p className="text-xs text-muted-foreground">{t('building.contractAddress')}</p>
           <p className="text-sm font-medium">{contract_address || '—'}</p>
         </div>
       </div>

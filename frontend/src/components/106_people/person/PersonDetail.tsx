@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Plus, Trash2, Smartphone, DoorOpen } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Smartphone, DoorOpen, Users, X } from 'lucide-react';
 import { Button } from '@/UI/button';
 import { Badge } from '@/UI/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/UI/card';
@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/UI/table';
 import { PersonService, type Person, type PersonDevice } from '../services/person.service';
 import {
-  PolicyService, type EffectiveAccess, type AccessGroup, type AccessSchedule,
+  PolicyService, type EffectiveAccess, type AccessGroup, type AccessSchedule, type PersonGroup,
 } from '@/components/107_access/services/policy.service';
 import { DoorService, type Door } from '@/components/105_doors/services/door.service';
 import { SyncBadge } from '@/components/107_access/components/SyncBadge';
@@ -28,6 +28,7 @@ export default function PersonDetail() {
   const [access, setAccess] = useState<EffectiveAccess[]>([]);
   const [doors, setDoors] = useState<Door[]>([]);
   const [groups, setGroups] = useState<AccessGroup[]>([]);
+  const [memberOf, setMemberOf] = useState<PersonGroup[]>([]);
   const [schedules, setSchedules] = useState<AccessSchedule[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,16 +39,17 @@ export default function PersonDetail() {
   const load = useCallback(async () => {
     if (!id) return;
     try {
-      const [p, d, a, doorPage, g, s] = await Promise.all([
+      const [p, d, a, doorPage, g, s, mine] = await Promise.all([
         PersonService.getById(id),
         PersonService.listDevices(id),
         PolicyService.effectiveAccess(id),
         DoorService.getAll('', null, 200),
         PolicyService.listGroups(),
         PolicyService.listSchedules(),
+        PolicyService.personGroups(id),
       ]);
       setPerson(p); setDevices(d); setAccess(a);
-      setDoors(doorPage.data); setGroups(g); setSchedules(s);
+      setDoors(doorPage.data); setGroups(g); setSchedules(s); setMemberOf(mine);
       setError(null);
     } catch (e: any) {
       setError(e.message);
@@ -118,13 +120,18 @@ export default function PersonDetail() {
       {tab === 'profile' && (
         <Card>
           <CardContent className="grid gap-3 pt-6 sm:grid-cols-2">
+            {/* `person.columns.*`, not `people.columns.*`: the latter namespace
+                does not exist, so every label on this tab rendered as its own
+                raw key. Values are formatted the same way the people table
+                formats them — a person_type is a translated word and an
+                enrolment is a date, not the string the column happens to hold. */}
             {([
-              ['people.columns.department', person.department],
-              ['people.columns.jobTitle', person.job_title],
-              ['people.columns.email', person.email],
-              ['people.columns.phone', person.phone],
-              ['people.columns.personType', person.person_type],
-              ['people.columns.enrolledAt', person.enrolled_at],
+              ['person.columns.department', person.department],
+              ['person.columns.jobTitle', person.job_title],
+              ['person.columns.email', person.email],
+              ['person.columns.phone', person.phone],
+              ['person.columns.type', person.person_type && t(`person.type.${person.person_type}`)],
+              ['person.columns.enrolled', person.enrolled_at && new Date(person.enrolled_at).toLocaleString()],
             ] as const).map(([key, value]) => (
               <div key={key}>
                 <p className="text-muted-foreground text-xs">{t(key)}</p>
@@ -249,6 +256,52 @@ export default function PersonDetail() {
                   {t('people.detail.addToGroup')}
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Membership before the doors it produces. A group with no doors
+              yet still belongs here: the person is in it, and "no effective
+              access" is a different statement from "in no groups". */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">{t('people.detail.groupsTitle')}</CardTitle>
+              <CardDescription>{t('people.detail.groupsHint')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {memberOf.length === 0 ? (
+                <p className="text-muted-foreground text-sm">{t('people.detail.noGroups')}</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {memberOf.map((g) => (
+                    <span
+                      key={g.id}
+                      className="inline-flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm"
+                    >
+                      <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                      <button
+                        type="button"
+                        className="hover:underline"
+                        onClick={() => navigate(`/access/groups/${g.id}`)}
+                      >
+                        {g.name}
+                      </button>
+                      <span className="text-muted-foreground text-xs">
+                        {g.door_count} {t('access.groups.doorsShort')}
+                      </span>
+                      <Button
+                        variant="ghost" size="icon" className="h-5 w-5"
+                        title={t('people.detail.removeFromGroup')}
+                        onClick={async () => {
+                          await PolicyService.unassignGroup(person.id, g.id);
+                          load();
+                        }}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </span>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 

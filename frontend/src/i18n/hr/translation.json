@@ -66,57 +66,17 @@
     "doors": "Vrata",
     "people": "Djelatnici",
     "platform": "Platforma",
-    "backups": "Sigurnosne kopije",
-    "settings": "Postavke",
     "auditLogs": "Revizijski zapisnici",
     "users": "Korisnici",
     "account": "Račun",
     "logout": "Odjava",
     "access": "Kontrola pristupa",
-    "devices": "Uređaji"
-  },
-  "backups": {
-    "title": "Sigurnosne kopije",
-    "subtitle": "Kreiranje i vraćanje sigurnosnih kopija baze podataka",
-    "policy": "Automatski: dnevni se čuvaju 7 dana, tjedni 4 tjedna, mjesečni 12 mjeseci. Ručne kopije čuvaju se dok ih ne obrišete.",
-    "refresh": "Osvježi",
-    "create": "Nova kopija",
-    "creating": "Kreiranje…",
-    "loading": "Učitavanje…",
-    "empty": "Nema sigurnosnih kopija",
-    "emptyHint": "Kliknite \"Nova kopija\" za kreiranje prve",
-    "emptyTier": "Nema sigurnosnih kopija ove vrste",
-    "filter": {
-      "all": "Sve",
-      "monthly": "Mjeseci",
-      "weekly": "Tjedni",
-      "daily": "Dani"
-    },
-    "colDate": "Datum i vrijeme",
-    "colType": "Vrsta",
-    "tier": {
-      "manual": "Ručno",
-      "daily": "Dnevni",
-      "weekly": "Tjedni",
-      "monthly": "Mjesečni"
-    },
-    "colEnv": "Okolina",
-    "colDbSize": "Veličina baze",
-    "colCompressed": "Komprimirano",
-    "colTables": "Tablice / Zapisi",
-    "colDuration": "Trajanje",
-    "rows": "Zapisi",
-    "missing": "nedostaje",
-    "restore": "Vrati",
-    "restoring": "Vraćanje…",
-    "restoreTitle": "Vraćanje sigurnosne kopije",
-    "restoreWarning": "Ova radnja će zamijeniti sve trenutne podatke u bazi.",
-    "restoreSafetyNote": "Prije vraćanja automatski se kreira sigurnosna kopija trenutnog stanja baze.",
-    "cancel": "Odustani",
-    "confirmRestore": "Vrati bazu",
-    "loadError": "Greška pri dohvaćanju sigurnosnih kopija",
-    "createError": "Greška pri kreiranju sigurnosne kopije",
-    "restoreError": "Greška pri vraćanju sigurnosne kopije"
+    "devices": "Uređaji",
+    "docs": "Dokumentacija",
+    "help": "Pomoć",
+    "reportBug": "Kontaktirajte nas / Prijavite grešku",
+    "lightMode": "Prijeđi na svijetli način",
+    "darkMode": "Prijeđi na tamni način"
   },
   "buildings": {
     "label": "Zgrade",
@@ -237,7 +197,8 @@
     "searchPlaceholder": "Pretraži zgrade...",
     "editSheet": "Uredi zgradu",
     "newSheet": "Nova zgrada",
-    "viewSheet": "Pregled zgrade"
+    "viewSheet": "Pregled zgrade",
+    "contractAddress": "Adresa ugovora"
   },
   "door": {
     "searchPlaceholder": "Pretraži vrata...",
@@ -264,7 +225,10 @@
       "type": "Vrsta",
       "status": "Status",
       "did": "DID",
-      "enrolled": "Upisan"
+      "enrolled": "Upisan",
+      "jobTitle": "Radno mjesto",
+      "email": "E-mail",
+      "phone": "Telefon"
     },
     "fields": {
       "fullName": "Ime i prezime",
@@ -485,7 +449,11 @@
         "when": "Kada",
         "score": "Ocjena",
         "why": "Glavni razlog"
-      }
+      },
+      "groupsTitle": "Članstvo u grupama",
+      "groupsHint": "Grupe kojima osoba pripada. Svaka daje pristup vratima koja su joj pridružena.",
+      "noGroups": "Nije član nijedne grupe.",
+      "removeFromGroup": "Ukloni iz grupe"
     }
   },
   "doors": {
@@ -524,7 +492,10 @@
       "inactive": "Vrata su izvan pogona",
       "failed": "Otključavanje nije uspjelo",
       "confirmTitle": "Otključati {{name}}?",
-      "confirmBody": "Ovime se {{code}} otvaraju odmah. Zahvat se zapisuje u evidenciju pristupa pod vašim računom, jednako kao i svaki drugi ulazak."
+      "confirmBody": "Ovime se {{code}} otvaraju odmah. Zahvat se zapisuje u evidenciju pristupa pod vašim računom, jednako kao i svaki drugi ulazak.",
+      "blocked": "Zaključano",
+      "lockedDown": "Ova su vrata zaključana. Otključajte ih prije otvaranja.",
+      "buildingLockdown": "Zgrada je u izvanrednom zaključavanju. Prekinite ga prije otvaranja bilo kojih vrata."
     }
   },
   "devices": {
@@ -610,7 +581,6 @@
       "locks": "Podešenih brava"
     },
     "health": {
-      "mqttDown": "Posrednik poruka nije dostupan — otključavanja će biti zabilježena, ali se vrata neće otvoriti.",
       "chainOff": "Klijent lanca je isključen — pravila i opozivi se ne provjeravaju."
     },
     "doors": {
@@ -654,6 +624,7 @@
     "confirmReleaseHint": "Vraćaju se uobičajena pravila — potpis, kod, lice, pravila i radno vrijeme. Pojedinačno zaključana vrata ostaju zaključana.",
     "lockDoor": "Zaključaj",
     "unlockDoor": "Otključaj",
-    "lockedDown": "Zaključano"
+    "lockedDown": "Zaključano",
+    "buildingOverrides": "Izvanredno zaključavanje cijele zgrade je aktivno; otključavanje ovih vrata ih neće otvoriti."
   }
 }

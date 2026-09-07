@@ -66,57 +66,17 @@
     "doors": "Doors",
     "people": "People",
     "platform": "Platform",
-    "backups": "Backups",
-    "settings": "Settings",
     "auditLogs": "Audit Logs",
     "users": "Users",
     "account": "Account",
     "logout": "Log out",
     "access": "Access control",
-    "devices": "Devices"
-  },
-  "backups": {
-    "title": "Backups",
-    "subtitle": "Create and restore database backups",
-    "policy": "Automatic: daily kept 7 days, weekly 4 weeks, monthly 12 months. Manual backups are kept until you delete them.",
-    "refresh": "Refresh",
-    "create": "New backup",
-    "creating": "Creating…",
-    "loading": "Loading…",
-    "empty": "No backups yet",
-    "emptyHint": "Click \"New backup\" to create the first one",
-    "emptyTier": "No backups of this type",
-    "filter": {
-      "all": "All",
-      "monthly": "Months",
-      "weekly": "Weeks",
-      "daily": "Days"
-    },
-    "colDate": "Date & time",
-    "colType": "Type",
-    "tier": {
-      "manual": "Manual",
-      "daily": "Daily",
-      "weekly": "Weekly",
-      "monthly": "Monthly"
-    },
-    "colEnv": "Environment",
-    "colDbSize": "DB size",
-    "colCompressed": "Compressed",
-    "colTables": "Tables / Rows",
-    "colDuration": "Duration",
-    "rows": "Rows",
-    "missing": "missing",
-    "restore": "Restore",
-    "restoring": "Restoring…",
-    "restoreTitle": "Restore backup",
-    "restoreWarning": "This will replace all current data in the database.",
-    "restoreSafetyNote": "A safety backup of the current database is taken automatically before restoring.",
-    "cancel": "Cancel",
-    "confirmRestore": "Restore database",
-    "loadError": "Failed to load backups",
-    "createError": "Failed to create backup",
-    "restoreError": "Failed to restore backup"
+    "devices": "Devices",
+    "docs": "Documentation",
+    "help": "Help",
+    "reportBug": "Contact us / Report bug",
+    "lightMode": "Switch to light mode",
+    "darkMode": "Switch to dark mode"
   },
   "buildings": {
     "label": "Buildings",
@@ -237,7 +197,8 @@
     "searchPlaceholder": "Search buildings...",
     "editSheet": "Edit Building",
     "newSheet": "New Building",
-    "viewSheet": "View Building"
+    "viewSheet": "View Building",
+    "contractAddress": "Contract address"
   },
   "door": {
     "searchPlaceholder": "Search doors...",
@@ -264,7 +225,10 @@
       "type": "Type",
       "status": "Status",
       "did": "DID",
-      "enrolled": "Enrolled"
+      "enrolled": "Enrolled",
+      "jobTitle": "Job title",
+      "email": "Email",
+      "phone": "Phone"
     },
     "fields": {
       "fullName": "Full name",
@@ -484,7 +448,11 @@
         "when": "When",
         "score": "Score",
         "why": "Leading factor"
-      }
+      },
+      "groupsTitle": "Group membership",
+      "groupsHint": "The groups this person belongs to. Each one grants the doors attached to it.",
+      "noGroups": "Not a member of any group.",
+      "removeFromGroup": "Remove from this group"
     }
   },
   "doors": {
@@ -523,7 +491,10 @@
       "inactive": "This door is out of service",
       "failed": "Unlock failed",
       "confirmTitle": "Unlock {{name}}?",
-      "confirmBody": "This opens {{code}} now. The override is written to the access history under your account, the same as any other entry."
+      "confirmBody": "This opens {{code}} now. The override is written to the access history under your account, the same as any other entry.",
+      "blocked": "Locked down",
+      "lockedDown": "This door is locked down. Release it before opening.",
+      "buildingLockdown": "The building is in emergency lockdown. Release it before opening any door."
     }
   },
   "devices": {
@@ -609,7 +580,6 @@
       "locks": "Locks configured"
     },
     "health": {
-      "mqttDown": "The message broker is unreachable — unlocks will be recorded but no door will open.",
       "chainOff": "The chain client is disabled — policy and revocation are not being checked."
     },
     "doors": {
@@ -652,6 +622,7 @@
     "confirmReleaseHint": "Normal access rules resume — signature, code, face, policy and hours all apply again. Doors you locked individually stay locked.",
     "lockDoor": "Lock down",
     "unlockDoor": "Release",
-    "lockedDown": "Locked down"
+    "lockedDown": "Locked down",
+    "buildingOverrides": "The building-wide emergency lockdown is engaged; releasing this one door will not open it."
   }
 }
