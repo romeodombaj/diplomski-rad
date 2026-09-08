@@ -1,4 +1,5 @@
 import type * as OrtNS from 'onnxruntime-react-native';
+import type * as FaceNS from 'react-native-vision-camera-face-detector';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system/legacy';
 import jpeg from 'jpeg-js';
@@ -7,6 +8,11 @@ import { storage } from './storage';
 
 const INPUT_SIZE = 105;
 const EMBEDDING_DIM = 512;
+// Fraction of the longer box side added around the detected face before
+// cropping. 0.15 is not a taste call — it is the exact margin extract_faces.py
+// used to build the VGGFace2 training crops, and the model only ever saw faces
+// framed this way. Changing it changes the input distribution.
+const FACE_MARGIN = 0.15;
 // ImageNet normalization — must match the preprocessing used during training
 const MEAN = [0.485, 0.456, 0.406];
 const STD = [0.229, 0.224, 0.225];
@@ -23,6 +29,8 @@ const MODEL_FILENAME = 'siamese_epoch50_int8.onnx';
 
 let _session: OrtNS.InferenceSession | null = null;
 let _ortPromise: Promise<typeof OrtNS> | null = null;
+let _faceDetector: FaceNS.ImageFaceDetector | null = null;
+let _facePromise: Promise<typeof FaceNS> | null = null;
 
 /**
  * Loaded lazily on purpose. onnxruntime-react-native's binding.js runs
@@ -35,6 +43,21 @@ let _ortPromise: Promise<typeof OrtNS> | null = null;
 function loadOrt(): Promise<typeof OrtNS> {
   if (!_ortPromise) _ortPromise = import('onnxruntime-react-native');
   return _ortPromise;
+}
+
+/**
+ * The still-image face detector, loaded lazily for the same reason as
+ * onnxruntime above: it is a native module and this file sits in the route
+ * graph, so a failure at module scope would take down screens that never touch
+ * face recognition. Built once and reused — construction spins up an ML Kit
+ * detector, which is not something to repeat per capture.
+ */
+async function getFaceDetector(): Promise<FaceNS.ImageFaceDetector> {
+  if (_faceDetector) return _faceDetector;
+  if (!_facePromise) _facePromise = import('react-native-vision-camera-face-detector');
+  const fd = await _facePromise;
+  _faceDetector = fd.createImageFaceDetector({ performanceMode: 'accurate' });
+  return _faceDetector;
 }
 
 /**
@@ -77,11 +100,55 @@ async function getSession(): Promise<OrtNS.InferenceSession> {
   return _session;
 }
 
+/**
+ * Locate the face in a still image and return the crop rectangle to feed the
+ * model, in that image's own pixel coordinates.
+ *
+ * WHY DETECT AGAIN, when CameraCapture already runs a detector: that one is a
+ * frame processor over the live preview, so its boxes are in preview
+ * coordinates. The photo capturePhotoToFile() writes is a separate image at a
+ * different resolution and possibly a different aspect ratio, so preview boxes
+ * cannot be applied to it without a mapping that would silently drift whenever
+ * either resolution changed. Detecting on the file itself needs no mapping.
+ *
+ * Runs in 'accurate' mode: this executes once per capture, not per preview
+ * frame, so the cost is paid once and the box is the one the crop depends on.
+ */
+async function faceCropRect(uri: string) {
+  const detector = await getFaceDetector();
+  const faces = detector.detectFaces(uri);
+  if (!faces || faces.length === 0) {
+    throw new Error('No face detected — center your face in the frame and try again');
+  }
+
+  // Largest box wins, matching extract_faces.py. With someone in the
+  // background, the enrolled face should be the one closest to the camera.
+  let best = faces[0];
+  for (const f of faces) {
+    if (f.bounds.width * f.bounds.height > best.bounds.width * best.bounds.height) best = f;
+  }
+
+  const { x, y, width, height } = best.bounds;
+  const margin = Math.max(width, height) * FACE_MARGIN;
+  const originX = Math.max(0, Math.round(x - margin));
+  const originY = Math.max(0, Math.round(y - margin));
+  // Clamp against the frame the detector measured, so a face near an edge
+  // yields a smaller crop rather than a rectangle running off the image.
+  const endX = Math.min(best.frameWidth, Math.round(x + width + margin));
+  const endY = Math.min(best.frameHeight, Math.round(y + height + margin));
+
+  return { originX, originY, width: endX - originX, height: endY - originY };
+}
+
 async function preprocessImage(uri: string): Promise<Float32Array> {
-  // Resize to 105×105 and get base64 JPEG
+  // Crop to the face, then resize to 105×105 — one pass, so no intermediate
+  // file is written. Both steps must happen for every embedding: cropping only
+  // at registration and not at verification would compare a face against a
+  // whole frame, and the two are not in the same input distribution.
+  const crop = await faceCropRect(uri);
   const resized = await ImageManipulator.manipulateAsync(
     uri,
-    [{ resize: { width: INPUT_SIZE, height: INPUT_SIZE } }],
+    [{ crop }, { resize: { width: INPUT_SIZE, height: INPUT_SIZE } }],
     { format: ImageManipulator.SaveFormat.JPEG, base64: true }
   );
 
@@ -162,7 +229,17 @@ export async function verifyFaceFromUri(uri: string): Promise<FaceScanResult> {
     return { ok: false, score: 0, reason: 'No face registered — register your face first' };
   }
   const refEmbedding = base64ToEmbedding(refB64);
-  const liveEmbedding = await embed(uri);
+
+  // A missed detection is a normal outcome here, not a crash: report it as its
+  // own reason so the user is told to reframe, rather than being shown a low
+  // similarity score for a photo the model never properly received.
+  let liveEmbedding: Float32Array;
+  try {
+    liveEmbedding = await embed(uri);
+  } catch (e: any) {
+    return { ok: false, score: 0, reason: String(e?.message ?? 'Face processing failed') };
+  }
+
   const score = dotProduct(liveEmbedding, refEmbedding);
   if (score >= SIMILARITY_THRESHOLD) {
     return { ok: true, score };

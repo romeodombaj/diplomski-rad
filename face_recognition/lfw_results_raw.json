@@ -1,0 +1,82 @@
+{
+  "siamese_epoch50_int8": {
+    "accuracy_mean": 0.906,
+    "accuracy_std": 0.01698219837737136,
+    "accuracy_stderr": 0.005370242654930915,
+    "fold_accuracies": [
+      0.9067,
+      0.8883,
+      0.8867,
+      0.9167,
+      0.8817,
+      0.9117,
+      0.9167,
+      0.915,
+      0.9,
+      0.9367
+    ],
+    "fold_thresholds": [
+      0.5279,
+      0.6126,
+      0.5984,
+      0.5911,
+      0.5812,
+      0.6126,
+      0.5894,
+      0.5911,
+      0.5911,
+      0.5911
+    ],
+    "threshold_mean": 0.5886407375335694,
+    "auc": 0.9710127222222222,
+    "eer": 0.09066666666666667,
+    "tar_at_far_1pct": 0.614,
+    "tar_at_far_0.1pct": 0.172,
+    "oracle_accuracy": 0.9103333333333333,
+    "oracle_threshold": 0.5910695791244507,
+    "mean_sim_same": 0.7955112457275391,
+    "mean_sim_diff": 0.11467689275741577,
+    "model_path": "siamese_epoch50_int8.onnx",
+    "images": "raw"
+  },
+  "milestone_epoch_50": {
+    "accuracy_mean": 0.9078333333333335,
+    "accuracy_std": 0.016274079974374776,
+    "accuracy_stderr": 0.005146315954275894,
+    "fold_accuracies": [
+      0.9167,
+      0.8917,
+      0.8883,
+      0.9183,
+      0.8833,
+      0.915,
+      0.915,
+      0.915,
+      0.9,
+      0.935
+    ],
+    "fold_thresholds": [
+      0.5603,
+      0.5603,
+      0.5618,
+      0.5618,
+      0.5669,
+      0.5603,
+      0.5618,
+      0.5863,
+      0.5863,
+      0.59
+    ],
+    "threshold_mean": 0.5695713222026825,
+    "auc": 0.9709985555555556,
+    "eer": 0.09033333333333333,
+    "tar_at_far_1pct": 0.6206666666666667,
+    "tar_at_far_0.1pct": 0.183,
+    "oracle_accuracy": 0.9105,
+    "oracle_threshold": 0.5618312358856201,
+    "mean_sim_same": 0.7952679991722107,
+    "mean_sim_diff": 0.11438946425914764,
+    "model_path": "training_checkpoints/milestone_epoch_50.pt",
+    "images": "raw"
+  }
+}

@@ -4,9 +4,17 @@ evaluate.py
 Evaluates the fine-tuned face recognition model.
 
 WHAT THIS DOES:
-  1. Tests accuracy on LFW (Labeled Faces in the Wild) validation set
-  2. Provides an interactive verification loop
-  3. Compares embedding distances for same/different person pairs
+  1. Provides an interactive webcam verification loop
+  2. Compares embedding distances for same/different person pairs
+  3. Runs a batch test over the personal positive/negative directories
+
+WHAT THIS DOES *NOT* DO:
+  Despite an earlier version of this docstring, it has never tested on LFW.
+  The LFW benchmark lives in evaluate_lfw.py (standard 6000-pair, 10-fold
+  protocol); run lfw_crop.py first. See TRAINING_LOG.md section 26.
+
+  The paths below are also hardcoded to the /home/b2 training machine and
+  need editing before this script will run anywhere else.
 
 FILES NEEDED:
   - Personal fine-tuned model: training_checkpoints/personal_finetuned.pt

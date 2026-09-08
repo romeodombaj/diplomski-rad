@@ -21,3 +21,13 @@ VGGFace2/
 # travels with the repo. 93 MiB, just under GitHub's 100 MiB per-file limit.
 # The fp32 export (372 MiB) is over the limit and must stay out.
 !siamese_epoch50_int8.onnx
+
+# LFW benchmark working data -- all regenerable, none of it source.
+# lfw_home/    the downloaded dataset (352 MB)
+# lfw_crops/   MTCNN crops of it, rebuild with: python lfw_crop.py     (77 MB)
+# lfw_eval_cache/  cached embeddings, rebuild with: python evaluate_lfw.py (122 MB)
+# The results themselves (lfw_results.json, lfw_accuracy_vs_epoch.png) ARE
+# committed -- they are the measurement, and cheap to store.
+lfw_home/
+lfw_crops/
+lfw_eval_cache/
