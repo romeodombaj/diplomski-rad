@@ -8,8 +8,6 @@ interface Props {
   onError: () => void;
 }
 
-// This component must be rendered inside GoogleOAuthProvider.
-// Only mount it when VITE_GOOGLE_CLIENT_ID is configured.
 export function GoogleAuthButton({ label, disabled, onSuccess, onError }: Props) {
   const login = useGoogleLogin({
     onSuccess: (res) => onSuccess(res.access_token),

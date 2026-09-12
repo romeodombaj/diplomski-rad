@@ -2,9 +2,6 @@ import cv2
 import os
 import sys
 
-# Usage: python video_to_frames.py <video_file> <output_folder> [frame_interval]
-#   frame_interval = save every Nth frame (default 10, so ~3fps from a 30fps video)
-# Example: python video_to_frames.py myvideo.mp4 data/anchor 10
 
 def center_crop_square(frame):
     h, w = frame.shape[:2]

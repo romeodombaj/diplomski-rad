@@ -31,8 +31,8 @@ def generate_history(
     building_id: int = 1,
     entry_door: str = "MAIN-01",
     interior_doors: tuple[str, ...] = ("OFFICE-02",),
-    arrive_minute: int = 8 * 60 + 45,     # 08:45
-    leave_minute: int = 17 * 60 + 15,     # 17:15
+    arrive_minute: int = 8 * 60 + 45,
+    leave_minute: int = 17 * 60 + 15,
     jitter_minutes: int = 25,
     seed: int | None = None,
     end: datetime | None = None,
@@ -53,7 +53,7 @@ def generate_history(
     for day_offset in range(days, 0, -1):
         day = end - timedelta(days=day_offset)
         if day.weekday() >= 5:
-            continue  # no weekend work in the baseline
+            continue
 
         def at(minute: int) -> datetime:
             jittered = minute + rng.randint(-jitter_minutes, jitter_minutes)
@@ -76,7 +76,6 @@ def generate_history(
         arrival = at(arrive_minute)
         add(entry_door, arrival)
 
-        # A short walk to an interior door, most days.
         if interior_doors and rng.random() < 0.85:
             add(
                 rng.choice(list(interior_doors)),

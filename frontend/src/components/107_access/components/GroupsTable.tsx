@@ -79,7 +79,6 @@ export default function GroupsTable() {
               <TableHead>{t('access.groups.name')}</TableHead>
               <TableHead>{t('access.groups.doors')}</TableHead>
               <TableHead>{t('access.groups.members')}</TableHead>
-              {/* The number of on-chain transactions one more member costs. */}
               <TableHead>{t('access.groups.fanOut')}</TableHead>
               <TableHead className="w-24" />
             </TableRow>
@@ -123,8 +122,8 @@ export default function GroupsTable() {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">
-                  {/* Two ways in on purpose: the sheet for a quick door tick,
-                      the page for membership and anything that needs room. */}
+                  {
+}
                   <Button variant="ghost" size="icon" title={t('access.groups.edit')}
                     onClick={(e) => { e.stopPropagation(); setEditing(g.id); setEditorOpen(true); }}>
                     <Pencil className="h-4 w-4" />
@@ -156,8 +155,8 @@ export default function GroupsTable() {
           <AlertDialogHeader>
             <AlertDialogTitle>{t('access.groups.deleteTitle', { name: deleting?.name })}</AlertDialogTitle>
             <AlertDialogDescription>
-              {/* Deleting a group revokes every policy it produced — on chain,
-                  one transaction per (member × door). Say the number. */}
+              {
+}
               {t('access.groups.deleteBody', {
                 count: (deleting?.door_count ?? 0) * (deleting?.member_count ?? 0),
               })}

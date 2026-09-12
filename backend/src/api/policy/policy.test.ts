@@ -8,11 +8,6 @@ import db from '../../db';
 import { config } from '../../config/conifg';
 import * as scheduleService from '../../services/scheduleService';
 
-/**
- * The policy layer with the chain disabled: authoring, compilation into mirror
- * rows, and the queue semantics. What lands on chain is covered by
- * scripts/verify-chain-e2e.ts, which runs against a real node.
- */
 describe('Policy API', () => {
   let buildingId: number;
   let otherBuildingId: number;
@@ -83,13 +78,11 @@ describe('Policy API', () => {
     personId = await createPerson();
   });
 
-  // ── direct grants ─────────────────────────────────────────────────────────
 
   it('queues a direct grant rather than blocking on the chain', async () => {
     const res = await request(app).post('/api/policies/grants').set('Cookie', cookie)
       .send({ person_id: personId, door_id: mainDoorId });
 
-    // 202: the row is authored and queued; the chain write follows.
     expect(res.status).toBe(202);
     expect(res.body.data.sync_status).toBe('pending');
     expect(res.body.data.source).toBe('direct');
@@ -121,7 +114,6 @@ describe('Policy API', () => {
     expect(again.body.message).toContain('already_granted');
   });
 
-  // ── groups compile to one policy per door ─────────────────────────────────
 
   it('expands a group assignment into one mirror row per door', async () => {
     const groupId = await createGroup();
@@ -165,8 +157,6 @@ describe('Policy API', () => {
 
     const rows = await db('access_policy_mirror').where({ person_id: personId });
     const side = rows.find((r) => r.door_id === sideDoorId);
-    // Marked for revocation, not deleted: the on-chain policy still exists
-    // until a transaction says otherwise.
     expect(side.sync_status).toBe('revoking');
   });
 
@@ -199,9 +189,6 @@ describe('Policy API', () => {
 
     expect(res.body.data).toHaveLength(2);
     expect(res.body.data.find((g: any) => g.id === withDoors).door_count).toBe(2);
-    // The reason this endpoint exists rather than deriving membership from the
-    // effective-access rows: a group with no doors produces no rows there, and
-    // the person is still in it.
     expect(res.body.data.find((g: any) => g.id === empty).door_count).toBe(0);
   });
 
@@ -212,7 +199,6 @@ describe('Policy API', () => {
     await request(app).post('/api/policies/assignments').set('Cookie', cookie)
       .send({ person_id: personId, group_id: groupId });
 
-    // 202: the membership row is gone immediately, the chain revocation is queued.
     await request(app).delete(`/api/policies/assignments/${personId}/${groupId}`)
       .set('Cookie', cookie).expect(202);
 
@@ -233,7 +219,6 @@ describe('Policy API', () => {
     expect(rows.every((r) => r.sync_status === 'revoking')).toBe(true);
   });
 
-  // ── schedules and the on-chain commitment ────────────────────────────────
 
   it('commits a schedule hash on the mirror row', async () => {
     const schedule = await request(app).post('/api/policies/schedules').set('Cookie', cookie)
@@ -257,7 +242,6 @@ describe('Policy API', () => {
     expect(row.schedule_hash).toBe(`0x${'0'.repeat(64)}`);
   });
 
-  // ── effective access and its inverse ──────────────────────────────────────
 
   it('reports effective access with provenance', async () => {
     const groupId = await createGroup('Engineering');
@@ -273,8 +257,6 @@ describe('Policy API', () => {
 
     expect(res.status).toBe(200);
     const bySource = Object.fromEntries(res.body.data.map((r: any) => [r.door_code, r.source_name]));
-    // "Ana can open the server room" is useless; "via the Engineering group" is
-    // actionable, because it says what to change.
     expect(bySource['MAIN-01']).toBe('Engineering');
     expect(bySource['SIDE-02']).toBe('direct grant');
   });
@@ -296,12 +278,10 @@ describe('Policy API', () => {
       .send({ person_id: personId, door_id: mainDoorId });
     const res = await request(app)
       .get(`/api/people/${personId}/effective-access`).set('Cookie', cookie);
-    // Nothing is on chain yet, so nothing actually opens.
     expect(res.body.data[0].open_now).toBe(false);
     expect(res.body.data[0].sync_status).toBe('pending');
   });
 
-  // ── lifecycle ────────────────────────────────────────────────────────────
 
   it('queues policy revocation when a person is offboarded', async () => {
     await request(app).post('/api/policies/grants').set('Cookie', cookie)
@@ -321,7 +301,6 @@ describe('Policy API', () => {
     expect(row.sync_status).toBe('revoking');
   });
 
-  // ── sync health ──────────────────────────────────────────────────────────
 
   it('reports sync health for the dashboard', async () => {
     await request(app).post('/api/policies/grants').set('Cookie', cookie)

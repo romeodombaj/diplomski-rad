@@ -23,16 +23,13 @@ export function createTokenPair(
   };
 }
 
-const ACCESS_MAX_AGE  = 15 * 60 * 1000;       // 15 min
-const REFRESH_MAX_AGE = 2 * 60 * 60 * 1000;   // 2 h
+const ACCESS_MAX_AGE  = 15 * 60 * 1000;
+const REFRESH_MAX_AGE = 2 * 60 * 60 * 1000;
 
 async function defaultBuilding() {
   return db('buildings').where({ is_sandbox: false }).whereNull('deleted_at').first();
 }
 
-// Returns the building the user was last on, falling back to the first live building.
-// Handles both live and sandbox building IDs stored in current_building_id.
-// A freshly self-registered user has no buildings assigned yet — returns undefined, not an error.
 async function resolveCurrentBuilding(user: { current_building_id?: number | null }) {
   if (user.current_building_id) {
     const building = await db('buildings').where({ id: user.current_building_id }).whereNull('deleted_at').first();
@@ -116,7 +113,6 @@ export async function refresh(oldRefreshToken: string): Promise<{ accessToken: s
 }
 
 export async function googleAuth(accessToken: string): Promise<{ user: AuthUser; accessToken: string; refreshToken: string }> {
-  // Verify the Google access token and fetch the user's profile
   const googleRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
@@ -211,7 +207,6 @@ export async function switchBuilding(userId: string, buildingId: number, role: s
   const user = await db('users').where({ id: userId }).first();
   if (!user) throw Object.assign(new Error('User not found'), { status: 404 });
 
-  // Persist so re-login / token refresh restores this exact building+sandbox state
   await db('users').where({ id: userId }).update({ current_building_id: building.id });
 
   return {
@@ -274,8 +269,6 @@ export async function renameBuilding(buildingId: number, dto: { name?: string; a
   if (dto.contractAddress !== undefined) updates.contract_address = dto.contractAddress;
   if (Object.keys(updates).length > 0) await db('buildings').where({ id: buildingId }).update(updates);
 
-  // Physical name/address are the same real-world building — mirror to the sandbox twin.
-  // contract_address is left independent (live and sandbox typically point at different deployed contracts).
   if (building.sandbox_building_id && (dto.name !== undefined || dto.address !== undefined)) {
     const twinUpdates: Record<string, unknown> = {};
     if (dto.name !== undefined) twinUpdates.name = dto.name;
@@ -371,10 +364,8 @@ export async function deleteBuilding(buildingId: number): Promise<{ switchToBuil
     await db('buildings').where({ id: building.sandbox_building_id }).update({ deleted_at: now });
   }
 
-  // Clear current_building_id for any user who had this building (or its sandbox) as their last context
   await db('users').whereIn('current_building_id', deletedIds).update({ current_building_id: null });
 
-  // Return another live building to switch to (if any)
   const fallback = await db('buildings').where({ is_sandbox: false }).whereNull('deleted_at').first();
   return { switchToBuildingId: fallback?.id ?? null };
 }

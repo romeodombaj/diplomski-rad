@@ -1,11 +1,3 @@
-/**
- * Smoke test against a RUNNING node (not the in-process test EVM).
- * Walks the complete access flow from the spec, printing each step.
- *
- *   npx hardhat node                                   # terminal 1
- *   npx hardhat run scripts/deploy.js --network localhost
- *   npx hardhat run scripts/demo.js   --network localhost
- */
 const fs = require("fs");
 const path = require("path");
 const { network, ethers } = require("hardhat");

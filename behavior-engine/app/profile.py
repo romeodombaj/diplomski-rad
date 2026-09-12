@@ -34,30 +34,17 @@ class Baseline:
     events: int
     first_seen: datetime | None
     last_seen: datetime | None
-    # 5th and 95th percentile of the day, in minutes. A range rather than a
-    # mean: arrivals and departures are two clusters, and their average is a
-    # time this person is never actually at a door.
     usual_from_minute: int
     usual_to_minute: int
     hour_histogram: list[int]
     doors: list[DoorShare]
     weekend_share: float
     night_share: float
-    # Share of history per weekday, Monday first. Both a display value and the
-    # encoding the model itself sees, so the two can never disagree.
     weekday_shares: tuple[float, ...]
     median_gap_minutes: float
     events_per_day: float
-    # How much of the baseline is generated rather than observed. Seeding is
-    # the documented cold-start answer, but a seeded model must never be read
-    # as though it came from two weeks of watching someone.
     synthetic_events: int
-    # The door and weekday shares the model was fitted with. Carried on the
-    # baseline because a live event has to be encoded against exactly these.
     familiarity: Familiarity = field(default_factory=lambda: Familiarity({}, (0.0,) * 7))
-    # Per-feature median of the training matrix — the "what this person
-    # normally does" point that explanations are measured against. Kept here
-    # because it is derived from exactly the same history as everything above.
     typical_vector: list[float] = field(default_factory=list)
 
     @property
@@ -110,9 +97,6 @@ def build(events: Sequence[AccessEvent]) -> Baseline:
         for code, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
     ]
 
-    # Same-day gaps only. A Friday-evening-to-Monday-morning gap says nothing
-    # about how often this person moves through the building, and including it
-    # would drag the median far enough to make every real interval look short.
     gaps = [
         (b.timestamp - a.timestamp).total_seconds() / 60.0
         for a, b in zip(ordered, ordered[1:])

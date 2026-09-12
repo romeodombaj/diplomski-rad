@@ -8,15 +8,6 @@ import app from '../../app';
 import db from '../../db';
 import { config } from '../../config/conifg';
 
-/**
- * The access path, end to end.
- *
- * Each case here corresponds to a check that the endpoint this replaces did not
- * perform. The old `/mobile/verify/totp` took `{ did, code, faceScore? }`,
- * looked the secret up with `where({ did })` across every building, logged
- * `face: bypassed`, and returned "Access granted" — so a single enrolled
- * device's code opened every door in the system.
- */
 describe('Mobile access path', () => {
   const PHONE = Wallet.createRandom();
   const ATTACKER = Wallet.createRandom();
@@ -57,7 +48,6 @@ describe('Mobile access path', () => {
   const post = async (over: Record<string, unknown> = {}, wallet = PHONE) =>
     request(app).post('/mobile/access').send(await sign(over, wallet));
 
-  /** Enrol PHONE against a fresh person and capture the provisioned secret. */
   const enrol = async (did = DID, publicKey = PHONE.signingKey.publicKey) => {
     const created = await request(app)
       .post('/api/people')
@@ -108,7 +98,6 @@ describe('Mobile access path', () => {
     await enrol();
   });
 
-  // ── the happy path ────────────────────────────────────────────────────────
 
   it('grants when signature, TOTP, door and face all check out', async () => {
     const res = await post();
@@ -129,7 +118,6 @@ describe('Mobile access path', () => {
     expect(event.face_score).toBeCloseTo(0.92, 5);
   });
 
-  // ── the request now carries a door ────────────────────────────────────────
 
   it('rejects a request with no door at all', async () => {
     const body = await sign();
@@ -146,8 +134,6 @@ describe('Mobile access path', () => {
   });
 
   it('denies a door that is locked down', async () => {
-    // Enforced on the access path, not just hidden in the UI: the phone signs
-    // its own request, so a modified client could ask regardless of any screen.
     await db('doors').where({ door_code: DOOR }).update({ locked_down: true });
     const res = await post();
     expect(res.body.data.reason).toBe('door_locked_down');
@@ -164,7 +150,6 @@ describe('Mobile access path', () => {
   });
 
   it('records a lockdown refusal as an access event', async () => {
-    // "Who tried to get in during the lockdown" has to be answerable after.
     await db('doors').where({ door_code: DOOR }).update({ locked_down: true });
     await post();
     const [event] = await db('access_events').where({ reason: 'door_locked_down' });
@@ -185,18 +170,12 @@ describe('Mobile access path', () => {
   });
 
   it('grants at a second building once the person is attached to it', async () => {
-    // No second credential is minted anywhere — enrolment issues one per person.
-    // If this needed a hand-inserted totp_secrets row it would be testing a
-    // state no product path can reach.
     await db('person_buildings').insert({ person_id: personId, building_id: otherBuildingId });
     const res = await post({ door_code: OTHER_BUILDING_DOOR });
     expect(res.body.data.granted).toBe(true);
   });
 
   it('resolves same-named doors within the person\'s buildings', async () => {
-    // door_code carries no unique constraint, so two buildings may both call
-    // their entrance MAIN-01. A global lookup would take the lower id and
-    // publish to the wrong building's topic.
     const [twinId] = await db('doors').insert({
       building_id: otherBuildingId, name: 'Annex main', door_code: DOOR,
       mqtt_topic: 'd/annex-main', active: true,
@@ -209,7 +188,6 @@ describe('Mobile access path', () => {
     await db('doors').where({ id: twinId }).del();
   });
 
-  // ── the request is now signed ─────────────────────────────────────────────
 
   it('denies a signature produced by a different phone', async () => {
     const res = await post({}, ATTACKER);
@@ -222,10 +200,9 @@ describe('Mobile access path', () => {
     const nonce = randomUUID().replace(/-/g, '');
     const res = await request(app).post('/mobile/access').send({
       did: DID,
-      door_code: DOOR,                                                  // claims the main door
+      door_code: DOOR,
       timestamp,
       nonce,
-      // ...but signed a message naming the side door.
       signature: await PHONE.signMessage(`${DID}|${SIDE_DOOR}|${timestamp}|${nonce}`),
       totp: speakeasy.totp({ secret, encoding: 'base32', digits: 6, step: 30 }),
       faceScore: 0.92,
@@ -243,10 +220,6 @@ describe('Mobile access path', () => {
   });
 
   it('reveals nothing about doors or people without a valid signature', async () => {
-    // Signature verification gates every database fact below it. A DID is an
-    // Ethereum address and effectively public, so an attacker holding only a
-    // DID string must not be able to tell a real door from a made-up one, or
-    // an active person from a suspended one.
     const unknownDoor = await post({ door_code: 'NOPE-99' }, ATTACKER);
     const realDoor = await post({ door_code: DOOR }, ATTACKER);
     const inactiveDoor = await post({ door_code: SIDE_DOOR }, ATTACKER);
@@ -268,7 +241,6 @@ describe('Mobile access path', () => {
     expect(res.body.data.reason).toBe('no_public_key');
   });
 
-  // ── replay and freshness ──────────────────────────────────────────────────
 
   it('refuses to replay a signature that already opened the door', async () => {
     const body = await sign();
@@ -291,10 +263,6 @@ describe('Mobile access path', () => {
   });
 
   it('unlocks once when the same signature arrives twice concurrently', async () => {
-    // The replay lookup and the insert are not atomic; the unique index is the
-    // real guard. Exactly one of these must win, and the winner must be the one
-    // that also opened the door — an unlock with no audit row is the outcome
-    // this system exists to rule out.
     const body = await sign();
     const [a, b] = await Promise.all([
       request(app).post('/mobile/access').send(body),
@@ -304,11 +272,6 @@ describe('Mobile access path', () => {
     expect(outcomes).toEqual(['ok', 'replay']);
     expect(await db('access_events').count('* as c').first()).toEqual({ c: 1 });
 
-    // The loser must not report an unlock, and must never hand back a fake id.
-    // Which guard caught it depends on timing — better-sqlite3 serialises, so
-    // in practice the step-2 lookup usually wins and returns the original id;
-    // under a concurrent driver the unique index catches it and there is no id
-    // to give. Both are correct; a hash masquerading as an id is not.
     const winner = [a, b].find((r) => r.body.data.reason === 'ok')!;
     const loser = [a, b].find((r) => r.body.data.reason === 'replay')!;
     expect(loser.body.data.unlocked).toBe(false);
@@ -321,7 +284,6 @@ describe('Mobile access path', () => {
     const replay = await request(app).post('/mobile/access').send(body);
     expect(replay.body.data.event_id).toBe(first.body.data.event_id);
     expect(replay.body.data.event_id).not.toBe(replay.body.data.event_hash);
-    // The id must resolve through the read API; a hash would 404.
     const fetched = await request(app)
       .get(`/api/audit-logs/${replay.body.data.event_id}`)
       .set('Cookie', authCookie);
@@ -340,7 +302,6 @@ describe('Mobile access path', () => {
     expect(res.body.data.reason).toBe('stale_request');
   });
 
-  // ── TOTP still matters ────────────────────────────────────────────────────
 
   it('denies a wrong TOTP code', async () => {
     const res = await post({ totp: '000000' });
@@ -354,7 +315,6 @@ describe('Mobile access path', () => {
     expect(res.body.data.reason).toBe('invalid_totp');
   });
 
-  // ── identity lifecycle ────────────────────────────────────────────────────
 
   it('denies an unenrolled DID', async () => {
     const stranger = Wallet.createRandom();
@@ -386,7 +346,6 @@ describe('Mobile access path', () => {
     expect(res.body.data.reason).toBe('person_inactive');
   });
 
-  // ── face is enforced, not advisory ────────────────────────────────────────
 
   it('denies when no face score is supplied', async () => {
     const body = await sign();
@@ -401,7 +360,6 @@ describe('Mobile access path', () => {
     expect(res.body.data.reason).toBe('face_below_threshold');
   });
 
-  // ── denials are recorded, not just logged ────────────────────────────────
 
   it('records denials with their reason so the log shows attempts', async () => {
     await post({ totp: '000000' });
@@ -479,7 +437,6 @@ describe('Mobile access path', () => {
     expect(await request(app).get('/api/health/status')).toHaveProperty('status', 401);
   });
 
-  // ── the endpoint that minted credentials for anyone is gone ──────────────
 
   it('no longer exposes the unauthenticated TOTP enrolment route', async () => {
     const res = await request(app)

@@ -59,21 +59,12 @@ export const remove = async (buildingId: number, id: number): Promise<void> => {
 };
 
 export interface UnlockResult {
-  /** Whether the broker took the message. False is an operational fault. */
   unlocked: boolean;
-  /** The `access_events` row this override created. */
   event_id: string;
   event_hash: string;
   door: { id: number; code: string; name: string };
 }
 
-/**
- * Write the denied event behind a refused override.
- *
- * Same table and same shape as a granted override, so a refusal turns up in the
- * ordinary history rather than in a separate quiet log — `signature_verified`
- * and `chain_checked` stay false because nothing was presented or consulted.
- */
 async function recordRefusal(
   door: Door,
   operator: { userId?: string; email?: string },
@@ -106,27 +97,6 @@ async function recordRefusal(
   );
 }
 
-/**
- * Open a door from the dashboard, without a phone.
- *
- * There has to be a way to let somebody in when their handset is flat, and a
- * building whose only way in is a working phone is not deployable. But an
- * override that opened a door without leaving a trace would be a hole straight
- * through the thesis's own argument: §7.4 step 10 says a door that opened
- * cannot be a door nobody recorded, and an operator-initiated unlock is exactly
- * the event an auditor most wants to find.
- *
- * So this follows the same order as the mobile access path — record first, then
- * publish, then write the hash on-chain off the critical path. It is stored as
- * a granted event with reason `admin_unlock` and a `did` naming the operator,
- * so it appears in the same history, the same drift reports and the same
- * behaviour feed as any other entry rather than in a separate quiet log.
- *
- * What it deliberately does NOT do is consult the chain policy: the operator is
- * not claiming an access right, they are exercising an administrative one, and
- * pretending otherwise would put a policy check in front of the mechanism that
- * exists for when policy cannot help.
- */
 export const unlock = async (
   buildingId: number,
   id: number,
@@ -136,19 +106,6 @@ export const unlock = async (
   if (!door) return undefined;
   if (!door.active) throw Object.assign(new Error('door_inactive'), { status: 409 });
 
-  // Lockdown outranks the override, including for an admin.
-  //
-  // The override exists for the case where policy cannot help — a flat handset,
-  // a visitor with no phone. A lockdown is the opposite situation: policy is
-  // working and the answer is deliberately "nobody". An operator with the right
-  // to lift the lockdown can still open this door; they have to lift it first,
-  // and that release is itself a recorded, deliberate act with a name attached.
-  // An override that punched quietly through an emergency would make the whole
-  // lockdown advisory, which is the same as not having one.
-  //
-  // The refusal is recorded rather than merely thrown: someone reaching for a
-  // door during a lockdown is exactly the entry an incident review looks for,
-  // and it would otherwise exist only in the process log.
   const building = await db('buildings').where({ id: door.building_id }).first();
   const blocked = door.locked_down
     ? 'door_locked_down'
@@ -161,8 +118,6 @@ export const unlock = async (
     throw Object.assign(new Error(blocked), { status: 423 });
   }
 
-  // Not a DID — there is no key behind it, and the `admin:` prefix keeps it
-  // from ever colliding with the `did:ethr:` namespace a phone registers under.
   const actor = `admin:${operator.userId ?? 'unknown'}`;
   const occurredAt = new Date().toISOString();
   const eventId = crypto.randomUUID();
@@ -179,19 +134,13 @@ export const unlock = async (
     decision: 'granted',
     reason: 'admin_unlock',
     face_score: null,
-    // No signature was presented and none was checked. Recording `true` here
-    // would make an override indistinguishable from a phone-signed entry.
     signature_verified: false,
     chain_checked: false,
     event_hash: eventHash,
-    // Left null on purpose: `signature` carries a unique index used as the
-    // replay guard, and an override has nothing to replay.
     signature: null,
     occurred_at: occurredAt,
   });
 
-  // The lock device says how this door opens; the door's own topic is the
-  // fallback for a door with no lock registered yet. See lockService.
   const lock = await deviceService.lockForDoor(door.id);
   const { delivered } = await lockService.actuate(door, lock, {
     doorId: door.id,

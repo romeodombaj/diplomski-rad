@@ -8,8 +8,6 @@ import app from '../../app';
 import db from '../../db';
 import { config } from '../../config/conifg';
 
-// A real keypair, not a placeholder string: the access path verifies the
-// signature against this public key, so a fake one cannot be substituted.
 const PHONE = Wallet.createRandom();
 const DID = `did:ethr:sep:${PHONE.address}`;
 const PUBLIC_KEY = PHONE.signingKey.publicKey;
@@ -36,10 +34,6 @@ describe('Person API', () => {
   const create = (body: Record<string, unknown> = {}) =>
     request(app).post('/api/people').set('Cookie', authCookie).send(newPerson(body));
 
-  /**
-   * Build a signed access request the way the phone does. The message format
-   * must match access.service.ts `accessMessage` byte for byte.
-   */
   const signedAccess = async (
     over: Record<string, unknown> = {},
     wallet = PHONE,
@@ -61,7 +55,6 @@ describe('Person API', () => {
     };
   };
 
-  /** Create a person and take them all the way to `active` via the mobile handshake. */
   const enrol = async (did = DID, body: Record<string, unknown> = {}) => {
     const created = await create(body);
     const { person, invite } = created.body.data;
@@ -103,7 +96,6 @@ describe('Person API', () => {
     await db('people').del();
   });
 
-  // ---------------------------------------------------------------- CRUD
 
   it('GET /people returns empty array', async () => {
     const res = await request(app).get('/api/people').set('Cookie', authCookie);
@@ -168,11 +160,10 @@ describe('Person API', () => {
     expect((await request(app).get('/api/people')).status).toBe(401);
   });
 
-  // ------------------------------------------------------------ filtering
 
   it('filters by status and by no_did', async () => {
-    await enrol();                                     // -> active, has DID
-    await create({ full_name: 'Bez Upisa', employee_no: 'E-2', email: null });  // -> invited, no DID
+    await enrol();
+    await create({ full_name: 'Bez Upisa', employee_no: 'E-2', email: null });
 
     const invited = await request(app).get('/api/people?status=invited&count=true').set('Cookie', authCookie);
     expect(invited.body.data.total).toBe(1);
@@ -200,7 +191,6 @@ describe('Person API', () => {
     expect(incl.body.data.total).toBe(1);
   });
 
-  // ----------------------------------------------------------- enrolment
 
   it('claim turns an invited person into an active one and returns a TOTP secret', async () => {
     const { claim } = await enrol();
@@ -307,10 +297,9 @@ describe('Person API', () => {
     const raw = created.body.data.invite.token;
     const row = await db('enrollment_tokens').where({ person_id: created.body.data.person.id }).first();
     expect(row.token_hash).not.toBe(raw);
-    expect(row.token_hash).toHaveLength(64);   // sha256 hex
+    expect(row.token_hash).toHaveLength(64);
   });
 
-  // ----------------------------------------------------------- lifecycle
 
   it('suspend keeps the DID so the person can return without re-enrolling', async () => {
     const { person } = await enrol();
@@ -348,7 +337,6 @@ describe('Person API', () => {
     expect(res.status).toBe(404);
   });
 
-  // ------------------------------------------------------------- devices
 
   it('revoking a device clears the DID and drops the person back to invited', async () => {
     const { person } = await enrol();
@@ -375,8 +363,6 @@ describe('Person API', () => {
       .set('Cookie', authCookie)
       .send({ reason: 'stolen' });
 
-    // The same secret that worked a moment ago must now be refused outright,
-    // not merely fail the code comparison.
     const res = await request(app)
       .post('/mobile/access')
       .send(await signedAccess({ secret: claim.body.data.totp.secret }));

@@ -17,11 +17,6 @@ async function req<T>(url: string, init?: RequestInit): Promise<T> {
   return (json.data ?? json) as T;
 }
 
-/**
- * How far a grant has got towards the chain. A policy only actually opens a
- * door once it is `synced` — everything else is a promise the chain has not
- * accepted yet, which is why the UI shows this rather than hiding it.
- */
 export type SyncStatus = 'pending' | 'synced' | 'failed' | 'revoking' | 'revoked';
 export type GrantSource = 'group' | 'direct';
 
@@ -33,7 +28,6 @@ export type AccessGroup = {
   is_default: boolean;
   door_count: number;
   member_count: number;
-  /** On-chain transactions one more member costs. */
   fan_out: number;
 };
 
@@ -55,7 +49,6 @@ export type GroupMember = {
 
 export type GroupDetail = AccessGroup & { doors: GroupDoor[]; members: GroupMember[] };
 
-/** One group a person belongs to, as shown on their Access tab. */
 export type PersonGroup = {
   id: number;
   name: string;
@@ -76,13 +69,11 @@ export type AccessSchedule = {
 };
 
 export type EffectiveAccess = {
-  /** The mirror row id — what a revoke targets. */
   id: number;
   door_id: number;
   door_code: string;
   door_name: string;
   source: GrantSource;
-  /** Group name, or "direct grant" — what to change to take this away. */
   source_name: string;
   schedule: string;
   schedule_id: number | null;

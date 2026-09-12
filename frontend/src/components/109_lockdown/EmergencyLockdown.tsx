@@ -8,24 +8,8 @@ import {
 import { ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useLockdown } from './LockdownContext';
 
-/**
- * Building-wide emergency lockdown.
- *
- * Two things this deliberately is not. It is not a bigger version of taking a
- * door out of service — that is an administrative state and this is a security
- * action, and the audit trail has to tell them apart afterwards. And it is not
- * enforced here: the backend refuses every access request while it is engaged,
- * because the phone signs its own request and a modified client would not care
- * what this screen says.
- *
- * Both directions ask for confirmation. Engaging one locks everybody out of
- * everything, and lifting one is just as consequential — it restores entry to a
- * building somebody decided to seal.
- */
 export default function EmergencyLockdown() {
   const { t } = useTranslation();
-  // Shared rather than local: every unlock button in the app disables itself
-  // from this same state the moment the lockdown is engaged here.
   const { state, buildingLocked: active, setBuilding } = useLockdown();
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);

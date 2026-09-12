@@ -34,8 +34,8 @@ export function NavMain({
     const { setOpenMobile } = useSidebar();
     return (
         <SidebarGroup>
-            {/* Above everything, and reachable from every page: an emergency is
-                not something to go hunting through tabs for. */}
+            {
+}
             <div className="px-2 pb-2 group-data-[collapsible=icon]:hidden">
                 <EmergencyLockdown />
             </div>

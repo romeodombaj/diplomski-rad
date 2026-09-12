@@ -1,16 +1,3 @@
-/**
- * The single access path.
- *
- * Replaces two divergent implementations that both diverged from the spec:
- * `/mobile/verify/totp`, which checked a TOTP code and nothing else and did not
- * even carry a door; and `/api/verify`, which was mounted but unreachable, used
- * the door code as a DID, and authorised against the operators table.
- *
- * The order below follows sigurnosni-sustav-biometrija.md §"Tijek
- * autentifikacije" steps 7-14. Every outcome — granted or denied — is written
- * to `access_events`, because the behaviour engine has to learn from denials
- * too, and because a denial nobody recorded is a denial nobody can investigate.
- */
 import crypto from 'crypto';
 import { ethers } from 'ethers';
 import db from '../../db';
@@ -24,7 +11,6 @@ import * as deviceService from '../device/device.service';
 import * as scheduleService from '../../services/scheduleService';
 import type { AccessRequestInput } from './access.schema';
 
-/** Machine-readable denial causes. Stored verbatim in access_events.reason. */
 export type DenialReason =
   | 'stale_request'
   | 'replay'
@@ -51,13 +37,11 @@ export interface AccessDecision {
   granted: boolean;
   reason: DenialReason | 'ok';
   message: string;
-  /** An `access_events.id`; null only when a lost insert race hid it. */
   event_id: string | null;
   event_hash: string;
   door?: { code: string; name: string };
   unlocked: boolean;
   chain_checked: boolean;
-  /** HTTP status the controller should use. */
   httpStatus: number;
 }
 
@@ -75,11 +59,6 @@ interface EventDraft {
   occurredAt: string;
 }
 
-/**
- * The exact string the phone signs, and the preimage of the on-chain event
- * hash. Must stay byte-identical to the mobile app's `signAccessRequest`
- * (mobile-app/src/lib/identity.ts) and to blockchain/test/Integration.test.js.
- */
 export const accessMessage = (
   did: string,
   doorCode: string,
@@ -87,11 +66,9 @@ export const accessMessage = (
   nonce: string,
 ) => `${did}|${doorCode}|${timestamp}|${nonce}`;
 
-/** keccak256 of the signed message — what goes on-chain. No personal data. */
 export const accessEventHash = (message: string) =>
   ethers.keccak256(ethers.toUtf8Bytes(message));
 
-/** Thrown when the unique index on `signature` rejects a duplicate insert. */
 class DuplicateSignature extends Error {}
 
 const isUniqueViolation = (err: unknown) =>
@@ -102,19 +79,10 @@ async function record(draft: EventDraft, decision: 'granted' | 'denied', reason:
   try {
     await insertEvent(id, draft, decision, reason);
   } catch (err) {
-    // The lookup in step 2 and this insert are not atomic, so two identical
-    // requests in flight at once can both pass the check. The unique index is
-    // the real guard; this turns losing that race into a clean replay answer
-    // rather than a 500.
     if (isUniqueViolation(err)) throw new DuplicateSignature();
     throw err;
   }
 
-  // Forward to the behaviour engine, from the one place every outcome passes
-  // through — granted and denied alike, because a denial is exactly the shape
-  // of behaviour worth learning from. Not awaited: the decision is already
-  // made and the row is already committed, so a slow or missing engine costs
-  // an alert and never an entry (config.behavior.url empty = no-op).
   behavior.scoreAsync(
     {
       event_id: id,
@@ -155,13 +123,6 @@ async function insertEvent(
   });
 }
 
-/**
- * The answer given when a signature has already been used.
- *
- * `eventId` is the ORIGINAL event's id when we found it, and null when we lost
- * the insert race and never learned it. It is never the event hash: the field
- * is an `access_events.id` that clients and logs will try to look up.
- */
 const replayDecision = (draft: EventDraft, eventId: string | null): AccessDecision => ({
   granted: false,
   reason: 'replay',
@@ -201,13 +162,6 @@ const deny = async (
   };
 };
 
-/**
- * The local schedule matching the commitment the chain holds for this grant.
- *
- * Returns null when no local schedule hashes to `committed` — which means
- * either the schedule was edited without a re-grant, or this backend is not
- * the one that authored the policy. Both are refusals, not fallbacks.
- */
 async function findCommittedSchedule(
   personId: string,
   doorId: number,
@@ -224,12 +178,6 @@ async function findCommittedSchedule(
   return null;
 }
 
-/**
- * Every building this person may be seen at: their home site plus attachments.
- * Exported because proximity.service.ts must scope doors identically — door
- * codes are not globally unique, and duplicating this would let the two paths
- * drift apart.
- */
 export async function personBuildingIds(person: { id: string; building_id: number }): Promise<number[]> {
   const extra = await db('person_buildings')
     .where({ person_id: person.id })
@@ -255,39 +203,22 @@ export async function decide(input: AccessRequestInput): Promise<AccessDecision>
     occurredAt: new Date().toISOString(),
   };
 
-  // 1. Freshness. Bounds how long a captured request stays interesting.
   const nowSec = Math.floor(Date.now() / 1000);
   const age = nowSec - timestamp;
   if (age > config.access.maxRequestAgeSeconds || age < -config.access.maxClockSkewSeconds) {
     return deny(draft, 'stale_request', 'Request expired — try again', 401);
   }
 
-  // 2. Replay. A signature is single-use; the unique index is the real guard,
-  //    this lookup just turns the constraint violation into a clean answer.
   const seen = await db('access_events').where({ signature }).first();
   if (seen) {
-    // Reuse of a signature must not create a second row (unique index), so this
-    // denial is logged rather than recorded.
     logger.warn(`[access] DENIED replay | did=${did} door=${door_code} original=${seen.id}`);
     return replayDecision(draft, seen.id);
   }
 
-  // 3. Who is this? The device, not just the DID — a revoked phone whose person
-  //    is still employed must not get in.
   const device = await db('person_devices').where({ did }).orderBy('id', 'desc').first();
   if (!device) return deny(draft, 'unknown_did', 'This device is not enrolled', 404);
   draft.personId = device.person_id;
 
-  // 4. Prove key possession before anything else is revealed.
-  //
-  //    Everything below this point — whether a door code exists, whether a
-  //    person is suspended, whether a credential is valid for a building — is
-  //    only reachable by someone who can sign for this DID. A DID is an
-  //    Ethereum address and effectively public, so checking the cheap database
-  //    facts first would let anyone holding a DID string probe the estate.
-  //
-  //    The on-chain registry is the authority for the key: a backend operator
-  //    who edits their own database still cannot forge a signature.
   const chainKey = await chain.getPublicKey(did);
   const publicKey = chainKey ?? device.public_key;
   draft.chainChecked = chainKey !== null;
@@ -317,7 +248,6 @@ export async function decide(input: AccessRequestInput): Promise<AccessDecision>
   }
   draft.signatureVerified = true;
 
-  // 5. Identity lifecycle.
   if (device.revoked_at) {
     return deny(draft, 'device_revoked', 'This device has been revoked');
   }
@@ -330,12 +260,6 @@ export async function decide(input: AccessRequestInput): Promise<AccessDecision>
     return deny(draft, 'person_inactive', `Access suspended (${person.status})`);
   }
 
-  // 6. Which door? Scoped to the buildings this person actually belongs to, so
-  //    a valid credential from building A cannot name a door in building B.
-  //    Resolved WITHIN the person's buildings, not globally: `door_code` has no
-  //    unique constraint, so two buildings may both call their entrance
-  //    MAIN-01. A global `.first()` would pick the lower id — handing back the
-  //    wrong building's `mqtt_topic` and opening the wrong door.
   const scopedBuildingIds = await personBuildingIds(person);
 
   const door = await db('doors')
@@ -345,8 +269,6 @@ export async function decide(input: AccessRequestInput): Promise<AccessDecision>
     .first();
 
   if (!door) {
-    // Distinguish "no such door anywhere" from "not yours" only in the log —
-    // the caller gets the same answer either way.
     const existsElsewhere = await db('doors').where({ door_code }).whereNull('deleted_at').first();
     if (existsElsewhere) {
       draft.doorId = existsElsewhere.id;
@@ -359,15 +281,6 @@ export async function decide(input: AccessRequestInput): Promise<AccessDecision>
 
   if (!door.active) return deny(draft, 'door_inactive', 'This door is out of service');
 
-  // Lockdown, checked here rather than in the UI, because a UI-only lock is not
-  // a lock: the phone signs its own request and could be modified to send one
-  // regardless of what any screen shows. Deliberately placed BEFORE the TOTP,
-  // chain and face checks — a locked door should refuse everyone identically
-  // and cheaply, and there is no reason to spend an RPC round trip working out
-  // whether somebody who cannot come in anyway is otherwise authorised.
-  //
-  // Both states are still recorded as ordinary access events, so "who tried to
-  // get in during the lockdown" is answerable afterwards.
   if (door.locked_down) {
     return deny(draft, 'door_locked_down', 'This door is locked down');
   }
@@ -377,16 +290,6 @@ export async function decide(input: AccessRequestInput): Promise<AccessDecision>
     return deny(draft, 'building_lockdown', 'The building is in emergency lockdown');
   }
 
-  // 7. TOTP — the second factor, scoped to this door's building. The endpoint
-  //    this replaces looked up `where({ did })` with no building scope at all.
-  //    Keyed by (did, person) rather than by building. The secret is a device
-  //    credential issued once at enrolment, so scoping the lookup to the door's
-  //    building would make the multi-building case above unreachable — a
-  //    contractor attached to a second site has no secret minted for it. The
-  //    building boundary is enforced by the door scoping above and by the
-  //    on-chain policy below, not by which row this query happens to find.
-  //    (The original bug was `where({ did })` with no person and no door at
-  //    all, which let any enrolled device open everything.)
   const secretRow = await db('totp_secrets')
     .where({ did, person_id: person.id })
     .whereNull('deleted_at')
@@ -397,7 +300,6 @@ export async function decide(input: AccessRequestInput): Promise<AccessDecision>
     return deny(draft, 'invalid_totp', 'Invalid verification code', 401);
   }
 
-  // 8. Revocation list, then policy. Both on-chain, both free view calls.
   if (chain.isEnabled()) {
     if (await chain.isRevoked(did)) {
       return deny(draft, 'revoked_on_chain', 'This identity has been revoked');
@@ -408,11 +310,6 @@ export async function decide(input: AccessRequestInput): Promise<AccessDecision>
       return deny(draft, 'not_authorized', 'Not authorised for this door');
     }
 
-    // The chain cannot express "Mon-Fri 09:00-17:00", so it commits to a hash
-    // of the schedule and this enforces the window. The commitment is what
-    // stops an operator quietly widening a schedule: a local schedule that
-    // does not hash to what the chain holds is refused outright rather than
-    // trusted, so tampering shows up as a denial instead of silent access.
     if (verdict.scheduleHash !== chain.NO_SCHEDULE) {
       const schedule = await findCommittedSchedule(person.id, door.id, verdict.scheduleHash);
       if (!schedule) {
@@ -426,8 +323,6 @@ export async function decide(input: AccessRequestInput): Promise<AccessDecision>
     return deny(draft, 'chain_unavailable', 'Access policy unavailable', 503);
   }
 
-  // 9. Face. Advisory in the old endpoint, which logged `face: bypassed`;
-  //    enforced here, because the client deciding its own gate is not a gate.
   if (config.access.requireFace) {
     if (faceScore == null) return deny(draft, 'face_missing', 'Face verification required', 401);
     if (faceScore < config.access.faceThreshold) {
@@ -435,14 +330,6 @@ export async function decide(input: AccessRequestInput): Promise<AccessDecision>
     }
   }
 
-  // 10. Record FIRST, then open the door.
-  //
-  //    The replay lookup in step 2 and this insert are not atomic — the unique
-  //    index on `signature` is the real guard. Publishing before the row
-  //    commits means two racing copies of one signed request both reach the
-  //    lock while only one is ever recorded, producing a physical unlock with
-  //    no audit row and no on-chain hash. That is the exact outcome this
-  //    system exists to rule out, so the write that can reject goes first.
   let eventId: string;
   try {
     eventId = await record(draft, 'granted', 'ok');
@@ -454,13 +341,6 @@ export async function decide(input: AccessRequestInput): Promise<AccessDecision>
     throw err;
   }
 
-  // The unlock itself is not allowed to fail the request: the decision is made
-  // and recorded, and an unreachable broker is an operational fault to report
-  // (`unlocked: false`), not a reason to pretend access was denied.
-  // How this door opens is a property of the lock mounted at it, not of the
-  // door: a smart plug, a Shelly relay and firmware written for this system all
-  // want different topics and payloads. lockService resolves that, and falls
-  // back to the door's own topic when no lock device is registered.
   const lock = await deviceService.lockForDoor(door.id);
   const { delivered: unlocked } = await lockService.actuate(door, lock, {
     doorId: door.id,
@@ -469,7 +349,6 @@ export async function decide(input: AccessRequestInput): Promise<AccessDecision>
     eventId,
   });
 
-  // 11. Durable proof, off the critical path — nobody waits ~12s at a door.
   chain.logEventAsync(draft.eventHash, door_code);
 
   logger.info(

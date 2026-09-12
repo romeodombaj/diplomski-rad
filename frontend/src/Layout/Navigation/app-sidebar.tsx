@@ -25,10 +25,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
     const navMain = [
         { title: t('nav.dashboard'), url: "/", icon: GalleryVerticalEnd, items: [] },
-        // Buildings deliberately has no nav item: BuildingSwitcher below is
-        // where a building is chosen, added, renamed and deleted, the way a
-        // project switcher works. A tab would be a second, competing place to
-        // do the same thing.
     // gt:tab:105_doors
     { title: t('nav.doors'), url: '/doors', icon: DoorOpen, items: [] },
     // gt:tab:106_people
@@ -42,9 +38,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
     const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
-    // Operators and the audit trail only. Settings and Backups were removed:
-    // both were stubs with no backend behind them, and a nav entry that leads
-    // to a page which cannot do anything is worse than no entry at all.
     const navSecondary = isAdmin
         ? [
             { title: t('nav.users'), url: "/users", icon: Users },

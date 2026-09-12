@@ -8,24 +8,6 @@ interface Props {
   data: { hour: number; granted: number; denied: number }[];
 }
 
-/**
- * When doors were opened today, by hour.
- *
- * Stacked rather than grouped because granted + denied is a meaningful total —
- * every attempt at a door — and the question the panel answers first is "when
- * was there traffic", with the split as the second read.
- *
- * COLOUR. Blue for granted, amber for denied, from --chart-granted /
- * --chart-denied in index.css. Deliberately not green/red: red-green is the one
- * pair a deuteranope cannot separate, and separating those two categories is
- * this chart's entire job. Both pairs were checked with the palette validator
- * (protanopia ΔE 29.3 light, 25.7 dark, against a floor of 8) and the dark steps
- * were re-picked rather than lightened, because the dark lightness band is lower
- * than the light one.
- *
- * The legend is always present, and the tooltip names each series in text, so
- * identity never rests on colour alone.
- */
 export default function ActivityChart({ data }: Props) {
   const { t } = useTranslation();
   const total = data.reduce((n, d) => n + d.granted + d.denied, 0);
@@ -43,8 +25,8 @@ export default function ActivityChart({ data }: Props) {
           </p>
         ) : (
           <>
-            {/* Legend above the plot, not floating in it — two series, always
-                shown, so identity is never colour-alone. */}
+            {
+}
             <div className="mb-3 flex flex-wrap items-center gap-4 text-xs">
               <span className="flex items-center gap-1.5">
                 <span
@@ -64,7 +46,6 @@ export default function ActivityChart({ data }: Props) {
 
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={data} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                {/* Recessive grid: horizontal only, so the bars read as the marks. */}
                 <CartesianGrid
                   vertical={false}
                   stroke="hsl(var(--border))"
@@ -100,8 +81,8 @@ export default function ActivityChart({ data }: Props) {
                     key === 'granted' ? t('dashboard.activity.granted') : t('dashboard.activity.denied'),
                   ]}
                 />
-                {/* 2px surface gap between the stacked segments, and rounded
-                    ends only on the top of the stack. */}
+                {
+}
                 <Bar
                   dataKey="granted"
                   stackId="a"

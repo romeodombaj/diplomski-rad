@@ -8,11 +8,6 @@ import { useAuditLog } from '../hooks/useAuditLog';
 import { SearchInput } from '@/UI/SearchInput';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/UI/select';
 
-/**
- * The access log. There is deliberately no create, edit or delete here: rows
- * are written by the access path and hashed into the on-chain AuditLog, so an
- * operator quietly rewriting history is precisely what the system rules out.
- */
 export default function AuditLogTable() {
   const { t } = useTranslation();
   const columns = useAuditLogColumns();

@@ -10,9 +10,7 @@ import { DeviceService, DEVICE_KINDS, LOCK_PROFILES, type Device, type DeviceKin
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Editing an existing device, or null to create one. */
   device: Device | null;
-  /** Prefilled address when adding straight from a scan result. */
   presetAddress?: string | null;
   onSaved: () => void;
 }
@@ -51,13 +49,7 @@ export default function DeviceForm({ open, onOpenChange, device, presetAddress, 
       const body = {
         name: name.trim(),
         kind,
-        // Empty string would be stored as an address of "", which reads as
-        // configured-but-blank rather than genuinely unset.
         address: address.trim() || null,
-        // Actuation belongs to a lock and to nothing else. Sent as null on any
-        // other kind so a beacon never looks like a lock that happens to speak
-        // Tasmota — including when a device is changed from lock to something
-        // else and would otherwise keep stale command fields.
         ...(kind === 'lock'
           ? {
               lock_profile: lockProfile,
@@ -108,12 +100,8 @@ export default function DeviceForm({ open, onOpenChange, device, presetAddress, 
             placeholder="doors/front-01/cmd"
           />
 
-          {/*
-            Only a lock is actuated, so only a lock is asked how. The profile
-            fills in the topic shape and payloads for common hardware; the two
-            overrides exist because one install always has a relay that does not
-            match its own vendor's documentation.
-          */}
+          {
+}
           {kind === 'lock' && (
             <div className="grid gap-4 rounded-md border p-3">
               <FormSelect
@@ -162,10 +150,8 @@ export default function DeviceForm({ open, onOpenChange, device, presetAddress, 
             </div>
           )}
 
-          {/* No door picker here on purpose: a device is attached from the
-              door's own page, where the two slots make it obvious a door holds
-              one sensor and one lock. Two places to set the same field meant
-              two places to get it wrong. */}
+          {
+}
           <p className="text-muted-foreground text-xs">{t('devices.attachHint')}</p>
 
           {error && <p className="text-sm text-destructive">{error}</p>}

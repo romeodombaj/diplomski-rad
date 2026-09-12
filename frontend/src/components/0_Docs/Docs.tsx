@@ -37,7 +37,6 @@ export default function Docs() {
 
     return (
         <div className={theme === 'dark' ? 'dark' : ''} style={{ minHeight: '100vh', background: theme === 'dark' ? '#0f172a' : '#fff' }}>
-            {/* Header */}
             <div
                 className="no-print"
                 style={{
@@ -67,7 +66,6 @@ export default function Docs() {
                 </div>
             </div>
 
-            {/* Content */}
             {error ? (
                 <div style={{ padding: 40, textAlign: 'center', color: '#ef4444' }}>
                     <p style={{ fontWeight: 600 }}>Could not load API spec</p>

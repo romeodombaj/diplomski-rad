@@ -13,14 +13,6 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-/**
- * Who can open this door.
- *
- * The inverse of a person's effective access, and the question a security
- * review actually asks. Neither the group tables nor the chain answer it
- * directly — the chain can only be asked "may this specific DID open this
- * door", so listing everyone means reading the mirror.
- */
 export default function DoorAccessDialog({ doorId, doorName, open, onOpenChange }: Props) {
   const { t } = useTranslation();
   const [rows, setRows] = useState<DoorAccessRow[]>([]);
@@ -92,9 +84,8 @@ export default function DoorAccessDialog({ doorId, doorName, open, onOpenChange 
                   <TableCell className="text-xs">{r.schedule}</TableCell>
                   <TableCell><SyncBadge status={r.sync_status} /></TableCell>
                   <TableCell>
-                    {/* Distinct from "has a policy": a suspended person, an
-                        unsynced grant, or a closed schedule window all mean the
-                        door will not open right now. */}
+                    {
+}
                     {r.open_now
                       ? <Badge variant="default">{t('doors.access.yes')}</Badge>
                       : <Badge variant="outline">{t('doors.access.no')}</Badge>}

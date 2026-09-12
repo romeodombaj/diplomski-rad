@@ -23,26 +23,16 @@ from .features import AccessEvent
 @dataclass(frozen=True)
 class RuleHit:
     rule: str
-    severity: str      # high | medium
+    severity: str
     reason: str
 
 
-# Travelling between two buildings takes time. Anything under this is either a
-# cloned credential or two people sharing one identity; both are worth an alarm.
 IMPOSSIBLE_TRAVEL_MINUTES = 15
 
-# A door nobody normally reaches without passing a main entrance first.
-# Configurable per building in a fuller system; hardcoded here to the pattern
-# the spec names explicitly.
-# "FRONT" and "GATE" were missing, and a building whose entrance is called
-# FRONT-01 had every interior door flagged for "no entrance first" — the
-# rule fired on ordinary movement all day and buried the real hits. The
-# backend keeps the same list (behavior.service `seed`), and the two must
-# not drift: one decides what to generate, the other what to suspect.
 ENTRY_DOOR_HINTS = ("MAIN", "ENTRY", "ENTRANCE", "LOBBY", "ULAZ", "FRONT", "GATE", "RECEPTION")
 
-NIGHT_START_MINUTE = 0      # 00:00
-NIGHT_END_MINUTE = 5 * 60   # 05:00
+NIGHT_START_MINUTE = 0
+NIGHT_END_MINUTE = 5 * 60
 
 
 def _is_entry_door(door_code: str) -> bool:
@@ -60,7 +50,6 @@ def evaluate(event: AccessEvent, history: Sequence[AccessEvent]) -> list[RuleHit
     past = sorted(history, key=lambda e: e.timestamp)
     previous = past[-1] if past else None
 
-    # 1. Physically impossible movement between buildings.
     if previous is not None and event.building_id is not None:
         if (
             previous.building_id is not None
@@ -77,7 +66,6 @@ def evaluate(event: AccessEvent, history: Sequence[AccessEvent]) -> list[RuleHit
                 ),
             ))
 
-    # 2. An interior door reached without passing an entrance first today.
     if not _is_entry_door(event.door_code):
         today = [e for e in past if e.timestamp.date() == event.timestamp.date()]
         if today and not any(_is_entry_door(e.door_code) for e in today):
@@ -90,10 +78,7 @@ def evaluate(event: AccessEvent, history: Sequence[AccessEvent]) -> list[RuleHit
                 ),
             ))
 
-    # 3. Small hours. Flagged as a rule rather than left to the model because
-    #    with a thin history the model has not yet learned that 03:00 is odd.
     if NIGHT_START_MINUTE <= event.minute_of_day < NIGHT_END_MINUTE:
-        # Only interesting if this person does not normally do it.
         night_history = [
             e for e in past
             if NIGHT_START_MINUTE <= e.minute_of_day < NIGHT_END_MINUTE
@@ -108,7 +93,6 @@ def evaluate(event: AccessEvent, history: Sequence[AccessEvent]) -> list[RuleHit
                 ),
             ))
 
-    # 4. Repeated failures then a success — the shape of someone trying codes.
     recent = [e for e in past if event.timestamp - e.timestamp < timedelta(minutes=10)]
     failures = [e for e in recent if not e.success]
     if event.success and len(failures) >= 3:

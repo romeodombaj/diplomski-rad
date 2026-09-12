@@ -35,7 +35,6 @@ interface DataTableProps<TData> {
   onView?: (row: TData) => void;
   onEdit?: (row: TData) => void;
   onDelete?: (row: TData) => void;
-  /** Extra per-row controls rendered before the standard edit/delete icons. */
   rowActions?: (row: TData) => React.ReactNode;
   onExport?: (format: 'csv' | 'xlsx') => void;
   page?: number;
@@ -152,10 +151,6 @@ export function DataTable<TData>({
     return table.getRowModel().rows.map((row) => (
       <TableRow
         key={row.id}
-        // Clicking anywhere on the row opens the record, matching the people
-        // table. Falls back to onEdit because doors have no separate read-only
-        // view — the edit sheet *is* the record. Action buttons already
-        // stopPropagation, so they still act alone.
         onClick={() => {
           setSelectedId(row.id);
           (onView ?? onEdit)?.(row.original);

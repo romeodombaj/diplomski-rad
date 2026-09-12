@@ -1,8 +1,3 @@
-/**
- * swagger-ui-react ships no type declarations, which fails the build under
- * `noImplicitAny`. Only the Docs page uses it, and only with a spec URL, so
- * this covers the props actually passed rather than the full surface.
- */
 declare module 'swagger-ui-react' {
   import type { ComponentType } from 'react';
 

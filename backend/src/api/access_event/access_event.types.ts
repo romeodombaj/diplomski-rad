@@ -16,18 +16,14 @@ export interface AccessEvent {
   signature: string | null;
   chain_tx: string | null;
 
-  // Filled in by the behaviour engine after the fact, and null when it never
-  // ran — a row with no score is unscored, not normal.
   anomaly_score: number | null;
   anomaly_flagged: boolean | null;
   anomaly_reason: string | null;
-  /** JSON: the per-factor breakdown behind the score. */
   anomaly_factors: string | null;
 
   occurred_at: string;
   created_at: string;
   updated_at: string;
-  // Present on list queries, which join people and doors for display.
   person_name?: string | null;
   person_employee_no?: string | null;
   door_name?: string | null;

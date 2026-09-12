@@ -38,7 +38,6 @@ app.use(loggerMiddleware);
 // gt:middleware
 app.use('/api', rateLimiter);
 app.use('/v1', v1RateLimiter);
-// /mobile is unauthenticated by design, so it needs its own IP-keyed limit.
 app.use('/mobile', mobileRateLimiter);
 app.use('/auth/login', authRateLimiter);
 app.use('/auth/register', authRateLimiter);
@@ -51,8 +50,6 @@ app.use('/api/devices', deviceRoutes);
 app.use('/api/lockdown', lockdownRoutes);
 app.use('/api/people', personRoutes);
 app.use('/api/totp_secrets', totp_secretRoutes);
-// The dashboard's audit page has always called /api/audit-logs; until now
-// nothing was mounted there. Backed by access_events.
 app.use('/api/audit-logs', accessEventRoutes);
 app.use('/api/policies', policyRoutes);
 app.use('/api/dashboard', dashboardRoutes);

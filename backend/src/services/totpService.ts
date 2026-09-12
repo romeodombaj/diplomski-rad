@@ -1,8 +1,5 @@
 import speakeasy from 'speakeasy';
 
-/**
- * Generate a TOTP code for the given secret.
- */
 export function generateTOTP(
   secret: string,
   digits: number = 6,
@@ -17,18 +14,12 @@ export function generateTOTP(
   return token;
 }
 
-/**
- * Verify a TOTP code against the stored secret.
- * Uses verifyDelta with a window of 1 to allow +/-1 time step
- * (90 seconds total) to account for clock skew between client and server.
- */
 export function verifyTOTP(
   secret: string,
   code: string,
   digits: number = 6,
   step: number = 30,
 ): boolean {
-  // Validate the code format first
   if (!/^\d+$/.test(code) || code.length !== digits) {
     return false;
   }
@@ -39,7 +30,7 @@ export function verifyTOTP(
     token: code,
     digits,
     step,
-    window: 1, // Allow +/-1 time step for clock skew
+    window: 1,
   });
 
   return result;

@@ -72,7 +72,6 @@ def convert():
             img_bytes = data[HEADER_SIZE + flag * 4:]
 
             if len(img_bytes) == 0:
-                # Non-image records (e.g. dataset metadata/boundary entries)
                 skipped += 1
                 continue
 

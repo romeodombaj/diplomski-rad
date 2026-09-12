@@ -6,15 +6,6 @@ import { Badge } from '@/UI/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/UI/card';
 import { PolicyService, type DriftRow, type SyncHealth } from '../services/policy.service';
 
-/**
- * Sync health and drift.
- *
- * The drift list is the point of the whole system: a policy that is active on
- * chain with no authoring record behind it means someone granted access outside
- * this dashboard. A plain database cannot surface that at all — there would be
- * nothing to compare against. Nothing here auto-deletes such a row; a human is
- * meant to see it.
- */
 export default function SyncHealthPanel() {
   const { t } = useTranslation();
   const [health, setHealth] = useState<SyncHealth | null>(null);
@@ -80,8 +71,6 @@ export default function SyncHealthPanel() {
               </div>
             ))
           ) : (
-            // Not a warning: a chain-less backend is a legitimate dev setup.
-            // It is only alarming if you believed it was on.
             <p className="text-muted-foreground">{t('access.health.chainOffHint')}</p>
           )}
         </CardContent>

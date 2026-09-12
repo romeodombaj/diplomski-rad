@@ -6,7 +6,6 @@ import { requireAuth } from '../../middleware/auth';
 
 const router = Router();
 
-// Before /:id, or "scan" is parsed as a device id.
 router.post('/scan', requireAuth, validate(ScanSchema), deviceController.scan);
 
 router.get('/', requireAuth, deviceController.getAll);

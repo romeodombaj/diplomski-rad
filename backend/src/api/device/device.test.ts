@@ -7,13 +7,6 @@ import db from '../../db';
 import { config } from '../../config/conifg';
 import { deviceRoot } from './device.service';
 
-/**
- * Devices — the hardware at a door, as distinct from the door itself.
- *
- * The cases that matter are the boundaries: a device belongs to one building
- * and may only be attached to a door in that same building, and deleting a door
- * must not destroy the record of hardware that still physically exists.
- */
 describe('Devices', () => {
   let buildingId: number;
   let otherBuildingId: number;
@@ -56,8 +49,6 @@ describe('Devices', () => {
       building_id: otherBuildingId, name: 'Annex', door_code: `A-${randomUUID().slice(0, 5)}`,
       mqtt_topic: 'doors/annex/cmd', active: true,
     });
-    // A second door in the SAME building — the lock-exclusivity tests need one,
-    // and otherDoorId is deliberately in another building.
     [secondDoorId] = await db('doors').insert({
       building_id: buildingId, name: 'Side', door_code: `S-${randomUUID().slice(0, 5)}`,
       mqtt_topic: 'doors/side/cmd', active: true,
@@ -81,8 +72,6 @@ describe('Devices', () => {
   });
 
   it('refuses a door in another building', async () => {
-    // Otherwise an operator could attach hardware to somebody else's door and
-    // read that door's name back out of the list join.
     const res = await post({ name: 'Sneaky', kind: 'lock', door_id: otherDoorId });
     expect(res.status).toBe(404);
   });
@@ -117,7 +106,6 @@ describe('Devices', () => {
   });
 
   it('lists the devices attached to a door', async () => {
-    // One of each kind — which is all a door can hold.
     await post({ name: 'Sensor', kind: 'proximity', door_id: doorId });
     await post({ name: 'Plug', kind: 'lock', door_id: doorId });
     await post({ name: 'Elsewhere', kind: 'lock' });
@@ -126,8 +114,6 @@ describe('Devices', () => {
   });
 
   it('keeps the device when its door is deleted', async () => {
-    // The hardware still exists on a wall somewhere and can be reassigned;
-    // deleting the policy object must not erase the inventory record.
     const made = await post({ name: 'Ring', kind: 'proximity', door_id: doorId });
     await request(app).delete(`/api/doors/${doorId}`).set('Cookie', cookie);
     const after = await db('devices').where({ id: made.body.data.id }).first();
@@ -142,7 +128,6 @@ describe('Devices', () => {
     expect(res.status).toBe(204);
     const row = await db('devices').where({ id: made.body.data.id }).first();
     expect(row.deleted_at).toBeTruthy();
-    // Detached too, so a deleted device does not keep occupying a door slot.
     expect(row.door_id).toBeNull();
     const list = await request(app).get('/api/devices').set('Cookie', cookie);
     expect(list.body.data).toHaveLength(0);
@@ -152,19 +137,11 @@ describe('Devices', () => {
     expect((await request(app).get('/api/devices')).status).toBe(401);
   });
 
-  /**
-   * One lock per door.
-   *
-   * Two relays wired to one door is not a configuration but a mistake: the
-   * access path has to pick one, and picking silently means an unlock that
-   * opens whichever row sorted first.
-   */
   describe('lock exclusivity', () => {
     it('refuses a second lock on the same door', async () => {
       await post({ name: 'Plug A', kind: 'lock', door_id: doorId, lock_profile: 'tasmota' });
       const second = await post({ name: 'Plug B', kind: 'lock', door_id: doorId });
       expect(second.status).toBe(409);
-      // The message names the lock already there — the operator's next question.
       expect(second.body.message).toContain('Plug A');
     });
 
@@ -180,8 +157,6 @@ describe('Devices', () => {
     });
 
     it('refuses a second proximity device on the same door', async () => {
-      // A door senses you once. Two sensors means the code picks one silently,
-      // and the ring then reports whichever row sorted first.
       await post({ name: 'Sensor A', kind: 'proximity', door_id: doorId });
       const second = await post({ name: 'Sensor B', kind: 'proximity', door_id: doorId });
       expect(second.status).toBe(409);
@@ -216,13 +191,6 @@ describe('Devices', () => {
   });
 });
 
-/**
- * Topic grouping for the MQTT scan.
- *
- * A single ESPHome node publishes a discovery topic, a debug topic and one
- * topic per entity. Before grouping, one ReSpeaker ring showed up as five
- * separate rows in the scan dialog, each inviting the operator to register it.
- */
 describe('deviceRoot', () => {
   it('folds an ESPHome node\'s topics onto one device', () => {
     const topics = [
@@ -238,8 +206,6 @@ describe('deviceRoot', () => {
   });
 
   it('keeps unrelated door topics apart', () => {
-    // The important negative case: grouping by first segment would merge every
-    // door in the building into a single "doors" device.
     expect(deviceRoot('doors/front-01/cmd')).toBe('doors/front-01/cmd');
     expect(deviceRoot('doors/side-02/cmd')).toBe('doors/side-02/cmd');
     expect(deviceRoot('doors/front-01/cmd/proximity')).toBe('doors/front-01/cmd/proximity');

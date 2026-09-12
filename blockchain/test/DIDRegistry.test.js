@@ -38,8 +38,6 @@ describe("DIDRegistry", function () {
       .to.be.revertedWithCustomError(registry, "DIDNotRegistered");
   });
 
-  // The security property: a compromised backend must not be able to silently
-  // point an existing identity at a key it controls.
   it("refuses to overwrite an existing DID", async function () {
     await registry.connect(backend).registerDID(DID, PUBKEY);
     await expect(registry.connect(backend).registerDID(DID, "0xdeadbeef"))
@@ -53,7 +51,6 @@ describe("DIDRegistry", function () {
       .to.be.revertedWithCustomError(registry, "EmptyPublicKey");
   });
 
-  // AUDIT.md F-23: without this, anyone on Sepolia could register DIDs.
   it("blocks registration from an address without BACKEND_ROLE", async function () {
     await expect(registry.connect(outsider).registerDID(DID, PUBKEY))
       .to.be.revertedWithCustomError(registry, "AccessControlUnauthorizedAccount");

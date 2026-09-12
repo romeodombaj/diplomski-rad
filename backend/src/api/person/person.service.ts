@@ -20,14 +20,8 @@ const ENROLLMENT_TTL_HOURS = 72;
 
 const now = () => new Date().toISOString();
 
-/** Tokens are stored hashed, for the same reason passwords are. */
 const hashToken = (token: string) => crypto.createHash('sha256').update(token).digest('hex');
 
-/**
- * Legal status transitions. `suspended` revokes policies but keeps the DID valid
- * so the person can return without re-enrolling their face; `offboarded` retires
- * the identity itself and is terminal.
- */
 const TRANSITIONS: Record<PersonStatus, PersonStatus[]> = {
   invited: ['enrolling', 'active', 'offboarded'],
   enrolling: ['active', 'invited', 'offboarded'],
@@ -56,8 +50,6 @@ export const getAll = async (buildingId: number, params: PersonSearchParams): Pr
     base.offset((pg - 1) * limit);
   }
 
-  // Offboarded people stay in the table for audit but would otherwise dominate
-  // the list over time, so they are opt-in.
   if (params.include_offboarded !== 'true' && !params.status) base.whereNot('status', 'offboarded');
 
   if (params.status) base.where('status', params.status);
@@ -85,8 +77,6 @@ export const getAll = async (buildingId: number, params: PersonSearchParams): Pr
 
   let total: number | undefined;
   if (params.count === 'true') {
-    // Clear the paging the clone inherits — `count(*) … offset 20` returns no
-    // rows, so this would throw on every page but the first.
     const countRow = await base
       .clone()
       .clearOrder()
@@ -113,7 +103,7 @@ export const create = async (buildingId: number, data: CreatePersonDto): Promise
     id,
     building_id: buildingId,
     person_type: data.person_type ?? 'employee',
-    status: 'invited',   // no DID yet; they become active by enrolling on their phone
+    status: 'invited',
   });
   return getById(buildingId, id) as Promise<Person>;
 };
@@ -135,16 +125,7 @@ export const setStatus = async (
   const before = await getById(buildingId, id);
   await db('people').where({ id, building_id: buildingId }).update({ status: to, updated_at: now() });
 
-  // Offboarding retires the identity itself, so the DID goes on the on-chain
-  // revocation list — that is what makes "one click revokes access everywhere"
-  // true without a central server to push the update. Suspension deliberately
-  // does not: it revokes policies but keeps the DID valid so the person can
-  // return without re-enrolling their face.
   if (to === 'offboarded' && before?.did) {
-    // Order matters (specs/06_access_control.md section 5): revoke the person's
-    // policies first, then add the DID to the revocation list. Both are belt
-    // and braces; the revocation list is the one that must succeed, so it goes
-    // last where a failure is loudest.
     const queued = await policyService.revokeAllForPerson(id);
     if (queued > 0) {
       logger.info(`[policy] queued ${queued} policies for revocation on offboard of ${id}`);
@@ -156,16 +137,9 @@ export const setStatus = async (
   }
 
   if (to === 'offboarded') {
-    // The behaviour model is fitted from nothing but this person's own comings
-    // and goings, which makes it personal data of the same kind as the history
-    // it came from. Retiring the identity has to retire that too — and outside
-    // the `did` guard above, because the model is keyed by person: someone who
-    // never finished enrolling can still have been scored.
     await behavior.forget(id);
   }
 
-  // Suspension revokes policies but keeps the DID valid, so the person can
-  // return without re-enrolling their face.
   if (to === 'suspended' && before?.did) {
     const queued = await policyService.revokeAllForPerson(id);
     if (queued > 0) await policyService.syncPending().catch(() => {});
@@ -174,22 +148,6 @@ export const setStatus = async (
   return getById(buildingId, id);
 };
 
-/**
- * Put a DID on the on-chain revocation list.
- *
- * Deliberately does NOT pre-check `chain.isRevoked`: that read fails *closed*
- * and answers "revoked" when the RPC is unreachable, which is correct for the
- * access path but exactly backwards as a skip-the-write guard — a node restart
- * or a provider blip would silently skip the transaction and leave a stolen
- * phone valid at every other building. Instead always attempt the write and
- * treat the contract's AlreadyRevoked revert as the success it is.
- *
- * This awaits confirmation rather than firing and forgetting. Revocation is
- * rare, operator-initiated, and the whole point is that it is durable — an
- * operator who sees "revoked" must not be looking at a transaction that never
- * landed. The cost is that the request blocks for a block time (~12s on a
- * public network); the return value says whether it actually landed.
- */
 async function revokeDidOnChain(did: string): Promise<boolean> {
   if (!chain.isEnabled()) return false;
   try {
@@ -207,16 +165,7 @@ async function revokeDidOnChain(did: string): Promise<boolean> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Enrolment
-// ---------------------------------------------------------------------------
 
-/**
- * Issue a single-use enrolment token. Returns the raw token exactly once — only
- * its hash is persisted, so a lost token must be reissued rather than recovered.
- * Any outstanding token for this person is consumed first, so a reissue
- * invalidates the old QR code.
- */
 export const issueEnrollment = async (
   buildingId: number,
   personId: string,
@@ -256,22 +205,9 @@ export type ClaimResult =
       totp: { secret: string; period: number; digits: number };
       building: { id: number; name: string; contract_address: string };
       doors: { id: number; building_id: number; door_code: string; name: string }[];
-      /** False when the DID exists only in this backend's database. */
       chain_registered: boolean;
     };
 
-/**
- * Mobile → backend enrolment handshake. Trades a valid one-time token for the
- * TOTP secret, closing AUDIT.md F-02.
- *
- * The device's public key is now persisted and, when the chain is enabled,
- * written to DIDRegistry — so the access path can verify signatures against a
- * key no single backend operator controls. The chain write happens after the
- * local commit and is allowed to fail: a person whose phone enrolled but whose
- * registerDID transaction did not land is in a recoverable state
- * (`chain_registered` is false, reconciliation can retry), whereas rolling back
- * a consumed one-time token would strand them with a dead QR code.
- */
 export const claimEnrollment = async (
   token: string,
   did: string,
@@ -290,16 +226,9 @@ export const claimEnrollment = async (
   if (!person) return { ok: false, reason: 'invalid_token' };
   if (!canTransition(person.status, 'active')) return { ok: false, reason: 'wrong_status' };
 
-  // A DID is globally unique; refuse to bind one that is already in use.
   const existing = await db('people').where({ did }).whereNot('id', person.id).first();
   if (existing) return { ok: false, reason: 'did_taken' };
 
-  // Refuse a DID that is already on the on-chain revocation list. Revocation is
-  // permanent — nothing calls restoreDID — so binding one would consume the
-  // single-use token and mint a credential that is denied at every door with
-  // `revoked_on_chain`, and the person would have no way back. A reset phone
-  // mints a fresh keypair and therefore a fresh DID, so this only catches a
-  // handset that kept its key through a revocation.
   if (await chain.isRevoked(did)) return { ok: false, reason: 'did_revoked' };
 
   const building = await db('buildings').where({ id: person.building_id }).first();
@@ -338,9 +267,6 @@ export const claimEnrollment = async (
 
   const chainRegistered = await registerDidOnChain(did, publicKey);
 
-  // `id` and `building_id` are here for the BLE door beacons: a beacon
-  // advertises (major=building_id, minor=door_id), and the phone needs this
-  // list to turn that pair back into the door_code an access request carries.
   const doors = await db('doors')
     .where({ building_id: person.building_id, active: true })
     .whereNull('deleted_at')
@@ -358,17 +284,10 @@ export const claimEnrollment = async (
   };
 };
 
-/**
- * Bind the DID to its public key in the on-chain registry.
- * @returns whether the key is on-chain — false when the chain is off, already
- *          registered under a different key, or the transaction failed.
- */
 async function registerDidOnChain(did: string, publicKey: string): Promise<boolean> {
   if (!chain.isEnabled()) return false;
   try {
     if (await chain.isRegistered(did)) {
-      // registerDID reverts on re-registration by design — silently replacing a
-      // key would let a compromised backend take over an existing identity.
       logger.warn(`[chain] DID ${did} already registered; leaving the existing key in place`);
       return true;
     }
@@ -381,18 +300,10 @@ async function registerDidOnChain(did: string, publicKey: string): Promise<boole
   }
 }
 
-// ---------------------------------------------------------------------------
-// Devices
-// ---------------------------------------------------------------------------
 
 export const listDevices = async (personId: string): Promise<PersonDevice[]> =>
   db('person_devices').where({ person_id: personId }).orderBy('id', 'desc');
 
-/**
- * Revoke one device (stolen phone). Distinct from offboarding: the person stays
- * employed and can enrol a replacement. If the revoked device held the person's
- * current DID, the person drops back to `invited` and needs a fresh enrolment.
- */
 export const revokeDevice = async (
   buildingId: number,
   personId: string,
@@ -425,9 +336,6 @@ export const revokeDevice = async (
     }
   });
 
-  // The stolen-phone path. Revoke the policies that DID holds, then put the DID
-  // itself on the chain's revocation list — every building's backend sees it on
-  // its next read, including buildings this operator has no account on.
   const queued = await policyService.revokeAllForPerson(personId);
   if (queued > 0) await policyService.syncPending().catch(() => {});
   await revokeDidOnChain(device.did);

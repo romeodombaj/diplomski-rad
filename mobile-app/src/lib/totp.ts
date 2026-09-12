@@ -1,29 +1,15 @@
-/**
- * Self-contained TOTP (RFC 6238) generator — pure JS, no native modules.
- *
- * Runs anywhere (Expo Go / Hermes) because it implements SHA-1, HMAC and
- * base32 decoding by hand instead of relying on Web/Node crypto. The backend
- * generates the shared secret (speakeasy, base32) and the app generates the
- * matching 6-digit code locally so the biometric-gated code never has to be
- * fetched from the server.
- *
- * Defaults (SHA-1, 6 digits, 30s period) match the backend's speakeasy config.
- */
 
-// --- SHA-1 -----------------------------------------------------------------
 
 function rotl(n: number, s: number): number {
   return ((n << s) | (n >>> (32 - s))) >>> 0;
 }
 
-/** SHA-1 of a byte array, returns 20 bytes. */
 function sha1(bytes: number[]): number[] {
   const ml = bytes.length * 8;
   const msg = bytes.slice();
 
   msg.push(0x80);
   while (msg.length % 64 !== 56) msg.push(0);
-  // 64-bit big-endian length (message length fits well within 32 bits here)
   for (let i = 0; i < 4; i++) msg.push(0);
   msg.push((ml >>> 24) & 0xff, (ml >>> 16) & 0xff, (ml >>> 8) & 0xff, ml & 0xff);
 
@@ -92,7 +78,6 @@ function sha1(bytes: number[]): number[] {
   return out;
 }
 
-// --- HMAC-SHA1 -------------------------------------------------------------
 
 function hmacSha1(key: number[], message: number[]): number[] {
   const blockSize = 64;
@@ -107,7 +92,6 @@ function hmacSha1(key: number[], message: number[]): number[] {
   return sha1(oKeyPad.concat(inner));
 }
 
-// --- base32 (RFC 4648) -----------------------------------------------------
 
 const B32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
@@ -118,7 +102,7 @@ function base32Decode(input: string): number[] {
   const out: number[] = [];
   for (const ch of clean) {
     const idx = B32_ALPHABET.indexOf(ch);
-    if (idx === -1) continue; // skip stray chars
+    if (idx === -1) continue;
     value = (value << 5) | idx;
     bits += 5;
     if (bits >= 8) {
@@ -129,22 +113,19 @@ function base32Decode(input: string): number[] {
   return out;
 }
 
-// --- TOTP ------------------------------------------------------------------
 
 export interface TotpConfig {
-  secret: string; // base32
+  secret: string;
   period?: number;
   digits?: number;
 }
 
-/** Generate the TOTP code for a given unix time (seconds). */
 export function totpAt(cfg: TotpConfig, unixSeconds: number): string {
   const period = cfg.period ?? 30;
   const digits = cfg.digits ?? 6;
   const key = base32Decode(cfg.secret);
 
   let counter = Math.floor(unixSeconds / period);
-  // 8-byte big-endian counter
   const counterBytes = new Array<number>(8).fill(0);
   for (let i = 7; i >= 0; i--) {
     counterBytes[i] = counter & 0xff;
@@ -163,12 +144,10 @@ export function totpAt(cfg: TotpConfig, unixSeconds: number): string {
   return otp.toString().padStart(digits, '0');
 }
 
-/** Current TOTP code. */
 export function totpNow(cfg: TotpConfig): string {
   return totpAt(cfg, Math.floor(Date.now() / 1000));
 }
 
-/** Seconds remaining before the current code rolls over. */
 export function secondsRemaining(period = 30): number {
   return period - (Math.floor(Date.now() / 1000) % period);
 }

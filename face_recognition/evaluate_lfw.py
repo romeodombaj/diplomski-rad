@@ -46,13 +46,12 @@ LFW_CROPS = os.path.join(HERE, "lfw_crops")
 PAIRS_FILE = os.path.join(HERE, "lfw_home", "lfw_home", "pairs.txt")
 CACHE_DIR = os.path.join(HERE, "lfw_eval_cache")
 
-INPUT_SIZE = 105                      # matches train_vggface2.py / export_onnx.py
+INPUT_SIZE = 105
 IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 BATCH = 32
 
 
-# ─── LFW pairs ───────────────────────────────────────────────────────────
 
 def load_pairs():
     """
@@ -75,11 +74,10 @@ def load_pairs():
             pairs.append((rel(p[0], p[1]), rel(p[2], p[3]))); labels.append(0)
         else:
             raise ValueError(f"bad pair line {i}: {line!r}")
-        folds.append(i // 600)          # 10 folds of 600, in file order
+        folds.append(i // 600)
     return pairs, np.array(labels), np.array(folds)
 
 
-# ─── preprocessing ───────────────────────────────────────────────────────
 
 def preprocess(path):
     """Resize to 105x105 + ImageNet normalise. Mirrors the eval transform
@@ -88,10 +86,9 @@ def preprocess(path):
         (INPUT_SIZE, INPUT_SIZE), Image.BILINEAR)
     a = np.asarray(img, dtype=np.float32) / 255.0
     a = (a - IMAGENET_MEAN) / IMAGENET_STD
-    return a.transpose(2, 0, 1)                       # HWC -> CHW
+    return a.transpose(2, 0, 1)
 
 
-# ─── model backends ──────────────────────────────────────────────────────
 
 class OnnxModel:
     def __init__(self, path, threads):
@@ -114,8 +111,6 @@ class TorchModel:
         torch.set_num_threads(threads)
         self.torch = torch
         state = torch.load(path, map_location="cpu", weights_only=False)
-        # Milestones store {epoch, model_state_dict, ...}; the exported
-        # backbones (vggface2_pretrained*.pt) are a bare state_dict.
         if isinstance(state, dict) and "model_state_dict" in state:
             state = state["model_state_dict"]
         self.model = CustomCNN(embedding_dim=512)
@@ -131,7 +126,6 @@ def build_model(path, threads):
     return (OnnxModel if path.endswith(".onnx") else TorchModel)(path, threads)
 
 
-# ─── embedding ───────────────────────────────────────────────────────────
 
 def cache_tag(model_path, images):
     """
@@ -168,14 +162,11 @@ def embed_all(model, rel_paths, image_root, tag, threads):
     print(f"  embedded {len(rel_paths)} images in "
           f"{(time.time()-t0)/60:.1f} min")
 
-    # Embeddings are L2-normalised by the network's final layer; re-normalise
-    # defensively so int8 rounding cannot make cosine != dot product.
     embs /= np.linalg.norm(embs, axis=1, keepdims=True) + 1e-12
     np.savez(cache, emb=embs, paths=np.array(rel_paths))
     return embs
 
 
-# ─── metrics ─────────────────────────────────────────────────────────────
 
 def best_threshold(scores, labels):
     """Threshold maximising accuracy, searched over the midpoints between
@@ -183,7 +174,6 @@ def best_threshold(scores, labels):
     order = np.argsort(scores)
     s, y = scores[order], labels[order]
     n_pos = y.sum()
-    # predicting "same" when score >= t; sweep t across every split point
     tp = n_pos - np.concatenate([[0], np.cumsum(y)])[:-1]
     tn = np.concatenate([[0], np.cumsum(1 - y)])[:-1]
     acc = (tp + tn) / len(y)
@@ -198,7 +188,7 @@ def accuracy_at(scores, labels, thr):
 
 def tar_at_far(scores, labels, far_target):
     """True accept rate at a fixed false accept rate."""
-    imp = np.sort(scores[labels == 0])[::-1]      # impostor scores, desc
+    imp = np.sort(scores[labels == 0])[::-1]
     k = int(round(far_target * len(imp)))
     if k < 1:
         return 0.0, float(imp[0])
@@ -211,7 +201,6 @@ def roc_auc(scores, labels):
     order = np.argsort(scores, kind="mergesort")
     ranks = np.empty(len(scores), dtype=np.float64)
     ranks[order] = np.arange(1, len(scores) + 1)
-    # average ranks within tied groups
     s = scores[order]
     i = 0
     while i < len(s):
@@ -245,8 +234,8 @@ def evaluate(scores, labels, folds):
     for f in range(10):
         te = folds == f
         tr = ~te
-        thr, _ = best_threshold(scores[tr], labels[tr])   # fitted on 9 folds
-        fold_acc.append(accuracy_at(scores[te], labels[te], thr))  # tested on 1
+        thr, _ = best_threshold(scores[tr], labels[tr])
+        fold_acc.append(accuracy_at(scores[te], labels[te], thr))
         fold_thr.append(thr)
 
     acc = np.array(fold_acc)
@@ -275,7 +264,6 @@ def evaluate(scores, labels, folds):
     }
 
 
-# ─── main ────────────────────────────────────────────────────────────────
 
 DEFAULT_MODELS = [
     ("epoch10", "training_checkpoints/milestone_epoch_10.pt"),
@@ -325,7 +313,7 @@ def main():
         model = build_model(full, args.threads)
         emb = embed_all(model, uniq, image_root,
                         cache_tag(path, args.images), args.threads)
-        scores = np.sum(emb[ia] * emb[ib], axis=1)      # cosine similarity
+        scores = np.sum(emb[ia] * emb[ib], axis=1)
         r = evaluate(scores, labels, folds)
         results[name] = dict(r, model_path=path, images=args.images)
         print(f"  LFW accuracy: {100*r['accuracy_mean']:.2f}% "

@@ -1,18 +1,3 @@
-/**
- * End-to-end proof that the whole stack is actually wired together.
- *
- * Walks sigurnosni-sustav-biometrija.md §"Tijek autentifikacije" against a real
- * chain: enrol -> registerDID on-chain -> grant a policy on-chain -> the phone
- * signs -> the backend verifies against the ON-CHAIN public key -> policy and
- * revocation checks -> the event hash is written on-chain.
- *
- * Unlike the vitest suites, which run with the chain disabled, this one fails
- * if the contracts are unreachable — that is the point of it.
- *
- *   cd blockchain && npx hardhat node                        # terminal 1
- *   cd blockchain && npx hardhat run scripts/deploy.js --network localhost
- *   cd backend   && npx tsx scripts/verify-chain-e2e.ts      # terminal 2
- */
 import { randomUUID } from 'crypto';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
@@ -22,11 +7,10 @@ import { Wallet, ethers } from 'ethers';
 const RPC = process.env.CHAIN_RPC_URL || 'http://127.0.0.1:8545';
 process.env.CHAIN_RPC_URL = RPC;
 process.env.CHAIN_NETWORK = process.env.CHAIN_NETWORK || 'localhost';
-// hardhat account #0 — the deploy script's deployer, which holds every role.
 process.env.CHAIN_BACKEND_PRIVATE_KEY =
   process.env.CHAIN_BACKEND_PRIVATE_KEY ||
   '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
-process.env.NODE_ENV = 'test'; // in-memory sqlite, so this never touches dev data
+process.env.NODE_ENV = 'test';
 
 const DOOR = 'MAIN-01';
 let failures = 0;
@@ -37,9 +21,6 @@ const check = (label: string, ok: boolean, extra = '') => {
 };
 
 async function main() {
-  // Imported here, not at the top: the env vars above must be set before the
-  // config module is first evaluated, and this file compiles to CJS (no
-  // top-level await).
   const app = (await import('../src/app')).default;
   const db = (await import('../src/db')).default;
   const chain = await import('../src/services/chainService');
@@ -109,16 +90,12 @@ async function main() {
      'function getEvents(uint256,uint256) view returns (tuple(string eventHash,string doorCode,uint256 timestamp)[])'],
     new ethers.JsonRpcProvider(RPC),
   );
-  // The chain is append-only and the node may already hold events from an
-  // earlier run, so compare against a baseline rather than against zero.
   const baseline = await audit.getEventCount();
 
   console.log('\naccess');
   let res = await request(app).post('/mobile/access').send(await sign());
   check('denied while no on-chain policy exists', res.body.data?.reason === 'not_authorized', res.body.data?.reason);
 
-  // Granting now goes through the application, not a hardhat console: author a
-  // direct grant, and the sync pass writes it to AccessPolicy.
   const grant = await request(app).post('/api/policies/grants').set('Cookie', cookie)
     .send({ person_id: person.id, door_id: doorId });
   check('operator authors a grant', grant.status === 202, `${grant.status}`);
@@ -141,7 +118,6 @@ async function main() {
   check('decision was checked against the chain', res.body.data?.chain_checked === true);
 
   console.log('\naudit');
-  // logEvent is fire-and-forget by design, so poll rather than assume.
   let count = baseline;
   for (let i = 0; i < 40 && count === baseline; i++) {
     count = await audit.getEventCount();
@@ -153,7 +129,6 @@ async function main() {
     const row = await db('access_events').where({ decision: 'granted' }).first();
     check('on-chain hash matches the local row', logged.eventHash === row.event_hash);
     check('on-chain entry names the door', logged.doorCode === DOOR);
-    // The privacy claim: the chain holds a hash and a door code, nothing else.
     const onChain = `${logged.eventHash}|${logged.doorCode}`;
     check('no personal data on-chain — only a hash',
       !onChain.includes('Ana') && !onChain.includes(did) && !onChain.includes('E-1'));
@@ -175,8 +150,6 @@ async function main() {
   check('the old self-service enrolment route is gone', res.status === 404);
 
   console.log('\nreconciliation');
-  // The drift demo the spec calls the strongest one: grant a policy directly on
-  // chain, bypassing the dashboard, and watch reconciliation catch it.
   const rogue = Wallet.createRandom();
   const rogueDid = `did:ethr:sep:${rogue.address}`;
   const rogueP = await request(app).post('/api/people').set('Cookie', cookie)
@@ -185,7 +158,7 @@ async function main() {
     token: rogueP.body.data.invite.token, did: rogueDid,
     publicKey: rogue.signingKey.publicKey,
   });
-  await chain.grantAccess(rogueDid, DOOR, 0, 0);   // straight to the chain
+  await chain.grantAccess(rogueDid, DOOR, 0, 0);
 
   const recon = await request(app).post('/api/policies/reconcile').set('Cookie', cookie);
   check('reconciliation flags a policy granted outside the dashboard',
@@ -215,9 +188,6 @@ async function main() {
   res = await request(app).post('/mobile/access').send(await sign());
   check('revoked DID is refused', res.body.data?.granted === false, res.body.data?.reason);
 
-  // A revoked DID must not be re-bindable: revocation is permanent, so a
-  // re-enrolment would consume the single-use token and mint a credential that
-  // is denied at every door with no way back.
   const second = await request(app).post('/api/people').set('Cookie', cookie)
     .send({ full_name: 'Marko Marić', employee_no: 'E-2' });
   const reclaim = await request(app).post('/mobile/enroll/claim').send({
@@ -233,8 +203,6 @@ async function main() {
       .whereNull('consumed_at')
       .first())));
 
-  // Revocation must be idempotent: revoking an already-revoked DID reports
-  // success rather than failing on the contract's AlreadyRevoked revert.
   const third = await request(app).post('/api/people').set('Cookie', cookie)
     .send({ full_name: 'Iva Ivić', employee_no: 'E-3' });
   const thirdPhone = Wallet.createRandom();
@@ -248,9 +216,6 @@ async function main() {
     .post(`/api/people/${third.body.data.person.id}/devices/${devices[0].id}/revoke`)
     .set('Cookie', cookie).send({ reason: 'stolen' });
   check('stolen-phone revoke reaches the chain', await chain.isRevoked(thirdDid));
-  // Device revocation nulls `people.did`, so the `did_taken` guard no longer
-  // applies — this is the path where a revoked DID could actually be re-bound
-  // and end up permanently denied with no operator-facing way back.
   const fourth = await request(app).post('/api/people').set('Cookie', cookie)
     .send({ full_name: 'Petar Perić', employee_no: 'E-4' });
   const rebind = await request(app).post('/mobile/enroll/claim').send({

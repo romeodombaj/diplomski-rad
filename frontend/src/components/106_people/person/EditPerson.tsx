@@ -70,9 +70,8 @@ export default function EditPerson({ id, initialData, onSuccess, onCancel }: Pro
         <FormInput label={t('person.fields.phone')} value={phone} onChange={setPhone} error={errors.phone} />
         <FormInput label={t('person.fields.employmentEnd')} value={employment_end} onChange={setEmploymentEnd} error={errors.employment_end} placeholder="YYYY-MM-DD" />
       </div>
-      {/* person_type and status are deliberately absent: type is immutable and
-          status moves only through the lifecycle actions, so each transition
-          keeps its own audit point. */}
+      {
+}
       <div className="grid grid-cols-2 gap-4 mt-6">
         <Button type="button" variant="outline" className="w-full" onClick={onCancel}>{t('common.cancel')}</Button>
         <Button type="submit" disabled={saving} className="w-full">{saving ? t('common.saving') : t('common.save')}</Button>

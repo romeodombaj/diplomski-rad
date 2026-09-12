@@ -17,15 +17,6 @@ import EditDoor from './EditDoor';
 
 type Tab = 'details' | 'devices' | 'access';
 
-/**
- * One door, as a page rather than a slide-over.
- *
- * A door is the join between three separate things — its own settings, the
- * hardware mounted at it, and who may open it. A sheet gave one narrow column
- * for all three and covered the list behind it; a page has room, and the URL
- * makes a specific door linkable and reloadable. Mirrors PersonDetail so both
- * records behave the same way.
- */
 export default function DoorDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -43,8 +34,6 @@ export default function DoorDetail() {
     } catch (e: any) {
       setError(e?.message ?? 'Failed to load');
     }
-    // Who may open it is a separate question and a separate endpoint; a failure
-    // there should not blank the whole page.
     PolicyService.whoHasAccess(Number(id)).then(setAccess).catch(() => setAccess([]));
   }, [id]);
 
@@ -79,8 +68,8 @@ export default function DoorDetail() {
         {door.locked_down && (
           <Badge variant="destructive">{t('lockdown.lockedDown')}</Badge>
         )}
-        {/* Right-aligned: these are the actions on this page with a physical
-            effect, so they do not sit in the run of identifying labels. */}
+        {
+}
         <div className="ml-auto flex items-center gap-2">
           <DoorLockdownButton
             doorId={Number(id)}

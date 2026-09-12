@@ -1,40 +1,20 @@
 #!/bin/bash
-# ============================================================================
-# setup_training.sh
-# ============================================================================
-# Sets up and runs face recognition model training on the MI50 GPU.
-# 
-# BEFORE RUNNING:
-#   1. Stop the llamacpp Docker container (this releases 31GB VRAM):
-#      docker stop llama-cpp-35b-mtp
-#
-# AFTER TRAINING:
-#   1. Restart llamacpp: docker start llama-cpp-35b-mtp
-#
-# TO RESUME TRAINING:
-#   Just run: bash setup_training.sh
-#   It auto-detects the latest checkpoint and continues.
-# ============================================================================
 
 set -e
 
-# ── Paths ──────────────────────────────────────────────────────────────────
 PROJECT_DIR="/home/b2/projects/zavrsni/face_recognition"
 CHECKPOINT_DIR="$PROJECT_DIR/training_checkpoints"
 LOG_DIR="/home/b2/projects/zavrsni/logs/face_recognition"
 
-# ── Environment ────────────────────────────────────────────────────────────
 export ROCM_PATH=/opt/rocm-7.2.3
 export HIP_PATH=/opt/rocm-7.2.3/hip
 export LD_LIBRARY_PATH=/opt/rocm-7.2.3/lib:/opt/rocm-7.2.3/lib64:$LD_LIBRARY_PATH
 export HIP_VISIBLE_DEVICES=0
 
-# ── Pre-flight checks ─────────────────────────────────────────────────────
 echo "============================================="
 echo "  Face Recognition Training Setup"
 echo "============================================="
 
-# Check PyTorch
 echo -n "Checking PyTorch... "
 if python3 -c "import torch" 2>/dev/null; then
     echo "OK ($(python3 -c 'import torch; print(torch.__version__)'))"
@@ -44,7 +24,6 @@ else
     exit 1
 fi
 
-# Check GPU availability
 echo -n "Checking GPU... "
 GPU_AVAILABLE=$(python3 -c "import torch; print(torch.cuda.is_available())" 2>/dev/null)
 if [ "$GPU_AVAILABLE" != "True" ]; then
@@ -71,7 +50,6 @@ if [ "$GPU_AVAILABLE" != "True" ]; then
 fi
 echo "OK ($(python3 -c "import torch; print(f'{torch.cuda.get_device_name(0)} {torch.cuda.get_device_properties(0).total_memory / 1e9:.0f}GB')"))"
 
-# Check data exists
 echo -n "Checking training data... "
 if [ -d "$PROJECT_DIR/extracted_faces" ] && [ "$(ls -A $PROJECT_DIR/extracted_faces/ 2>/dev/null)" ]; then
     FACE_COUNT=$(find "$PROJECT_DIR/extracted_faces" -name "*.png" | wc -l)
@@ -88,7 +66,6 @@ echo "============================================="
 echo "  Checking checkpoints..."
 echo "============================================="
 
-# Check for existing checkpoints
 PRETRAINED="$CHECKPOINT_DIR/vggface2_pretrained.pt"
 FINETUNED="$CHECKPOINT_DIR/personal_finetuned.pt"
 
@@ -116,10 +93,8 @@ echo "============================================="
 echo "  Starting Training"
 echo "============================================="
 
-# Create log directory
 mkdir -p "$LOG_DIR"
 
-# Run the appropriate training script
 cd "$PROJECT_DIR"
 
 if [ "$PHASE" = "fine_tune" ]; then

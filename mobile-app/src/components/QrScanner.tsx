@@ -7,40 +7,14 @@ import { parseEnrollmentPayload } from '@/lib/enrollmentPayload';
 
 type Props = {
   visible: boolean;
-  /** Called once, with the token extracted from whatever the QR carried. */
   onScanned: (token: string) => void;
   onCancel: () => void;
 };
 
-/**
- * Scans the dashboard's enrolment QR.
- *
- * The enrolment token is 43 characters of base64url, which is not something to
- * retype off a screen — the manual field stays as the fallback, but this is the
- * path meant to be used.
- *
- * Uses expo-camera rather than vision-camera, which carries the face scan.
- * vision-camera 5 has no code scanner on Android at all: its object output is
- * the only API for it and `HybridCameraFactory.createObjectOutput` throws
- * "CameraObjectOutput is not available on Android!" the moment the output is
- * built — before a frame is ever processed. Because the hook ran above this
- * component's early return, that took the whole app down at startup rather than
- * only when the scanner opened.
- *
- * Two camera stacks in one app is fine as long as only one is live at a time,
- * which holds here: this mounts inside a Modal and the face scanner is a
- * separate screen.
- */
 export function QrScanner({ visible, onScanned, onCancel }: Props) {
   const [permission, requestPermission] = useCameraPermissions();
   const [error, setError] = useState<string | null>(null);
 
-  /**
-   * The camera keeps firing for as long as the code is in frame, and enrolment
-   * consumes a single-use token — so the first accepted scan has to be the only
-   * one. A ref, not state, because the callback must see the update
-   * synchronously rather than on the next render.
-   */
   const handled = useRef(false);
 
   useEffect(() => {
@@ -60,8 +34,6 @@ export function QrScanner({ visible, onScanned, onCancel }: Props) {
 
       const payload = parseEnrollmentPayload(data);
       if (!payload) {
-        // Keep scanning — this is almost always a QR that is simply not ours,
-        // and stopping would make the screen look frozen.
         setError('That is not an enrolment code');
         return;
       }
@@ -87,7 +59,6 @@ export function QrScanner({ visible, onScanned, onCancel }: Props) {
           </View>
         ) : (
           <>
-            {/* Mounted only while open, so the camera is released on cancel. */}
             {visible ? (
               <CameraView
                 style={styles.camera}

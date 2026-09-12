@@ -53,16 +53,10 @@ export const unlock = async (req: Request, res: Response, next: NextFunction) =>
       email: req.user.email,
     });
     if (!result) return next(new AppError('door not found', 404));
-    // 200 even when `unlocked` is false: the override was authorised and
-    // recorded, and an unreachable broker is a fault to report rather than a
-    // refusal. The caller reads `unlocked` to know whether the lock moved.
     response.ok(res, result);
   } catch (err) {
     const status = (err as any)?.status;
     if (status === 409) return next(new AppError('door is out of service', 409));
-    // 423 Locked, not 403: the operator is permitted to do this, the door is
-    // the thing refusing. The message names which lockdown is in the way, so
-    // the operator knows whether to release one door or the building.
     if (status === 423) {
       const reason = (err as Error).message;
       return next(new AppError(

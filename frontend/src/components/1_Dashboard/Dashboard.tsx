@@ -9,7 +9,6 @@ import DoorCardTile from './components/DoorCard';
 import ActivityChart from './components/ActivityChart';
 import TodayOpeners from './components/TodayOpeners';
 
-/** How often the page refreshes itself while it is open. */
 const POLL_MS = 30_000;
 
 function Stat({ label, value, tone }: { label: string; value: number | string; tone?: 'warn' }) {
@@ -29,23 +28,6 @@ function Stat({ label, value, tone }: { label: string; value: number | string; t
   );
 }
 
-/**
- * The landing page: what happened today, and the doors, with the button that
- * opens them.
- *
- * Replaces the scaffold's demo panels, which showed invented revenue figures
- * and a hardcoded chart of two series called "desktop" and "mobile" — a page
- * that looked finished and told an operator nothing.
- *
- * The order is the operator's order of questions: is the system up, what
- * happened today, which door do I need to open, when was there traffic, who
- * came in. Doors come before the charts because opening one is the only action
- * on this page.
- *
- * It polls rather than subscribing. A WebSocket would be better and the backend
- * already has an event bus for it, but a 30-second poll of one small endpoint is
- * honest about what it costs and cannot get stuck holding a dead socket open.
- */
 export default function Dashboard() {
   const { t } = useTranslation();
   const [data, setData] = useState<DashboardOverview | null>(null);
@@ -99,11 +81,8 @@ export default function Dashboard() {
 
       {error && <p className="text-destructive text-sm">{error}</p>}
 
-      {/*
-        The broker warning was removed by request. The chain one stays: a
-        missing chain changes what an unlock *means* (no policy was consulted),
-        which is not something the operator can see anywhere else on the page.
-      */}
+      {
+}
       {!health.chain && (
         <div className="flex flex-wrap gap-4 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
           <span className="flex items-center gap-1.5">

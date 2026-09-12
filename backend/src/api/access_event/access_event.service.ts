@@ -1,15 +1,3 @@
-/**
- * Reads over the access-event log.
- *
- * This is what the dashboard's audit page has been calling all along — the
- * frontend shipped `/api/audit-logs` against a backend route that did not
- * exist, so the page has never rendered a row.
- *
- * It is also the query surface the behaviour engine trains on: `forBehaviour`
- * returns one person's history in chronological order, which is exactly the
- * shape a per-user Isolation Forest is fitted against
- * (specs/BEHAVIOR_ENGINE_NOTES.md §1).
- */
 import db from '../../db';
 import type { AccessEvent, AccessEventPage, AccessEventSearchParams } from './access_event.types';
 
@@ -23,8 +11,6 @@ export const getAll = async (
   const sortCol = params.sort && SORTABLE.has(params.sort) ? params.sort : 'occurred_at';
   const sortDir = params.order === 'asc' ? 'asc' : 'desc';
 
-  // Joined so the table can show a name rather than a raw DID — the DID stays
-  // in the row because a denied event often has no person to join to.
   const base = db('access_events as e')
     .where('e.building_id', buildingId)
     .leftJoin('people as p', 'p.id', 'e.person_id')
@@ -63,10 +49,6 @@ export const getAll = async (
 
   let total: number | undefined;
   if (params.count === 'true') {
-    // `.clear('offset')` and `.clear('limit')` matter: the clone inherits the
-    // paging applied above, and `count(*) … limit -1 offset 20` returns no rows
-    // at all, so `.first()` would be undefined and this would throw a 500 on
-    // any page but the first.
     const row = await base
       .clone()
       .clearOrder()
@@ -84,7 +66,6 @@ export const getAll = async (
 export const getById = async (buildingId: number, id: string): Promise<AccessEvent | undefined> =>
   db('access_events').where({ id, building_id: buildingId }).first();
 
-/** Chronological history for one person — the behaviour engine's training set. */
 export const forBehaviour = async (personId: string, since?: string): Promise<AccessEvent[]> => {
   const q = db('access_events').where({ person_id: personId }).orderBy('occurred_at', 'asc');
   if (since) q.where('occurred_at', '>=', since);
@@ -100,11 +81,6 @@ export interface AccessEventStats {
   byHour: { hour: number; count: number }[];
 }
 
-/**
- * Dashboard summary. `byHour` is the time-of-day distribution the spec's
- * "analitika pristupa" panel calls for, and the same signal the behaviour
- * engine flags on (a 2am entry against a 9-to-5 baseline).
- */
 export const stats = async (buildingId: number, since?: string): Promise<AccessEventStats> => {
   const scope = () => {
     const q = db('access_events').where({ building_id: buildingId });
@@ -122,8 +98,6 @@ export const stats = async (buildingId: number, since?: string): Promise<AccessE
   const granted = Number(totals.find((t: any) => t.decision === 'granted')?.count ?? 0);
   const denied = Number(totals.find((t: any) => t.decision === 'denied')?.count ?? 0);
 
-  // Bucketed in JS rather than SQL: strftime is sqlite-specific and this table
-  // is small enough that the portability is worth more than the pushdown.
   const buckets = new Array(24).fill(0);
   for (const r of rows as { occurred_at: string }[]) {
     const h = new Date(r.occurred_at).getHours();

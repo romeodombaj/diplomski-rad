@@ -8,18 +8,12 @@ import { requireAuth, requireAdmin } from '../../middleware/auth';
 
 const router = Router();
 
-// GET /doors?field=value&page=1&limit=20
 router.get('/', requireAuth, doorController.getAll);
 router.get('/:id', requireAuth, doorController.getById);
 
-// The inverse of effective-access, and the question a security review asks:
-// who can open this door, right now, and where does that come from.
 router.get('/:doorId/who-has-access', requireAuth, policyController.whoHasAccess);
-// The hardware attached to this door — beacon, indicator, lock.
 router.get('/:doorId/devices', requireAuth, deviceController.listForDoor);
 
-// Open a door from the dashboard. Admin-only, and recorded as an access event
-// like any other entry — see the comment on doorService.unlock.
 router.post('/:id/unlock', requireAuth, requireAdmin, doorController.unlock);
 
 router.post('/', requireAuth, validate(CreateDoorSchema), doorController.create);

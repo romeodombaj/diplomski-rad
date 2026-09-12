@@ -25,8 +25,6 @@ export async function create(req: Request, res: Response, next: NextFunction) {
     res.status(201).json({ success: true, data: device });
   } catch (err: any) {
     if (err?.status === 404) return res.status(404).json({ success: false, message: 'Door not found' });
-    // The message names the lock already on that door — the operator's actual
-    // next question, and not something a generic conflict body would carry.
     if (err?.status === 409) return res.status(409).json({ success: false, message: err.message });
     next(err);
   }
@@ -41,8 +39,6 @@ export async function update(req: Request, res: Response, next: NextFunction) {
     res.json({ success: true, data: device });
   } catch (err: any) {
     if (err?.status === 404) return res.status(404).json({ success: false, message: 'Door not found' });
-    // The message names the lock already on that door — the operator's actual
-    // next question, and not something a generic conflict body would carry.
     if (err?.status === 409) return res.status(409).json({ success: false, message: err.message });
     next(err);
   }
@@ -55,7 +51,6 @@ export async function remove(req: Request, res: Response, next: NextFunction) {
   } catch (err) { next(err); }
 }
 
-/** Devices attached to one door — used by the door editor. */
 export async function listForDoor(req: Request, res: Response, next: NextFunction) {
   try {
     const rows = await deviceService.listForDoor(buildingOf(req), Number(req.params.doorId));
@@ -63,13 +58,6 @@ export async function listForDoor(req: Request, res: Response, next: NextFunctio
   } catch (err) { next(err); }
 }
 
-/**
- * Listen to the broker and report what is talking.
- *
- * Deliberately slow — it holds the request open for the listen window, because
- * the alternative is a job id the UI then has to poll for a few seconds. The
- * window is bounded by the schema so this cannot be used to tie up a client.
- */
 export async function scan(req: Request, res: Response, next: NextFunction) {
   try {
     const seconds = (req.body?.seconds as number | undefined) ?? 8;

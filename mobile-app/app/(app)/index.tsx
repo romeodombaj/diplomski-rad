@@ -30,13 +30,10 @@ type Phase = 'idle' | 'processing' | 'sending' | 'enrolling';
 type Result = {
   success: boolean;
   text: string;
-  /** On-device cosine similarity, 0..1. Shown for every outcome. */
   score?: number;
-  /** True when the scan never left the phone. */
   test?: boolean;
 } | null;
 
-/** The same 0..levels ramp the door's LED ring is showing, on the phone. */
 function SignalBars({ level, levels }: { level: number; levels: number }) {
   return (
     <View className="flex-row items-end gap-[3px]" accessibilityLabel={`Signal ${level} of ${levels}`}>
@@ -71,31 +68,12 @@ export default function Access() {
   const [secs, setSecs] = useState(30);
   const enrollmentRef = useRef<Enrollment | null>(null);
 
-  /**
-   * BLE door detection. Scanning only while the screen is usable — there is no
-   * background mode, because the app is already open for the face scan.
-   *
-   * `supported` is false whenever the radio, the permission or the cached door
-   * list cannot support it, and everything below then falls back to the manual
-   * picker. A phone with Bluetooth switched off must still be able to open a
-   * door: the gate is UX, and the backend re-checks the door regardless.
-   */
   const proximity = useDoorProximity(enrollment?.doors ?? [], booted && !!enrollment);
 
-  // Standing at a door selects it. Manual taps still work when BLE cannot run.
   useEffect(() => {
     if (proximity.nearest) setSelectedDoor(proximity.nearest.door);
   }, [proximity.nearest?.door.door_code]);
 
-  /**
-   * Re-read the stored enrolment every time this screen comes into focus, not
-   * just on mount.
-   *
-   * Settings can wipe the identity while this screen is still mounted behind
-   * it. Reading only on mount meant the screen kept rendering the enrolled UI —
-   * doors, TOTP code and all — for an identity whose private key had already
-   * been deleted, and the way back to the enrolment form was to kill the app.
-   */
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
@@ -104,8 +82,6 @@ export default function Access() {
         if (cancelled) return;
         enrollmentRef.current = e;
         setEnrollment(e);
-        // Keep whatever door is already chosen if it is still on offer, so a
-        // trip to Settings does not silently reselect the first one.
         setSelectedDoor((prev) => {
           const stillThere = prev && e?.doors?.some((d) => d.door_code === prev.door_code);
           return stillThere ? prev : e?.doors?.[0] ?? null;
@@ -135,7 +111,6 @@ export default function Access() {
   }, [enrollment]);
 
   const handleEnrol = useCallback(async (raw?: string) => {
-    // Accept the bare token, or the JSON envelope the dashboard's QR carries.
     const parsed = parseEnrollmentPayload(raw ?? tokenInput);
     if (!parsed) {
       setEnrollError('That does not look like an enrolment code');
@@ -162,7 +137,6 @@ export default function Access() {
     }
   }, [tokenInput]);
 
-  /** Scanned codes enrol straight away — there is nothing left to confirm. */
   const handleScanned = useCallback(
     (token: string) => {
       setScanning(false);
@@ -171,7 +145,6 @@ export default function Access() {
     [handleEnrol],
   );
 
-  /** Sign and send. Called only after the face scan produces a score. */
   const send = useCallback(
     async (faceScore: number) => {
       const e = enrollmentRef.current;
@@ -188,8 +161,6 @@ export default function Access() {
             : res.message,
         });
       } catch {
-        // The score still stands: the face was matched on this device before
-        // anything was sent, so it is worth showing even when nothing arrived.
         setResult({ success: false, score: faceScore, text: 'Network error — is the backend reachable?' });
       } finally {
         setPhase('idle');
@@ -198,12 +169,6 @@ export default function Access() {
     [selectedDoor],
   );
 
-  /**
-   * With no door chosen there is nothing to unlock, so the scan runs as a
-   * self-test: the model still produces a score, it is just never sent. Useful
-   * for checking the face model and tuning the threshold with the backend down,
-   * or before any door exists.
-   */
   const testMode = !selectedDoor;
 
   const handleUnlock = useCallback(() => {
@@ -263,12 +228,6 @@ export default function Access() {
 
   const busy = phase !== 'idle';
 
-  /**
-   * Whether a door may be verified for at all. When BLE cannot run this is
-   * always true, so the screen behaves exactly as it did before the beacons
-   * existed — a flat battery in a door beacon, or a denied permission, must not
-   * strand someone outside.
-   */
   const atADoor = !proximity.supported || proximity.nearest !== null;
 
   const doorCardHint = !enrollment?.doors.length
@@ -285,7 +244,6 @@ export default function Access() {
     ? 'No door beacons found — pick your door manually'
     : 'Pick the door you are standing at';
 
-  // ── Not enrolled: the token is the only way in ────────────────────────────
   if (booted && !enrollment) {
     return (
       <SafeAreaView className="flex-1 bg-background" edges={['top']}>
@@ -300,8 +258,8 @@ export default function Access() {
               </CardDescription>
             </CardHeader>
             <CardContent className="gap-3">
-              {/* Scanning is the intended path: the token is 43 characters of
-                  base64url, which nobody should be retyping off a screen. */}
+              {
+}
               <Button
                 label="Scan QR code"
                 disabled={busy}

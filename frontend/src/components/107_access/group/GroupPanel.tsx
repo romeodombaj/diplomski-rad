@@ -11,29 +11,11 @@ import GroupMembers from './GroupMembers';
 
 interface Props {
   groupId: number | null;
-  /** Reload the caller's list after doors or membership change. */
   onSaved: () => void;
-  /** Rendered next to Save — a sheet closes, a page navigates back. */
   onCancel?: () => void;
-  /** Reported upward so a page can put the group's name in its heading. */
   onLoaded?: (group: GroupDetail) => void;
 }
 
-/**
- * One group's doors, schedules and members.
- *
- * Extracted from GroupEditor so the same editor can appear in the slide-over
- * (quick change from the list) and as a full page at /access/groups/:id. Two
- * copies would have drifted the moment one of them grew a feature, and the
- * doors pane in particular is fiddly enough that maintaining it twice is a bug
- * waiting to happen.
- *
- * The fan-out warning is not decoration. The chain stores one flat
- * (did, doorCode) pair per policy, so a group of 40 people across 6 doors is
- * 240 on-chain transactions — and every door added or removed here re-compiles
- * for every member. An operator ticking a checkbox deserves to know that before
- * they save, not after.
- */
 export default function GroupPanel({ groupId, onSaved, onCancel, onLoaded }: Props) {
   const { t } = useTranslation();
   const [group, setGroup] = useState<GroupDetail | null>(null);
@@ -77,7 +59,6 @@ export default function GroupPanel({ groupId, onSaved, onCancel, onLoaded }: Pro
     setSelected(next);
   };
 
-  // What saving will actually cost on chain.
   const fanOut = useMemo(() => {
     if (!group) return { added: 0, removed: 0, members: 0, transactions: 0 };
     const before = new Set(group.doors.map((d) => d.door_id));
@@ -184,11 +165,8 @@ export default function GroupPanel({ groupId, onSaved, onCancel, onLoaded }: Pro
         )}
       </div>
 
-      {/*
-        Membership sits below the save button on purpose: it is not part of the
-        pending door edit. Add and remove take effect immediately, so putting
-        them above a Save control would suggest they were waiting on it.
-      */}
+      {
+}
       {group && (
         <div className="border-t pt-4">
           <GroupMembers

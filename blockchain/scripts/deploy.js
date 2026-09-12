@@ -1,14 +1,3 @@
-/**
- * Deploys DIDRegistry, AccessPolicy and AuditLog, then writes their addresses
- * to deployments/<network>.json.
- *
- * AUDIT.md F-13: the backend's `building.contract_address` is a single string
- * and cannot hold three addresses. This file is the resolution -- the backend
- * loads one deployment manifest per network and looks up each contract by
- * name, rather than trying to pack three addresses into one column.
- *
- *   npx hardhat run scripts/deploy.js --network localhost
- */
 const fs = require("fs");
 const path = require("path");
 const { network, ethers } = require("hardhat");
@@ -44,9 +33,6 @@ async function main() {
       AuditLog: await audit.getAddress(),
     },
     roles: {
-      // The deployer holds every role after deployment. In a real multi-building
-      // setup each backend gets its own address granted BACKEND_ROLE, so a
-      // compromised backend can be cut off without redeploying anything.
       BACKEND_ROLE: ethers.id("BACKEND_ROLE"),
       POLICY_ADMIN_ROLE: ethers.id("POLICY_ADMIN_ROLE"),
       REVOCATION_ADMIN_ROLE: ethers.id("REVOCATION_ADMIN_ROLE"),

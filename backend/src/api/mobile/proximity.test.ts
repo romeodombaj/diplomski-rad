@@ -10,16 +10,6 @@ import * as mqttService from '../../services/mqttService';
 import { proximityMessage } from './proximity.service';
 import { accessMessage } from './access.service';
 
-/**
- * The LED proximity path.
- *
- * Two things are being pinned down here. First that the endpoint is properly
- * scoped — only an enrolled, active device can move a ring, and only on a door
- * in its own buildings. Second, and more important, that it stays *inert*: it
- * writes no access events, and its signatures cannot be replayed against the
- * access path (or vice versa), because the whole feature is decoration attached
- * to a security system.
- */
 describe('Mobile proximity path', () => {
   const PHONE = Wallet.createRandom();
   const OTHER = Wallet.createRandom();
@@ -110,7 +100,6 @@ describe('Mobile proximity path', () => {
     publishSpy = vi.spyOn(mqttService, 'publishProximity').mockResolvedValue(true);
   });
 
-  // ── the happy path ────────────────────────────────────────────────────────
 
   it('publishes an enrolled phone\'s report to that door\'s topic', async () => {
     const res = await post({ level: 6 });
@@ -137,7 +126,6 @@ describe('Mobile proximity path', () => {
     }));
   });
 
-  // ── it must never become an access path ───────────────────────────────────
 
   it('writes no access event, ever', async () => {
     await post();
@@ -146,9 +134,6 @@ describe('Mobile proximity path', () => {
   });
 
   it('cannot be replayed as an access request', async () => {
-    // Take a valid proximity signature and submit it to /mobile/access with
-    // door_code smuggling the extra field, the only shape that could line the
-    // two messages up. The pipe-free nonce is what makes this impossible.
     const timestamp = Math.floor(Date.now() / 1000);
     const nonce = randomUUID().replace(/-/g, '');
     const signature = await PHONE.signMessage(proximityMessage(DID, DOOR, timestamp, nonce, 5));
@@ -175,7 +160,6 @@ describe('Mobile proximity path', () => {
     expect(publishSpy).not.toHaveBeenCalled();
   });
 
-  // ── who may move a ring ───────────────────────────────────────────────────
 
   it('rejects a signature from the wrong key', async () => {
     const res = await post({}, OTHER);
@@ -214,7 +198,6 @@ describe('Mobile proximity path', () => {
     expect(res.status).toBe(400);
   });
 
-  // ── door scoping, identical to the access path ────────────────────────────
 
   it('rejects a door in a building this person does not belong to', async () => {
     const res = await post({ door_code: OTHER_BUILDING_DOOR });
@@ -238,7 +221,6 @@ describe('Mobile proximity path', () => {
     }
   });
 
-  // ── schema ────────────────────────────────────────────────────────────────
 
   it('rejects a nonce carrying a pipe, which domain separation depends on', async () => {
     const res = await post({ nonce: 'deadbeefdeadbeef|9' });

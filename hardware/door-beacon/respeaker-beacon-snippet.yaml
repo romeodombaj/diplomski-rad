@@ -1,62 +1,19 @@
-# ReSpeaker XVF3800 — beacon add-on snippet
-#
-# NOT a standalone config. This is the block to paste into your existing
-# ~/server/respeaker2.yaml if you want the ReSpeaker to be a door beacon *as
-# well as* a Home Assistant voice satellite.
-#
-# ── Do you need to rewrite the ReSpeaker firmware?  No. ─────────────────────
-#
-# Your ReSpeaker config is ESPHome YAML, and ESPHome ships `esp32_ble_beacon`
-# as a first-class component (verified present in your install, ESPHome
-# 2026.2.1). Adding a beacon is additive: the voice assistant, micro_wake_word,
-# speaker, LED ring and media player blocks are untouched. Nothing is rewritten.
-#
-# ── But read this before you do it ──────────────────────────────────────────
-#
-# I recommend flashing `door-beacon.yaml` to a SEPARATE ESP32 instead, and
-# leaving the ReSpeaker as a voice satellite. Three honest reasons:
-#
-#  1. RAM. respeaker2.yaml already runs micro_wake_word, a voice assistant, a
-#     media player and a speaker pipeline. Enabling BLE pulls in Bluedroid,
-#     which wants tens of KB of *internal* RAM — PSRAM does not fully absorb
-#     it. This can build cleanly and then fail at runtime under audio load,
-#     which is the worst way to find out.
-#  2. Radio contention. WiFi and BLE share one radio on the ESP32-S3. The voice
-#     assistant streams audio continuously; advertising every 100 ms is a light
-#     load and usually coexists, but "usually" is doing work in that sentence.
-#  3. Blast radius. If the beacon destabilises the build you lose a working
-#     voice satellite, not just a beacon. A €18 board keeps the two failures
-#     independent.
-#
-# If you do want both on one device, this is the correct way to do it. Try it
-# on a copy of respeaker2.yaml, and watch the free-heap sensor under load
-# (say "Okay Nabu" a few times) before trusting it.
-#
-# ── Paste this at the top level of respeaker2.yaml ──────────────────────────
 
 esp32_ble_beacon:
   type: IBEACON
-  # Must be the same UUID as every other door — the phone filters on it.
   uuid: "8f1d2a60-4c3b-4e91-9a77-2b5c6d8e0f13"
-  major: 1        # buildings.id
-  minor: 1        # doors.id
+  major: 1
+  minor: 1
   min_interval: 100ms
   max_interval: 100ms
   measured_power: -59
   tx_power: 3dBm
 
-# ── Also add this, to catch the failure mode described above ────────────────
-# Free internal heap. If this trends toward zero while the voice assistant is
-# active, the beacon is not viable on this device — revert to a separate board.
 
 sensor:
   - platform: debug
     free:
       name: "Free heap"
-      # Not internal: you want to see this in Home Assistant while testing.
     loop_time:
       name: "Loop time"
 
-# `debug:` is already present at the bottom of respeaker2.yaml (line ~1790),
-# so do not add a second one — only the `sensor:` entries above go in, merged
-# into the existing `sensor:` block at line ~373.

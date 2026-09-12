@@ -34,13 +34,10 @@ import numpy as np
 from mtcnn import MTCNN
 from PIL import Image
 
-# PATH TO THE DOWNLOADED VGGFACE2 DATASET (unzipped)
 VGGFACE2_PATH = "/home/b2/projects/zavrsni/face_recognition/VGGFace2"
 
-# OUTPUT DIRECTORY FOR EXTRACTED FACES
 EXTRACTED_PATH = "/home/b2/projects/zavrsni/face_recognition/extracted_faces"
 
-# INITIALIZATION
 print("Initializing MTCNN face detector...")
 detector = MTCNN()
 print("MTCNN ready.\n")
@@ -61,7 +58,6 @@ def extract_face(img_pil, detector):
         best = max(results, key=lambda d: d['box'][2] * d['box'][3])
         x, y, w, h = best['box']
 
-        # Crop with margin for context
         margin = int(max(w, h) * 0.15)
         x1 = max(0, x - margin)
         y1 = max(0, y - margin)

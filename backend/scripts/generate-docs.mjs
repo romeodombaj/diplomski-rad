@@ -5,7 +5,6 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
 
-// ── helpers ────────────────────────────────────────────────────────────────
 
 function walk(dir, results = []) {
   for (const entry of readdirSync(dir)) {
@@ -16,7 +15,6 @@ function walk(dir, results = []) {
   return results;
 }
 
-/** Extract fields from a TS interface by name. Returns [{name, optional, rawType}] */
 function parseInterface(src, name) {
   const re = new RegExp(`export\\s+interface\\s+${name}\\s*\\{([\\s\\S]*?)\\n\\}`);
   const m = src.match(re);
@@ -31,7 +29,6 @@ function parseInterface(src, name) {
   return fields;
 }
 
-/** Map a TS type string to an OpenAPI schema object */
 function toSchema(rawType) {
   const nullable = rawType.includes('| null');
   const base = rawType.replace(/\s*\|\s*null/, '').replace(/\s*\|\s*undefined/, '').trim();
@@ -47,7 +44,6 @@ function toSchema(rawType) {
   return s;
 }
 
-/** Build an OpenAPI schema object from a list of fields */
 function fieldsToSchema(fields, description) {
   const properties = {};
   const required = [];
@@ -61,11 +57,9 @@ function fieldsToSchema(fields, description) {
   return schema;
 }
 
-// ── main ───────────────────────────────────────────────────────────────────
 
 const appSrc = readFileSync(join(root, 'src/app.ts'), 'utf8');
 
-// Find all v1 route files
 const allFiles = walk(join(root, 'src/api'));
 const v1Files = allFiles.filter(f => f.endsWith('.v1.routes.ts'));
 
@@ -79,16 +73,13 @@ const paths = {};
 const tags = [];
 
 for (const v1File of v1Files) {
-  // Derive entity name from filename: post.v1.routes.ts → post
   const entity = v1File.split('/').pop().replace('.v1.routes.ts', '');
   const pascal = entity.charAt(0).toUpperCase() + entity.slice(1);
 
-  // Find the mount path in app.ts:  app.use('/v1/posts', postV1Routes)
   const mountRe = new RegExp(`app\\.use\\('(/v1/[^']+)'\\s*,\\s*${entity}V1Routes\\)`);
   const mountMatch = appSrc.match(mountRe);
   const mountPath = mountMatch ? mountMatch[1] : `/v1/${entity}s`;
 
-  // Read types file
   const typesPath = join(root, 'src/api', entity, `${entity}.types.ts`);
   if (!existsSync(typesPath)) {
     console.warn(`  Warning: ${typesPath} not found, skipping ${entity}`);
@@ -100,7 +91,6 @@ for (const v1File of v1Files) {
   const createFields   = parseInterface(typesSrc, `Create${pascal}Dto`);
   const updateFields   = parseInterface(typesSrc, `Update${pascal}Dto`);
 
-  // Register schemas
   schemas[pascal] = fieldsToSchema(entityFields);
   schemas[`Create${pascal}`] = fieldsToSchema(createFields);
   schemas[`Update${pascal}`] = {
@@ -113,7 +103,6 @@ for (const v1File of v1Files) {
   const listPath = mountPath;
   const itemPath = `${mountPath}/{id}`;
 
-  // Pagination / list response
   const listResponseSchema = {
     type: 'object',
     properties: {
@@ -203,7 +192,6 @@ for (const v1File of v1Files) {
   console.log(`  ✓ ${pascal}  →  GET/POST ${listPath}  ·  GET/PATCH ${itemPath}`);
 }
 
-// Add OAuth token endpoint
 paths['/oauth/token'] = {
   post: {
     tags: ['Authentication'],

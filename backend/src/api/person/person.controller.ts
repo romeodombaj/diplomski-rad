@@ -29,8 +29,6 @@ export const create = async (req: Request, res: Response, next: NextFunction) =>
   try {
     const buildingId = req.user.buildingId!;
     const person = await personService.create(buildingId, req.body);
-    // Creating a person immediately issues their first enrolment token, so the
-    // admin can show the QR without a second round-trip.
     const invite = await personService.issueEnrollment(buildingId, person.id, req.user.userId);
     response.created(res, { person, invite });
   } catch (err) {
@@ -59,7 +57,6 @@ export const remove = async (req: Request, res: Response, next: NextFunction) =>
   }
 };
 
-/** Shared handler for the lifecycle transitions, so each one has an audit point. */
 const transition = (to: PersonStatus) =>
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -79,11 +76,6 @@ const transition = (to: PersonStatus) =>
 export const suspend = transition('suspended');
 export const reinstate = transition('active');
 
-/**
- * Offboarding is terminal, and puts the person's DID on the on-chain revocation
- * list so every building's backend sees it on its next read. That write awaits
- * confirmation, so this request can take a block time on a public network.
- */
 export const offboard = transition('offboarded');
 
 export const issueEnrollment = async (req: Request, res: Response, next: NextFunction) => {
@@ -110,8 +102,6 @@ export const getEnrollment = async (req: Request, res: Response, next: NextFunct
     const person = await personService.getById(buildingId, req.params.id);
     if (!person) return next(new AppError('person not found', 404));
     const token = await personService.getActiveEnrollment(person.id);
-    // The raw token is unrecoverable, so this reports status only — reissue to
-    // get a new QR.
     response.ok(res, token ? { expires_at: token.expires_at, active: true } : { active: false });
   } catch (err) {
     next(err);
@@ -142,7 +132,6 @@ export const revokeDevice = async (req: Request, res: Response, next: NextFuncti
   }
 };
 
-/** Mobile-facing: unauthenticated, guarded by the one-time token itself. */
 export const claimEnrollment = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { token, did, publicKey, deviceInfo } = req.body;
@@ -156,8 +145,6 @@ export const claimEnrollment = async (req: Request, res: Response, next: NextFun
       totp: result.totp,
       building: result.building,
       doors: result.doors,
-      // The phone shows this: an identity that is not on-chain still works
-      // locally, but the operator needs to know it is not yet in the registry.
       chain_registered: result.chain_registered,
     });
   } catch (err) {

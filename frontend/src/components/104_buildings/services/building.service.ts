@@ -1,8 +1,5 @@
 import { apiFetch } from '@/lib/apiFetch';
 
-// Building's CRUD lives under /auth (not a plain REST /api resource) because a
-// building doubles as the switchable, sandboxed "current context" the rest of
-// the gt-generated auth flow manages — see building-switcher.tsx.
 const BASE = '/auth/buildings';
 
 async function req<T>(url: string, init?: RequestInit): Promise<T> {
@@ -42,8 +39,6 @@ function toApi(body: Partial<Building>): Record<string, unknown> {
   return out;
 }
 
-// /auth/buildings returns a small, flat, unpaginated list (admins manage a handful
-// of physical locations, not thousands) — search/sort/pagination happen client-side here.
 function paginate(all: Building[], q: string, sortField: string, sortDir: 'asc' | 'desc'): BuildingPage {
   let rows = all;
   if (q) {

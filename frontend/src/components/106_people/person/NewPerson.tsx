@@ -11,12 +11,6 @@ interface Props {
 
 const TYPES: PersonType[] = ['employee', 'contractor', 'visitor', 'service'];
 
-/**
- * Today, in the local timezone.
- *
- * Not `toISOString().slice(0, 10)` — that is UTC, so anyone filling this in
- * after 01:00 in Zagreb would get handed tomorrow's date as the default.
- */
 function todayISO(): string {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -32,20 +26,10 @@ export default function NewPerson({ onSuccess, onCancel }: Props = {}) {
   const [department, setDepartment] = useState('');
   const [job_title, setJobTitle] = useState('');
   const [person_type, setPersonType] = useState<PersonType>('employee');
-  // Defaults to today because that is the answer nearly every time; the field
-  // stays editable, and the date control brings its own calendar.
   const [employment_start, setEmploymentStart] = useState(todayISO());
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  /**
-   * Departments already in use, offered as suggestions.
-   *
-   * `department` is a free-text column with no canonical list, so this is read
-   * off the people who exist rather than hardcoded — which also means it stops
-   * "Sales" and "sales" becoming two departments. Failure is silent: losing the
-   * suggestions must not stop someone creating a person.
-   */
   const [departments, setDepartments] = useState<string[]>([]);
   useEffect(() => {
     let cancelled = false;
@@ -55,8 +39,6 @@ export default function NewPerson({ onSuccess, onCancel }: Props = {}) {
         const seen = new Map<string, string>();
         for (const p of page.data) {
           const d = p.department?.trim();
-          // Keyed case-insensitively so one spelling wins, rather than listing
-          // every casing anyone has ever typed.
           if (d && !seen.has(d.toLowerCase())) seen.set(d.toLowerCase(), d);
         }
         setDepartments([...seen.values()].sort((a, b) => a.localeCompare(b)));
@@ -70,8 +52,6 @@ export default function NewPerson({ onSuccess, onCancel }: Props = {}) {
     setSaving(true);
     setErrors({});
     try {
-      // Optional text fields go as null rather than '' so they stay genuinely
-      // empty in the DB instead of becoming empty strings.
       const res = await PersonService.create({
         full_name,
         employee_no: employee_no || null,
@@ -111,7 +91,6 @@ export default function NewPerson({ onSuccess, onCancel }: Props = {}) {
           error={errors.department}
         />
         <FormInput label={t('person.fields.jobTitle')} value={job_title} onChange={setJobTitle} error={errors.job_title} />
-        {/* Contact only — people never log into this dashboard */}
         <FormInput label={t('person.fields.email')} value={email} onChange={setEmail} error={errors.email} />
         <FormInput label={t('person.fields.phone')} value={phone} onChange={setPhone} error={errors.phone} />
         <FormInput

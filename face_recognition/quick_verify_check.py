@@ -50,7 +50,7 @@ def embed(path):
 
 
 def cos_sim(a, b):
-    return torch.dot(a, b).item()  # already L2-normalized by the model
+    return torch.dot(a, b).item()
 
 
 same_sims = []
@@ -71,7 +71,6 @@ print(f"Different-person pairs (n={N_PAIRS}): mean={stats.mean(cross_sims):.4f} 
       f"std={stats.stdev(cross_sims):.4f}  min={min(cross_sims):.4f}  max={max(cross_sims):.4f}")
 print(f"\nSeparation (higher = better): {stats.mean(same_sims) - stats.mean(cross_sims):.4f}")
 
-# naive per-pair "would a midpoint threshold get this right" check
 threshold = (stats.mean(same_sims) + stats.mean(cross_sims)) / 2
 correct = sum(1 for s in same_sims if s > threshold) + sum(1 for s in cross_sims if s <= threshold)
 print(f"Naive midpoint-threshold accuracy on these {N_PAIRS*2} pairs: {correct}/{N_PAIRS*2} ({correct/(N_PAIRS*2)*100:.0f}%)")

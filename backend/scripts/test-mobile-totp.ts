@@ -1,10 +1,3 @@
-/**
- * End-to-end check: enroll a DID, generate a code with the SAME pure-JS TOTP
- * the mobile app uses, and verify it against the backend (speakeasy).
- *
- * Run (backend must be running on :5000, or set BASE):
- *   npx tsx scripts/test-mobile-totp.ts
- */
 import { totpNow } from '../../mobile-app/src/lib/totp';
 
 const BASE = process.env.BASE || 'http://localhost:5000';

@@ -50,7 +50,6 @@ export type PersonDevice = {
   revocation_reason: string | null;
 };
 
-/** The raw token comes back exactly once, at invite time. */
 export type EnrollmentInvite = {
   token: string;
   expires_at: string;
@@ -78,26 +77,20 @@ export const PersonService = {
   },
   getById: (id: string) => req<Person>(`${BASE}/${id}`),
 
-  // Creating a person also mints their first enrolment token, so the QR can be
-  // shown immediately without a second round-trip.
   create: (body: Partial<Person>) =>
     req<{ person: Person; invite: EnrollmentInvite }>(BASE, { method: 'POST', body: JSON.stringify(body) }),
   update: (id: string, body: Partial<Person>) => req<Person>(`${BASE}/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   remove: (id: string) => req<void>(`${BASE}/${id}`, { method: 'DELETE' }),
 
-  // Lifecycle. Suspend keeps the DID valid so the person can return without
-  // re-enrolling their face; offboard is terminal.
   suspend: (id: string, reason?: string) =>
     req<Person>(`${BASE}/${id}/suspend`, { method: 'POST', body: JSON.stringify(reason ? { reason } : {}) }),
   reinstate: (id: string) => req<Person>(`${BASE}/${id}/reinstate`, { method: 'POST' }),
   offboard: (id: string, reason?: string) =>
     req<Person>(`${BASE}/${id}/offboard`, { method: 'POST', body: JSON.stringify(reason ? { reason } : {}) }),
 
-  // Enrolment
   getEnrollment: (id: string) => req<{ active: boolean; expires_at?: string }>(`${BASE}/${id}/enrollment`),
   issueEnrollment: (id: string) => req<EnrollmentInvite>(`${BASE}/${id}/enrollment`, { method: 'POST' }),
 
-  // Devices
   listDevices: (id: string) => req<PersonDevice[]>(`${BASE}/${id}/devices`),
   revokeDevice: (id: string, deviceId: number, reason?: string) =>
     req<PersonDevice>(`${BASE}/${id}/devices/${deviceId}/revoke`, {

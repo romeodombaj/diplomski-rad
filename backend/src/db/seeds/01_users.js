@@ -1,12 +1,9 @@
 const bcrypt = require('bcryptjs');
 const { randomUUID } = require('crypto');
 
-// The single operator account for this project. Overridable by env so a real
-// deployment is not stuck with a credential committed to the repository.
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'romeodombaj@gmail.com';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Romeodombaj1';
 
-/** @param {import('knex').Knex} knex */
 exports.seed = async function (knex) {
   const existing = await knex('users').where({ email: ADMIN_EMAIL }).first();
   if (existing) return;

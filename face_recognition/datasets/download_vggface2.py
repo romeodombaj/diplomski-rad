@@ -31,14 +31,12 @@ info = handle.torrent_file()
 print(f"Metadata OK: {info.name()}, {info.total_size() / 1e9:.2f} GB, "
       f"{info.num_files()} files", flush=True)
 
-# Skip everything by default, then enable only files that look like the
-# training archive (skip *test* archives to save space).
 priorities = [0] * info.num_files()
 selected = []
 for i in range(info.num_files()):
     fp = info.files().file_path(i)
     if "test" not in fp.lower():
-        priorities[i] = 4  # normal priority
+        priorities[i] = 4
         selected.append(fp)
 handle.prioritize_files(priorities)
 print("Selected files:", selected, flush=True)

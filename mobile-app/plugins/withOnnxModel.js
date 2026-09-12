@@ -1,10 +1,3 @@
-/**
- * Config plugin that ships the ONNX face model as a raw native resource on both
- * platforms (bypasses Metro bundler — Metro can't handle 93MB binaries).
- *
- * iOS:     copied into the .app bundle, loadable via FileSystem.bundleDirectory.
- * Android: copied into the APK's assets/, readable via the "asset:///" scheme.
- */
 const { withXcodeProject, withDangerousMod } = require('@expo/config-plugins');
 const fs = require('fs');
 const path = require('path');
@@ -19,7 +12,6 @@ function sourceModel(projectRoot) {
   return src;
 }
 
-/** Copy only when missing or stale — the file is 93MB, so this is worth checking. */
 function copyIfChanged(src, dest) {
   if (!fs.existsSync(dest) || fs.statSync(dest).size !== fs.statSync(src).size) {
     fs.mkdirSync(path.dirname(dest), { recursive: true });
@@ -31,14 +23,12 @@ function withOnnxModelIos(config) {
   return withXcodeProject(config, (config) => {
     const project = config.modResults;
     const projectRoot = config.modRequest.projectRoot;
-    const platformRoot = config.modRequest.platformProjectRoot; // .../ios
+    const platformRoot = config.modRequest.platformProjectRoot;
 
     const src = sourceModel(projectRoot);
-    // Place next to AppDelegate so it ends up in the main bundle group
     const dest = path.join(platformRoot, 'mobileapp', MODEL_FILENAME);
     copyIfChanged(src, dest);
 
-    // Add to the Xcode project — idempotent via xcode's built-in duplicate check
     const targetName = 'mobileapp';
     const groupName = 'mobileapp';
     const fileRef = project.addFile(MODEL_FILENAME, project.pbxGroupByName(groupName).uuid, {
@@ -68,11 +58,9 @@ function withOnnxModelAndroid(config) {
     'android',
     (config) => {
       const projectRoot = config.modRequest.projectRoot;
-      const platformRoot = config.modRequest.platformProjectRoot; // .../android
+      const platformRoot = config.modRequest.platformProjectRoot;
 
       const src = sourceModel(projectRoot);
-      // Anything under src/main/assets is packaged into the APK verbatim and is
-      // reachable at runtime as asset:///<filename>.
       const dest = path.join(platformRoot, 'app', 'src', 'main', 'assets', MODEL_FILENAME);
       copyIfChanged(src, dest);
 

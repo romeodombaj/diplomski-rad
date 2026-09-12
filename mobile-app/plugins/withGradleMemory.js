@@ -1,13 +1,3 @@
-/**
- * Raises the Gradle daemon heap.
- *
- * The prebuild template ships org.gradle.jvmargs=-Xmx2048m, which is not enough
- * to dex this app once onnxruntime-react-native is part of the build: D8 dies in
- * :app:mergeExtDexRelease with "OutOfMemoryError: Java heap space". It has to
- * live here rather than in ~/.gradle/gradle.properties so that EAS Build gets it
- * too — android/ is generated, so the template value would otherwise come back
- * on every prebuild.
- */
 const { withGradleProperties } = require('@expo/config-plugins');
 
 const KEY = 'org.gradle.jvmargs';

@@ -72,15 +72,12 @@ export default function DoorTable() {
 
   return (
     <>
-      {/* Toolbar: search, filters, actions */}
       <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
         <div className="flex flex-wrap items-end gap-3">
-          {/* Search */}
           <div className="flex flex-col gap-1">
             <span className="text-xs text-muted-foreground">{t('common.search')}</span>
             <SearchInput key={resetKey} onSearch={setSearch} isLoading={loading && search !== ''} placeholder={t('door.searchPlaceholder')} className="w-64" minLength={2} active={search !== ''} />
           </div>
-          {/* Filter: active */}
           <div className="flex flex-col gap-1">
             <span className="text-xs text-muted-foreground">{t('door.filter_active')}</span>
             <Select value={filters['active'] ?? 'all'} onValueChange={(v) => setFilter('active', v === 'all' ? '' : v)}>
@@ -94,7 +91,6 @@ export default function DoorTable() {
               </SelectContent>
             </Select>
           </div>
-          {/* Clear all filters */}
           {(Object.keys(filters).length > 0 || search !== '') && (
             <Button variant="ghost" size="sm" className="text-muted-foreground self-end" onClick={() => { clearFilters(); setSearch(''); setResetKey((k) => k + 1); }}>
               <X className="h-4 w-4 mr-1" />
@@ -103,12 +99,10 @@ export default function DoorTable() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          {/* New door — opens slide */}
           <Button variant="default" size="sm" onClick={() => { setEditId(null); setFormOpen(true); }}>
             <Plus className="h-4 w-4 mr-2" />
             {t('common.new')}
           </Button>
-          {/* Refresh with 3s throttle */}
           <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
             <RefreshCw className={`h-4 w-4 mr-2${isRefreshing ? ' animate-spin' : ''}`} />
             {t('common.refresh')}
@@ -116,7 +110,6 @@ export default function DoorTable() {
         </div>
       </div>
 
-      {/* Data table */}
       <DataTable
         columns={columns}
         data={data}
@@ -131,8 +124,6 @@ export default function DoorTable() {
         rowActions={(row: unknown) => {
           const d = row as DoorType;
           return (
-            // Row clicks open the door page, so both controls stop propagation
-            // — a mis-aimed click must never open a door.
             <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
               <UnlockButton door={d} variant="ghost" />
               <Button
@@ -155,7 +146,6 @@ export default function DoorTable() {
         onSort={setSort}
       />
 
-      {/* Delete confirmation */}
       <AlertDialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -173,7 +163,6 @@ export default function DoorTable() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* New / Edit door slide */}
       <DoorAccessDialog
         doorId={accessDoor?.id ?? null}
         doorName={accessDoor?.name}

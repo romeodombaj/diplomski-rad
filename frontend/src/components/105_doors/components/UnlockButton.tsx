@@ -13,7 +13,6 @@ interface Props {
   door: Pick<Door, 'id' | 'name' | 'door_code' | 'active'> & { locked_down?: boolean };
   size?: 'sm' | 'default';
   variant?: 'default' | 'outline' | 'ghost';
-  /** Called after a successful override, so a detail page can refresh history. */
   onUnlocked?: () => void;
 }
 
@@ -22,32 +21,9 @@ type Result =
   | { kind: 'recorded' }
   | { kind: 'error'; message: string };
 
-/**
- * Open one door from the dashboard.
- *
- * Confirmed rather than immediate: this physically opens a door in a building,
- * and it is the one control here whose effect cannot be undone by clicking
- * again. The dialog also says the override will be recorded, because an
- * operator should know that before they use it rather than discover it in an
- * audit — the backend records it either way (see doorService.unlock).
- *
- * Three outcomes, deliberately distinguished. A broker that did not take the
- * message is not a failure of the request: the override was authorised and
- * written to the access history, and the operator needs to know the lock did
- * not move so they can go and open it by hand.
- *
- * Under a lockdown the button is disabled and says so. That is presentation
- * only — the backend refuses the request and records the attempt as a denied
- * event either way, because a disabled button is not a security control. The
- * point of showing it here is that the operator learns why *before* clicking,
- * and knows the fix is to release the lockdown rather than to try again.
- */
 export default function UnlockButton({ door, size = 'sm', variant = 'outline', onUnlocked }: Props) {
   const { t } = useTranslation();
   const { buildingLocked, isDoorBlocked } = useLockdown();
-  // `door.locked_down` covers the door detail page, which holds a freshly
-  // loaded door; isDoorBlocked covers the rest, and catches a lockdown engaged
-  // after this row was fetched.
   const blocked = isDoorBlocked(door.id) || Boolean(door.locked_down);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -65,8 +41,6 @@ export default function UnlockButton({ door, size = 'sm', variant = 'outline', o
     } finally {
       setBusy(false);
       setConfirming(false);
-      // The outcome is the point of the interaction, so it stays up long enough
-      // to read and then clears itself rather than needing a dismiss.
       setTimeout(() => setResult(null), 6000);
     }
   };

@@ -82,7 +82,6 @@ export function useAuditLog() {
   const nextPage = () => { if (hasMore) setPageIndex((i) => i + 1); };
   const prevPage = () => { if (pageIndex > 0) setPageIndex((i) => i - 1); };
 
-  // No `remove`: the access log is append-only and hashed on-chain.
 
   return { data, loading, error, refresh, search, setSearch, filters, setFilter, clearFilters, sortField, sortDir, setSort, page: pageIndex + 1, nextPage, prevPage, hasMore, total };
 }

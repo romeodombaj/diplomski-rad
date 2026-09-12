@@ -32,7 +32,6 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve, auc
 
 
-# ─── CUSTOM CNN (same architecture as training) ──────────────────────────
 
 class CustomCNN(nn.Module):
     """
@@ -104,7 +103,6 @@ class CustomCNN(nn.Module):
         return out
 
 
-# ─── HELPERS ─────────────────────────────────────────────────────────────
 
 def load_model(model_path, device):
     """Load fine-tuned model from checkpoint."""
@@ -135,7 +133,7 @@ def preprocess_image(filepath, size=105):
     img = TF.to_tensor(img)
     img = TF.normalize(img, mean=[0.485, 0.456, 0.406],
                        std=[0.229, 0.224, 0.225])
-    return img.unsqueeze(0)  # Add batch dimension
+    return img.unsqueeze(0)
 
 
 def get_embedding(model, filepath, device):
@@ -178,7 +176,6 @@ def euclidean_distance(emb1, emb2):
     return np.linalg.norm(emb1 - emb2)
 
 
-# ─── VERIFICATION LOOP ──────────────────────────────────────────────────
 
 def verification_loop(model, device, positive_dir):
     """
@@ -209,7 +206,6 @@ def verification_loop(model, device, positive_dir):
         print("ERROR: Could not open webcam.")
         return
 
-    # Load reference images from positive directory
     ref_images = [
         os.path.join(positive_dir, f)
         for f in os.listdir(positive_dir)
@@ -221,14 +217,12 @@ def verification_loop(model, device, positive_dir):
         cap.release()
         return
 
-    # Build reference embeddings
     print(f"Loading {len(ref_images)} reference images...")
     ref_embeddings = []
     for ref_path in ref_images:
         emb = get_embedding(model, ref_path, device)
         ref_embeddings.append(emb)
 
-    # Find the "best" reference embedding (average of all refs)
     avg_ref = np.mean(ref_embeddings, axis=0)
     print(f"Reference embedding created from {len(ref_images)} photos\n")
 
@@ -242,7 +236,6 @@ def verification_loop(model, device, positive_dir):
             break
 
         display = frame.copy()
-        # Draw info text
         cv2.putText(display, "Press R to capture reference", (10, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
         cv2.putText(display, "Press V to verify", (10, 60),
@@ -258,15 +251,12 @@ def verification_loop(model, device, positive_dir):
         key = cv2.waitKey(1) & 0xFF
 
         if key == ord('r') or key == ord('R'):
-            # Capture reference photo
             _, ref_frame = cap.read()
             ref_img = cv2.cvtColor(ref_frame, cv2.COLOR_BGR2RGB)
             ref_save_path = os.path.join(positive_dir, "webcam_ref.jpg")
             cv2.imwrite(ref_save_path, ref_frame)
 
-            # Update reference embedding with this new photo
             new_emb = get_embedding(model, ref_save_path, device)
-            # Add to reference embeddings and re-average
             ref_embeddings.append(new_emb)
             avg_ref = np.mean(ref_embeddings, axis=0)
             ref_captured = True
@@ -274,7 +264,6 @@ def verification_loop(model, device, positive_dir):
             print(f"    Total references: {len(ref_embeddings)}")
 
         elif key == ord('v') or key == ord('V'):
-            # Capture and verify
             _, test_frame = cap.read()
             test_img = cv2.cvtColor(test_frame, cv2.COLOR_BGR2RGB)
             test_save_path = os.path.join(positive_dir, "webcam_test.jpg")
@@ -282,19 +271,17 @@ def verification_loop(model, device, positive_dir):
 
             test_emb = get_embedding(model, test_save_path, device)
 
-            # Compare against average reference embedding
             sim = cosine_similarity(avg_ref, test_emb)
             dist = euclidean_distance(avg_ref, test_emb)
 
-            # Decision threshold
-            THRESHOLD = 0.5  # Cosine similarity threshold
+            THRESHOLD = 0.5
 
             if sim >= THRESHOLD:
                 result = "MATCH ✓"
-                color = (0, 255, 0)  # Green
+                color = (0, 255, 0)
             else:
                 result = "NO MATCH ✗"
-                color = (0, 0, 255)  # Red
+                color = (0, 0, 255)
 
             cv2.putText(display, f"{result}", (10, 130),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 3)
@@ -316,7 +303,6 @@ def verification_loop(model, device, positive_dir):
     cv2.destroyAllWindows()
 
 
-# ─── PAIR COMPARISON ─────────────────────────────────────────────────────
 
 def compare_two_images(model, path1, path2, device):
     """
@@ -346,10 +332,8 @@ def compare_two_images(model, path1, path2, device):
     print(f"\n{'MATCH ✓' if sim >= THRESHOLD else 'NO MATCH ✗'}")
     print(f"{'Same person' if sim >= THRESHOLD else 'Different people'}")
 
-    # Visualize embeddings
     fig, axes = plt.subplots(1, 3, figsize=(15, 4))
 
-    # Plot 1: Original images side by side
     img1 = np.array(Image.open(path1))
     img2 = np.array(Image.open(path2))
     axes[0].imshow(img1)
@@ -359,9 +343,8 @@ def compare_two_images(model, path1, path2, device):
     axes[1].set_title("Image 2")
     axes[1].axis('off')
 
-    # Plot 2: Similarity score bar
-    ax2 = axes[1]  # reuse
-    sim_normalized = (sim + 1) / 2  # Map [-1,1] to [0,1]
+    ax2 = axes[1]
+    sim_normalized = (sim + 1) / 2
     ax2.clear()
     ax2.barh(['Similarity'], [sim_normalized])
     ax2.set_xlim(0, 1)
@@ -370,9 +353,8 @@ def compare_two_images(model, path1, path2, device):
     for container in ax2.containers:
         ax2.bar_label(container, fmt='%.3f')
 
-    # Plot 3: Distance bar
     ax3 = axes[2]
-    dist_normalized = 1 - (dist / 2)  # Map [0,2] to [1,0]
+    dist_normalized = 1 - (dist / 2)
     ax3.barh(['Distance'], [dist_normalized])
     ax3.set_xlim(0, 1)
     ax3.set_title(f"Distance: {dist:.4f}")
@@ -386,7 +368,6 @@ def compare_two_images(model, path1, path2, device):
     plt.show()
 
 
-# ─── BATCH TEST ──────────────────────────────────────────────────────────
 
 def batch_test(model, positive_dir, negative_dir, device):
     """
@@ -413,13 +394,11 @@ def batch_test(model, positive_dir, negative_dir, device):
     print(f"Positive images: {len(pos_files)}")
     print(f"Negative images: {len(neg_files)}")
 
-    # Generate same-person pairs
     same_pairs = []
     for i in range(min(50, len(pos_files))):
         for j in range(i+1, min(i+3, len(pos_files))):
             same_pairs.append((pos_files[i], pos_files[j]))
 
-    # Generate cross-person pairs (same person, different photo)
     cross_pairs = []
     for i in range(min(50, len(pos_files))):
         for neg_file in neg_files[:20]:
@@ -429,7 +408,6 @@ def batch_test(model, positive_dir, negative_dir, device):
         print("Not enough positive images for batch test (need 2+)")
         return
 
-    # Compute similarities
     same_sims = []
     cross_sims = []
 
@@ -451,7 +429,6 @@ def batch_test(model, positive_dir, negative_dir, device):
         print("No pairs computed. Check data directories.")
         return
 
-    # Stats
     print(f"\n{'─'*60}")
     print(f"Same-person pairs (n={len(same_sims)}):")
     print(f"  Mean similarity: {np.mean(same_sims):.4f}")
@@ -465,7 +442,6 @@ def batch_test(model, positive_dir, negative_dir, device):
     print(f"  Min:             {np.min(cross_sims):.4f}")
     print(f"  Max:             {np.max(cross_sims):.4f}")
 
-    # ROC AUC
     labels = [1] * len(same_sims) + [0] * len(cross_sims)
     scores = same_sims + cross_sims
     fpr, tpr, thresholds = roc_curve(labels, scores)
@@ -475,12 +451,10 @@ def batch_test(model, positive_dir, negative_dir, device):
     print(f"  1.00 = perfect separation")
     print(f"  < 0.90 = model needs more training")
 
-    # Find optimal threshold
     optimal_idx = np.argmax(tpr - fpr)
     optimal_threshold = thresholds[optimal_idx]
     print(f"\nOptimal threshold: {optimal_threshold:.4f}")
 
-    # Plot ROC curve
     plt.figure(figsize=(8, 6))
     plt.plot(fpr, tpr, 'b-', linewidth=2, label=f'ROC (AUC = {roc_auc:.3f})')
     plt.plot([0, 1], [0, 1], 'r--', linewidth=1, label='Random')
@@ -495,23 +469,17 @@ def batch_test(model, positive_dir, negative_dir, device):
     plt.show()
 
 
-# ─── MAIN ────────────────────────────────────────────────────────────────
 
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}\n")
     if torch.cuda.is_available():
-        # MI50 (gfx906): bundled libMIOpen.so segfaults on this system's
-        # libstdc++ (ABI mismatch). Route conv2d through native/rocBLAS instead.
         torch.backends.cudnn.enabled = False
 
-    # Model path
     model_path = "/home/b2/projects/zavrsni/face_recognition/training_checkpoints/personal_finetuned.pt"
 
-    # Load model
     model = load_model(model_path, device)
 
-    # Directories
     positive_dir = "/home/b2/projects/zavrsni/face_recognition/data/positive"
     negative_dir = "/home/b2/projects/zavrsni/face_recognition/data/negative"
 

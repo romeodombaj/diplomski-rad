@@ -1,4 +1,3 @@
-/** @param {import('knex').Knex} knex */
 exports.up = async function (knex) {
   await knex.schema.createTable('projects', (table) => {
     table.text('id').primary();
@@ -11,7 +10,6 @@ exports.up = async function (knex) {
   });
 };
 
-/** @param {import('knex').Knex} knex */
 exports.down = async function (knex) {
   await knex.schema.dropTableIfExists('projects');
 };

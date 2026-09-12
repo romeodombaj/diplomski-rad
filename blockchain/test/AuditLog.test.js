@@ -13,7 +13,6 @@ describe("AuditLog", function () {
     await audit.grantRole(await audit.BACKEND_ROLE(), backend.address);
   });
 
-  // ── event log ─────────────────────────────────────────────────────────
 
   it("appends an event and counts it", async function () {
     await audit.connect(backend).logEvent(HASH, DOOR);
@@ -46,13 +45,11 @@ describe("AuditLog", function () {
       .to.be.revertedWithCustomError(audit, "EmptyField");
   });
 
-  // AUDIT.md F-23
   it("blocks logging from an address without BACKEND_ROLE", async function () {
     await expect(audit.connect(outsider).logEvent(HASH, DOOR))
       .to.be.revertedWithCustomError(audit, "AccessControlUnauthorizedAccount");
   });
 
-  // ── revocation list ───────────────────────────────────────────────────
 
   it("revokes and restores a DID", async function () {
     expect(await audit.isRevoked(DID)).to.equal(false);
@@ -73,9 +70,6 @@ describe("AuditLog", function () {
     await expect(audit.restoreDID(DID)).to.be.revertedWithCustomError(audit, "NotRevoked");
   });
 
-  // restoreDID uses swap-and-pop, which is where an off-by-one would hide:
-  // removing from the middle moves the last element into the freed slot, and
-  // its stored index must be updated or a later restore corrupts the list.
   it("keeps the list consistent when restoring from the middle", async function () {
     await audit.revokeDID("did:a");
     await audit.revokeDID("did:b");
@@ -88,7 +82,6 @@ describe("AuditLog", function () {
     expect(await audit.isRevoked("did:b")).to.equal(false);
     expect(await audit.isRevoked("did:c")).to.equal(true);
 
-    // "did:c" was swapped into b's slot -- restoring it must still work.
     await audit.restoreDID("did:c");
     expect(await audit.getRevokedCount()).to.equal(1);
     expect(await audit.isRevoked("did:a")).to.equal(true);

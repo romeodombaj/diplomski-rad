@@ -43,13 +43,6 @@ export type DashboardOverview = {
   health: { mqtt: boolean; chain: boolean };
 };
 
-/**
- * One request for the whole page.
- *
- * Four panels that are always shown together would otherwise be four round
- * trips, and the query behind them is a single pass over one day of one
- * building's events.
- */
 export const DashboardService = {
   overview: async (): Promise<DashboardOverview> => {
     const res = await apiFetch('/api/dashboard/overview');

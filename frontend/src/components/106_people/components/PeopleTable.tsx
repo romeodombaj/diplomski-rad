@@ -79,7 +79,6 @@ export default function PeopleTable() {
 
   return (
     <>
-      {/* Toolbar */}
       <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1">
@@ -129,7 +128,6 @@ export default function PeopleTable() {
         </div>
       </div>
 
-      {/* Pending enrolments are the state an admin most often needs to chase */}
       {pendingEnrollment > 0 && !filters['status'] && (
         <button
           type="button"
@@ -161,8 +159,6 @@ export default function PeopleTable() {
                   variant="ghost" size="sm" title={t('enrollment.showQr')}
                   onClick={async (e) => {
                     e.stopPropagation();
-                    // The raw token is unrecoverable, so opening the QR for an
-                    // existing invite necessarily reissues it.
                     const invite = await PersonService.issueEnrollment(p.id);
                     setEnroll({ invite, name: p.full_name, id: p.id });
                   }}
@@ -201,7 +197,6 @@ export default function PeopleTable() {
         onSort={setSort}
       />
 
-      {/* Offboarding is irreversible and must say so in plain language */}
       <AlertDialog open={offboardTarget !== null} onOpenChange={() => setOffboardTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -235,7 +230,7 @@ export default function PeopleTable() {
                 onSuccess={(invite, name, id) => {
                   setFormOpen(false);
                   refresh();
-                  setEnroll({ invite, name, id });   // straight into the QR
+                  setEnroll({ invite, name, id });
                 }}
               />}
         </SheetContent>

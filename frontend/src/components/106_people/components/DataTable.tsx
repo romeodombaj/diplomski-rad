@@ -35,7 +35,6 @@ interface DataTableProps<TData> {
   onView?: (row: TData) => void;
   onEdit?: (row: TData) => void;
   onDelete?: (row: TData) => void;
-  /** Extra per-row controls rendered before the standard edit/delete icons. */
   rowActions?: (row: TData) => React.ReactNode;
   onExport?: (format: 'csv' | 'xlsx') => void;
   page?: number;
@@ -152,9 +151,6 @@ export function DataTable<TData>({
     return table.getRowModel().rows.map((row) => (
       <TableRow
         key={row.id}
-        // Clicking anywhere on the row opens it, matching the view icon. The
-        // per-action buttons already stopPropagation, so they still act on
-        // their own without opening the record underneath.
         onClick={() => {
           setSelectedId(row.id);
           onView?.(row.original);

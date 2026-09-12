@@ -40,12 +40,9 @@ LFW_ROOT = os.path.join(HERE, "lfw_home", "lfw_home", "lfw_funneled")
 PAIRS_FILE = os.path.join(HERE, "lfw_home", "lfw_home", "pairs.txt")
 OUT_ROOT = os.path.join(HERE, "lfw_crops")
 
-# Must match extract_faces.py exactly.
 CROP_SIZE = 112
 MARGIN_FRAC = 0.15
 
-# Center-crop fallback: LFW funneled faces sit in the middle of a 250x250
-# frame. 150px is the median MTCNN box+margin width measured over LFW.
 FALLBACK_BOX = 150
 
 _detector = None
@@ -57,7 +54,7 @@ def get_detector():
     if _detector is None:
         import torch
         from facenet_pytorch import MTCNN
-        torch.set_num_threads(1)   # we parallelize over images, not within
+        torch.set_num_threads(1)
         _detector = MTCNN(keep_all=True, device="cpu")
     return _detector
 
@@ -69,7 +66,7 @@ def crop_one(rel_path):
     src = os.path.join(LFW_ROOT, rel_path)
     dst = os.path.join(OUT_ROOT, rel_path)
     if os.path.exists(dst):
-        return rel_path, None            # already cached
+        return rel_path, None
 
     img = Image.open(src).convert("RGB")
     boxes, probs = get_detector().detect(img)
@@ -81,7 +78,6 @@ def crop_one(rel_path):
         h = FALLBACK_BOX / 2
         x1, y1, x2, y2 = cx - h, cy - h, cx + h, cy + h
     else:
-        # extract_faces.py takes the LARGEST detected face.
         areas = [(b[2] - b[0]) * (b[3] - b[1]) for b in boxes]
         x1, y1, x2, y2 = boxes[int(np.argmax(areas))]
         w, h = x2 - x1, y2 - y1

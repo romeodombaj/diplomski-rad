@@ -10,20 +10,6 @@ import { config } from '../../config/conifg';
 import * as behavior from '../../services/behaviorService';
 import * as events from '../../services/eventBus';
 
-/**
- * The behaviour engine, from the backend's side.
- *
- * Two claims are being pinned down. First that scoring is genuinely off the
- * critical path: a dead, slow or absent engine costs an alert and never an
- * entry, and every recorded outcome — granted *and* denied — is forwarded.
- * Second that a score is durable and explainable: it lands on the row it
- * belongs to together with the reasons behind it, so the dashboard can still
- * answer "why" long after the engine's in-memory window has rolled over.
- *
- * The engine itself is stubbed. Its own behaviour is tested in
- * behavior-engine/tests; what matters here is the contract between the two and
- * what happens when the far side does not hold up its end.
- */
 describe('Behaviour engine integration', () => {
   const PHONE = Wallet.createRandom();
   const DID = `did:ethr:sep:${PHONE.address}`;
@@ -37,7 +23,6 @@ describe('Behaviour engine integration', () => {
   let secret: string;
   let fetchMock: ReturnType<typeof vi.fn>;
 
-  /** What the engine would answer for one event. */
   const scoreBody = (over: Record<string, unknown> = {}) => ({
     event_id: 'x',
     anomaly_score: 0.87,
@@ -80,7 +65,6 @@ describe('Behaviour engine integration', () => {
     ...over,
   });
 
-  /** Answer any engine call with a canned body; record what was asked. */
   const engineAnswers = (route: (url: string) => unknown) => {
     fetchMock.mockImplementation(async (input: any) => ({
       ok: true,
@@ -125,7 +109,6 @@ describe('Behaviour engine integration', () => {
     secret = claim.body.data.totp.secret;
   };
 
-  /** One already-recorded event, as the access path would have written it. */
   const recordEvent = async (over: Record<string, unknown> = {}) => {
     const id = randomUUID();
     await db('access_events').insert({
@@ -192,7 +175,6 @@ describe('Behaviour engine integration', () => {
     config.behavior.url = '';
   });
 
-  // ── forwarding, off the critical path ─────────────────────────────────────
 
   it('forwards a granted decision once the event is recorded', async () => {
     const res = await access();
@@ -200,7 +182,6 @@ describe('Behaviour engine integration', () => {
 
     await vi.waitFor(() => expect(calls().some((u) => u.endsWith('/behavior/event'))).toBe(true));
     const sent = bodyOf(calls().findIndex((u) => u.endsWith('/behavior/event')));
-    // The id is an access_events row, so an alert can be traced back to it.
     expect(sent.event_id).toBe(res.body.data.event_id);
     expect(sent).toMatchObject({ did: DID, door_code: DOOR, success: true, building_id: buildingId });
   });
@@ -220,7 +201,6 @@ describe('Behaviour engine integration', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.granted).toBe(true);
-    // Recorded, just unscored — and unscored is not the same as normal.
     const row = await db('access_events').where({ id: res.body.data.event_id }).first();
     expect(row.anomaly_score).toBeNull();
     expect(row.anomaly_flagged).toBeNull();
@@ -234,7 +214,6 @@ describe('Behaviour engine integration', () => {
     expect(calls().filter((u) => u.includes('/behavior/'))).toEqual([]);
   });
 
-  // ── the score, and why it is what it is ───────────────────────────────────
 
   it('stores the score and its reasons on the event row', async () => {
     const id = await recordEvent();
@@ -250,8 +229,6 @@ describe('Behaviour engine integration', () => {
     expect(row.anomaly_score).toBeCloseTo(0.87, 5);
     expect(Boolean(row.anomaly_flagged)).toBe(true);
     expect(row.anomaly_reason).toContain('03:12');
-    // The breakdown outlives the engine's memory: it refits and rolls its
-    // window, so asking again later would not reproduce this answer.
     expect(JSON.parse(row.anomaly_factors)[0].factor).toBe('time_of_day');
   });
 
@@ -274,12 +251,9 @@ describe('Behaviour engine integration', () => {
 
     unsubscribe();
     expect(seen).toEqual(['anomaly']);
-    // The quiet one is still recorded — the tab shows a score for every event,
-    // not only the alarming ones.
     expect((await db('access_events').where({ id: normal }).first()).anomaly_score).toBeCloseTo(0.41, 5);
   });
 
-  // ── what the dashboard reads ──────────────────────────────────────────────
 
   it('serves the observed baseline and the model profile together', async () => {
     await recordEvent({ occurred_at: '2026-08-24T08:47:00.000Z' });
@@ -301,7 +275,6 @@ describe('Behaviour engine integration', () => {
     expect(body.observed.total).toBe(2);
     expect(body.observed.scored).toBe(1);
     expect(body.observed.byDoor.map((d: any) => d.door_code)).toContain('SERVER-03');
-    // The tab leads with the newest score, and with why it is what it is.
     expect(body.latest.id).toBe(scored);
     expect(body.latest.factors[0].factor).toBe('time_of_day');
   });
@@ -314,8 +287,6 @@ describe('Behaviour engine integration', () => {
     expect(res.status).toBe(200);
     expect(res.body.data.engine).toEqual({ enabled: true, reachable: false });
     expect(res.body.data.profile).toBeNull();
-    // The evidence a score is measured against lives in access_events, so it
-    // does not disappear with the microservice.
     expect(res.body.data.observed.total).toBe(1);
   });
 
@@ -343,7 +314,6 @@ describe('Behaviour engine integration', () => {
     expect(res.status).toBe(401);
   });
 
-  // ── training and the cold start ───────────────────────────────────────────
 
   it('trains from the history the backend already holds', async () => {
     await recordEvent({ occurred_at: '2026-08-24T08:47:00.000Z' });
@@ -357,8 +327,6 @@ describe('Behaviour engine integration', () => {
     expect(calls()[index]).toContain(`person_id=${personId}`);
     const sent = bodyOf(index);
     expect(sent).toHaveLength(2);
-    // Oldest first: the engine's gap feature is defined against the preceding
-    // event, so the order it is trained in is not cosmetic.
     expect(Date.parse(sent[0].timestamp)).toBeLessThan(Date.parse(sent[1].timestamp));
     expect(sent[1].success).toBe(false);
   });
@@ -382,8 +350,6 @@ describe('Behaviour engine integration', () => {
     engineAnswers(() => ({ person_id: personId, forgotten: true }));
     await request(app).post(`/api/people/${personId}/offboard`).set('Cookie', authCookie).send({});
 
-    // The model is fitted from nothing but this person's own history, so a
-    // retired identity must not leave one behind on the engine's disk.
     expect(calls().some((u) => u.endsWith(`/behavior/${personId}`))).toBe(true);
   });
 

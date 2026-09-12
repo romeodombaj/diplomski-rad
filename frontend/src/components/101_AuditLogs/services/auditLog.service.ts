@@ -1,6 +1,5 @@
 import { apiFetch } from '@/lib/apiFetch';
 
-// Vite proxies /api → http://localhost:5000 (see vite.config.ts)
 const BASE = '/api/audit-logs';
 
 async function req<T>(url: string, init?: RequestInit): Promise<T> {
@@ -13,15 +12,6 @@ async function req<T>(url: string, init?: RequestInit): Promise<T> {
   return (json.data ?? json) as T;
 }
 
-/**
- * One access decision. Backed by the backend's `access_events` table — this
- * page called /api/audit-logs against a route that did not exist until now, so
- * it has never rendered a row.
- *
- * Every field the operator sees is off-chain; `event_hash` is the value written
- * to the on-chain AuditLog, which is what makes a row verifiable rather than
- * merely displayed.
- */
 export type AuditLog = {
   id: string;
   building_id: number | null;
@@ -71,9 +61,6 @@ export const AuditLogService = {
   create:  (body: Partial<AuditLog>)     => req<AuditLog>(BASE,           { method: 'POST',   body: JSON.stringify(body) }),
   getById: (id: string) => req<AuditLog>(`${BASE}/${id}`),
 
-  // Deliberately no update/remove: the access log is append-only, and its rows
-  // are hashed on-chain. An operator editing history is what the design rules
-  // out, so the client must not offer the affordance.
   stats: (since?: string) =>
     req<AccessStats>(`${BASE}/stats${since ? `?since=${encodeURIComponent(since)}` : ''}`),
 };

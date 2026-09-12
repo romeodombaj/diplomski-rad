@@ -23,9 +23,6 @@ from typing import Callable, Sequence
 from .features import AccessEvent
 from .profile import Baseline, door_share, hhmm
 
-# Which feature indices move together. Time of day is one idea encoded as two
-# numbers (sin/cos), and ablating half of it would place the event at a time
-# that exists nowhere on the clock.
 FACTOR_GROUPS: tuple[tuple[str, tuple[int, ...]], ...] = (
     ("time_of_day", (0, 1)),
     ("day_of_week", (2,)),
@@ -42,11 +39,7 @@ class Factor:
     """One driver of a score, in terms an operator can check."""
 
     factor: str
-    # Share of everything pushing this event towards "unusual", 0..1. The
-    # dashboard sorts and bars on this.
     share: float
-    # Raw score this group is responsible for; kept because a large share of a
-    # tiny total is still a normal event.
     delta: float
     value: str
     usual: str
@@ -93,7 +86,6 @@ def _describe(
         usual = _humanise_gap(baseline.median_gap_minutes)
         return value, usual, f"{value} since the previous event; usual gap is {usual}."
 
-    # first_of_day
     first = previous is None or previous.timestamp.date() != event.timestamp.date()
     value = "first entry of the day" if first else "follow-on entry"
     usual = f"{baseline.events_per_day:.1f} events per day"
@@ -115,8 +107,6 @@ def contributions(
     """
     typical = baseline.typical_vector
     if len(typical) != len(vector):
-        # A baseline from an older model file, or none at all. Better to
-        # explain nothing than to compare against a vector of a different shape.
         return []
 
     base = score_fn(vector)
@@ -132,8 +122,6 @@ def contributions(
             value=value, usual=usual, detail=detail,
         ))
 
-    # Only the groups that pushed the score up get a share; a feature that made
-    # the event look *more* normal is not a reason it was flagged.
     pushing = sum(f.delta for f in factors if f.delta > 0)
     if pushing > 0:
         factors = [

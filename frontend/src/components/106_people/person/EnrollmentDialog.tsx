@@ -15,13 +15,6 @@ interface Props {
   onReissued?: (invite: EnrollmentInvite) => void;
 }
 
-/**
- * Shows the one-time enrolment payload as a QR the mobile app scans.
- *
- * The raw token is returned by the API exactly once and is not recoverable, so
- * this dialog can only display an invite it was handed. Reopening it later for
- * an already-invited person means reissuing, which invalidates the previous QR.
- */
 export default function EnrollmentDialog({
   personId, personName, invite, open, onOpenChange, onReissued,
 }: Props) {
@@ -30,7 +23,6 @@ export default function EnrollmentDialog({
   const [reissuing, setReissuing] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Everything the app needs to reach this building without being preconfigured.
   const payload = invite
     ? JSON.stringify({
         v: 1,
@@ -76,14 +68,11 @@ export default function EnrollmentDialog({
 
         {dataUrl && invite ? (
           <div className="flex flex-col items-center gap-3">
-            {/* White plate so the code stays scannable in dark theme */}
             <div className="rounded-lg bg-white p-3">
               <img src={dataUrl} alt={t('enrollment.qrAlt')} className="h-[240px] w-[240px]" />
             </div>
-            {/* The same token as the QR, for a phone that cannot scan — a cracked
-                lens, a denied camera permission, or a device being set up by
-                hand. It is 43 characters of base64url, so it is shown to be
-                copied rather than retyped, and wraps instead of being clipped. */}
+            {
+}
             <div className="w-full flex flex-col gap-1.5">
               <p className="text-xs text-muted-foreground text-center">
                 {t('enrollment.manualEntry')}

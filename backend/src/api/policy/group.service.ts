@@ -1,18 +1,9 @@
-/**
- * Access groups and schedules — the authoring vocabulary.
- *
- * Groups exist only here. The chain has no concept of them (one flat
- * (did, doorCode) pair per policy), so a group is a template the backend
- * expands: attaching a person to a six-door group writes six on-chain policies.
- * That fan-out is why the UI warns before saving a group change.
- */
 import db from '../../db';
 import * as policyService from './policy.service';
 import type { AccessGroup, AccessScheduleRow, SyncStatus } from './policy.types';
 
 const now = () => new Date().toISOString();
 
-// ── Schedules ───────────────────────────────────────────────────────────────
 
 export const listSchedules = (buildingId: number): Promise<AccessScheduleRow[]> =>
   db('access_schedules').where({ building_id: buildingId }).whereNull('deleted_at').orderBy('name');
@@ -31,7 +22,6 @@ export const deleteSchedule = async (buildingId: number, id: number): Promise<vo
     .update({ deleted_at: now(), updated_at: now() });
 };
 
-// ── Groups ──────────────────────────────────────────────────────────────────
 
 export const listGroups = async (buildingId: number) => {
   const groups = await db('access_groups')
@@ -39,8 +29,6 @@ export const listGroups = async (buildingId: number) => {
     .whereNull('deleted_at')
     .orderBy('name');
 
-  // Door and member counts are what the list view is for — the fan-out of a
-  // change is the number an operator needs before editing.
   return Promise.all(
     groups.map(async (g: AccessGroup) => {
       const [doors] = await db('access_group_doors').where({ group_id: g.id }).count('* as c');
@@ -49,25 +37,12 @@ export const listGroups = async (buildingId: number) => {
         ...g,
         door_count: Number((doors as any).c),
         member_count: Number((members as any).c),
-        // Assigning one more person costs this many on-chain transactions.
         fan_out: Number((doors as any).c),
       };
     }),
   );
 };
 
-/**
- * The groups one person belongs to.
- *
- * The effective-access table already names the group behind each door, but it
- * says nothing about a group whose door list is empty, or one whose doors were
- * all revoked — the person is still a member, and an operator looking at "no
- * access" needs to see that membership rather than conclude there is none.
- *
- * `door_count` comes along because it is the number that explains the rows
- * above it: a group contributing three doors and one contributing none look
- * identical without it.
- */
 export const groupsForPerson = async (buildingId: number, personId: string) => {
   const rows = await db('person_access_groups as pg')
     .where('pg.person_id', personId)
@@ -124,14 +99,6 @@ export const updateGroup = async (
   return db('access_groups').where({ id }).first();
 };
 
-/**
- * Replace a group's doors.
- *
- * Every member's compiled policies change with it: doors added are queued as
- * new grants for each member, doors removed are queued for revocation. This is
- * the fan-out the spec warns about — one edit to a group of 40 people across 6
- * doors is up to 240 on-chain transactions.
- */
 export async function setGroupDoors(
   buildingId: number,
   groupId: number,
@@ -165,8 +132,6 @@ export async function setGroupDoors(
       });
     }
 
-    // Queue removals for revocation rather than deleting the mirror rows: the
-    // on-chain policy still exists until a transaction says otherwise.
     if (removed.length && members.length) {
       await trx('access_policy_mirror')
         .where({ source_group_id: groupId })
@@ -176,7 +141,6 @@ export async function setGroupDoors(
     }
   });
 
-  // Recompile each member so newly added doors are queued as grants.
   for (const personId of members) {
     await policyService.assignGroup(buildingId, personId, groupId);
   }
@@ -184,7 +148,6 @@ export async function setGroupDoors(
   return { ok: true, added: added.length, removed: removed.length, affected: members.length };
 }
 
-/** Soft-delete a group and queue every policy it produced for revocation. */
 export async function deleteGroup(
   buildingId: number,
   id: number,

@@ -9,20 +9,6 @@ import {
   BehaviorService, type PersonBehaviour, type ScoreFactor, type ScoredEvent,
 } from '../services/behavior.service';
 
-/**
- * What the behaviour engine thinks of one person.
- *
- * The score is never shown on its own. An anomaly score is a claim about
- * somebody's movements that an operator may act on, and "0.87" is not something
- * anyone can agree or disagree with — so every number here is shown next to
- * what it was measured against: the hours, doors and rhythm the model was
- * fitted on, and which of those the flagged event departed from.
- *
- * The page also has to survive the engine being off. Everything under
- * "observed" comes from `access_events`, which this backend owns; only the
- * model half needs the microservice, and its absence is stated rather than
- * rendered as a clean bill of health.
- */
 export default function BehaviourPanel({ personId }: { personId: string }) {
   const { t } = useTranslation();
   const [data, setData] = useState<PersonBehaviour | null>(null);
@@ -69,7 +55,6 @@ export default function BehaviourPanel({ personId }: { personId: string }) {
   const { engine, profile, observed, latest, recent } = data;
   const pct = (share: number) => `${Math.round(share * 100)}%`;
 
-  /** A factor line: the value, what it is usually, and how much it mattered. */
   const FactorRow = ({ f }: { f: ScoreFactor }) => (
     <div className="space-y-1">
       <div className="flex items-baseline justify-between gap-2 text-sm">
@@ -96,8 +81,8 @@ export default function BehaviourPanel({ personId }: { personId: string }) {
 
   return (
     <div className="space-y-4">
-      {/* The engine is optional. Say which of the two halves below is missing
-          rather than letting a quiet page read as "nothing to worry about". */}
+      {
+}
       {!engine.enabled && (
         <p className="text-muted-foreground text-sm">{t('people.detail.behaviour.engineOff')}</p>
       )}
@@ -131,7 +116,6 @@ export default function BehaviourPanel({ personId }: { personId: string }) {
                       : 'people.detail.behaviour.normal')}
                   </Badge>
                 </div>
-                {/* 0.5 is the model's own boundary, not a display convention. */}
                 <p className="text-muted-foreground text-xs">{t('people.detail.behaviour.scaleHint')}</p>
                 <p className="text-sm">
                   {latest.door_name ?? latest.door_code} ·{' '}
@@ -177,8 +161,8 @@ export default function BehaviourPanel({ personId }: { personId: string }) {
                   <Badge variant="secondary">
                     {t('people.detail.behaviour.fittedOn', { n: profile.events_in_baseline })}
                   </Badge>
-                  {/* A generated baseline is never allowed to read as an
-                      observed one — see specs/BEHAVIOR_ENGINE_NOTES.md §1. */}
+                  {
+}
                   {profile.synthetic && (
                     <Badge variant="outline" title={t('people.detail.behaviour.syntheticHint')}>
                       <Sparkles className="mr-1 h-3 w-3" />{t('people.detail.behaviour.synthetic')}
@@ -236,8 +220,8 @@ export default function BehaviourPanel({ personId }: { personId: string }) {
               )}
             </div>
 
-            {/* Time of day is the signal the whole engine leans on, so it is
-                worth showing as a shape rather than a statistic. */}
+            {
+}
             <div>
               <p className="text-muted-foreground mb-1 text-xs">{t('people.detail.behaviour.byHour')}</p>
               <div className="flex h-16 items-end gap-[2px]">

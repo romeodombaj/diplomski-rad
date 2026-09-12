@@ -6,7 +6,6 @@ import { requireAuth } from '../../middleware/auth';
 
 const router = Router();
 
-// GET /totp_secrets?field=value&page=1&limit=20
 router.get('/', requireAuth, totp_secretController.getAll);
 router.get('/:id', requireAuth, totp_secretController.getById);
 router.post('/', requireAuth, validate(CreateTotp_secretSchema), totp_secretController.create);

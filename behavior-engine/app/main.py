@@ -34,11 +34,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 log = logging.getLogger("behavior-engine")
 
 MODEL_DIR = Path(os.environ.get("MODEL_DIR", "/data/models"))
-# Events kept in memory per person, for the rules and the gap feature. The
-# backend's access_events table is the durable record; this is a working window.
 HISTORY_WINDOW = int(os.environ.get("HISTORY_WINDOW", "500"))
-# Refit every N new events rather than on each one: fitting 100 trees on every
-# door open would make the engine the slowest thing in the request path.
 REFIT_EVERY = int(os.environ.get("REFIT_EVERY", "25"))
 
 app = FastAPI(title="Behaviour engine", version="1.0.0")
@@ -47,7 +43,6 @@ history: dict[str, Deque[AccessEvent]] = defaultdict(lambda: deque(maxlen=HISTOR
 since_fit: dict[str, int] = defaultdict(int)
 
 
-# ── contracts ───────────────────────────────────────────────────────────────
 
 class EventIn(BaseModel):
     """Fired by the backend after every access decision, granted or denied."""
@@ -83,12 +78,7 @@ class ScoreOut(BaseModel):
     anomaly_score: float = Field(ge=0.0, le=1.0)
     is_anomaly: bool
     reason: str
-    # Deterministic hits are returned separately from the model score: they are
-    # certainties, not probabilities, and a dashboard should not average them
-    # into a number that looks like a confidence.
     rule_hits: list[RuleHitOut] = []
-    # Why the score is what it is, strongest first. A number nobody can argue
-    # with is a number everybody eventually ignores.
     factors: list[FactorOut] = []
     model_trained: bool
     events_in_baseline: int
@@ -107,8 +97,6 @@ class ProfileOut(BaseModel):
     model_trained: bool
     events_in_baseline: int
     min_events_to_fit: int = MIN_EVENTS_TO_FIT
-    # True when the baseline is generated rather than observed — the cold-start
-    # answer from BEHAVIOR_ENGINE_NOTES §1, which is only honest if it is said.
     synthetic: bool = False
     first_seen: datetime | None = None
     last_seen: datetime | None = None
@@ -139,7 +127,6 @@ class SeedOut(BaseModel):
     synthetic: bool = True
 
 
-# ── helpers ─────────────────────────────────────────────────────────────────
 
 def _key(event: EventIn) -> str:
     """
@@ -185,7 +172,6 @@ def _to_domain(event: EventIn, key: str) -> AccessEvent:
     )
 
 
-# ── endpoints ───────────────────────────────────────────────────────────────
 
 @app.get("/health")
 def health() -> dict:
@@ -209,26 +195,18 @@ def score_event(event: EventIn) -> ScoreOut:
     key = _key(event)
     domain = _to_domain(event, key)
     past = list(history[key])
-    # The event this one is measured against is the last one *before* it, not
-    # the last one we happened to hear about: a baseline loaded from stored
-    # history ends later than a replayed or backfilled event begins.
     previous = previous_before(past, domain.timestamp)
 
     verdict = store.score(key, domain, previous)
     hits = [RuleHitOut(**h.__dict__) for h in evaluate(domain, past)]
     factors = [FactorOut(**f.__dict__) for f in verdict.factors]
 
-    # Remember it, then refit periodically so the baseline follows genuine
-    # change (a new shift pattern) rather than freezing at enrolment.
     history[key].append(domain)
     since_fit[key] += 1
     if since_fit[key] >= REFIT_EVERY and len(history[key]) >= MIN_EVENTS_TO_FIT:
         store.fit(key, list(history[key]))
         since_fit[key] = 0
 
-    # A hard rule outranks the model. The model expresses "unusual"; a rule
-    # expresses "impossible", and impossible should never be softened by a
-    # forest that has not seen enough data to disagree.
     high = [h for h in hits if h.severity == "high"]
     if high:
         return ScoreOut(
@@ -283,8 +261,6 @@ def profile(person_id: str) -> ProfileOut:
 def train(person_id: str, events: list[EventIn]) -> dict:
     """Fit a person's model from real history the backend already holds."""
     if not events:
-        # Refuse rather than accept: this replaces the working history, so an
-        # empty call would erase a baseline instead of retraining it.
         raise HTTPException(status_code=400, detail="no events to train on")
 
     domain = [_to_domain(e, person_id) for e in events]

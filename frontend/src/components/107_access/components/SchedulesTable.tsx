@@ -17,15 +17,6 @@ const toMinutes = (v: string) => {
   return (h || 0) * 60 + (m || 0);
 };
 
-/**
- * Weekly windows.
- *
- * These are enforced by the backend, not the chain — `AccessPolicy` holds one
- * contiguous [start, end] and cannot express "Mon-Fri 09:00-17:00". What goes
- * on chain is a hash of the schedule, so the backend can be caught presenting
- * a different one than it committed to. Editing a schedule therefore changes
- * the commitment, which means re-granting: hence the warning on delete.
- */
 export default function SchedulesTable() {
   const { t } = useTranslation();
   const [schedules, setSchedules] = useState<AccessSchedule[]>([]);

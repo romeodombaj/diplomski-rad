@@ -14,7 +14,6 @@ const storage = multer.diskStorage({
   },
 });
 
-// 10 MB limit; extend or restrict per-route as needed
 export const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 },
@@ -22,15 +21,8 @@ export const upload = multer({
     const allowed = /jpeg|jpg|png|gif|webp|pdf|csv|xlsx|xls|doc|docx/;
     const ok = allowed.test(path.extname(file.originalname).toLowerCase()) &&
                allowed.test(file.mimetype);
-    // multer's callback types the error as `null` in its accept overload, so
-    // the two outcomes have to be passed separately rather than ternaried.
     if (!ok) return cb(new Error('File type not allowed'));
     cb(null, true);
   },
 });
 
-// Usage in a route:
-//   router.post('/', upload.single('avatar'), controller.create);
-//   router.post('/', upload.fields([{ name: 'avatar', maxCount: 1 }]), controller.create);
-//   Access uploaded file as req.file (single) or req.files (multiple)
-//   File URL: `/uploads/${req.file.filename}`  — serve via express.static('uploads')

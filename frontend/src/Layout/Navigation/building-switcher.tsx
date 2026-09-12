@@ -115,7 +115,6 @@ export function BuildingSwitcher() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     name: newName.trim(),
-                    // Placeholder details — filled in later via the Buildings admin page.
                     address: "TBD",
                     contractAddress: "TBD",
                 }),
@@ -408,7 +407,6 @@ export function BuildingSwitcher() {
                 </SidebarMenuItem>
             </SidebarMenu>
 
-            {/* Sandbox toggle confirmation */}
             <AlertDialog open={sandboxConfirm} onOpenChange={setSandboxConfirm}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
@@ -433,7 +431,6 @@ export function BuildingSwitcher() {
                 </AlertDialogContent>
             </AlertDialog>
 
-            {/* Building switch confirmation */}
             <AlertDialog
                 open={!!switchConfirm}
                 onOpenChange={(open) => {
@@ -466,7 +463,6 @@ export function BuildingSwitcher() {
                 </AlertDialogContent>
             </AlertDialog>
 
-            {/* Delete confirmation */}
             <AlertDialog
                 open={!!deleteTarget}
                 onOpenChange={(open) => {

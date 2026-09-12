@@ -38,8 +38,6 @@ import torch
 import onnx
 import onnxruntime as ort
 
-# CustomCNN lives in the training script. That file is import-safe: only
-# constants and defs at module level, real work is behind __main__.
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from train_vggface2 import CustomCNN
 
@@ -49,7 +47,6 @@ CHECKPOINT = os.path.join(HERE, "training_checkpoints",
 OUT_FP32 = os.path.join(HERE, "siamese_epoch50.onnx")
 OUT_INT8 = os.path.join(HERE, "siamese_epoch50_int8.onnx")
 
-# Must match the eval-time transform in train_vggface2.py / evaluate.py.
 INPUT_SIZE = 105
 EMBEDDING_DIM = 512
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
@@ -78,8 +75,6 @@ def export_fp32(model):
         model, dummy, OUT_FP32,
         input_names=["image"],
         output_names=["embedding"],
-        # Batch stays dynamic so the app can embed reference + live face in
-        # one call later if it wants to.
         dynamic_axes={"image": {0: "batch"}, "embedding": {0: "batch"}},
         opset_version=17,
         do_constant_folding=True,

@@ -1,16 +1,9 @@
 import dotenv from "dotenv";
 
-// Load .env.development when not in production — production has no .env file, values fall back to the hardcoded defaults below
 if (process.env.NODE_ENV !== "production") {
     dotenv.config({ path: "./.env.development" });
 }
 
-/**
- * `Number(x) || fallback` treats a deliberate 0 as unset and turns a typo into
- * a silent default — for a face threshold or a request-age bound that is a
- * security setting changing itself behind your back. This keeps 0, and refuses
- * to boot on a value that is not a number at all.
- */
 function num(raw: string | undefined, fallback: number): number {
     if (raw === undefined || raw.trim() === '') return fallback;
     const parsed = Number(raw);
@@ -29,12 +22,8 @@ export const config = {
         v1Max:        num(process.env.RATE_LIMIT_V1_MAX, 1000),
         authWindowMs: num(process.env.RATE_LIMIT_AUTH_WINDOW_MS, 15 * 60 * 1000),
         authMax:      num(process.env.RATE_LIMIT_AUTH_MAX,        10),
-        // Unauthenticated mobile surface; keyed by IP. See mobileRateLimiter.
         mobileWindowMs: num(process.env.RATE_LIMIT_MOBILE_WINDOW_MS, 60 * 1000),
         mobileMax:      num(process.env.RATE_LIMIT_MOBILE_MAX,       60),
-        // Proximity/LED reports get their own budget so the cosmetic path can
-        // never spend the allowance /mobile/access needs. Higher because a
-        // single approach legitimately sends one report per LED step.
         proximityWindowMs: num(process.env.RATE_LIMIT_PROXIMITY_WINDOW_MS, 60 * 1000),
         proximityMax:      num(process.env.RATE_LIMIT_PROXIMITY_MAX,       240),
     },
@@ -47,10 +36,8 @@ export const config = {
   },
 
   chain: {
-    // Empty RPC URL = chain disabled. See chainService.isEnabled().
     rpcUrl: process.env.CHAIN_RPC_URL || '',
     network: process.env.CHAIN_NETWORK || 'localhost',
-    // Holds BACKEND_ROLE on DIDRegistry/AuditLog. Reads work without it.
     backendPrivateKey: process.env.CHAIN_BACKEND_PRIVATE_KEY || '',
     deploymentFile: process.env.CHAIN_DEPLOYMENT_FILE || '',
     contracts: {
@@ -58,16 +45,6 @@ export const config = {
       accessPolicy: process.env.CONTRACT_ACCESS_POLICY || '',
       auditLog:     process.env.CONTRACT_AUDIT_LOG     || '',
     },
-    /**
-     * Whether the chain is authoritative for access decisions.
-     *
-     * true  — no chain, no entry. The correct production posture: AccessPolicy
-     *         is the only authorisation source, so an unreachable chain denies.
-     * false — fall back to the local device public key for signature checks and
-     *         skip the on-chain policy gate. Needed for a chain-less dev box and
-     *         for the test suite, and it is why every access_event records
-     *         `chain_checked`: a row that got in without the chain says so.
-     */
     requireChain: process.env.CHAIN_REQUIRED === 'true',
   },
 
@@ -80,68 +57,23 @@ export const config = {
   },
 
   behavior: {
-    /**
-     * The behaviour engine (Python/FastAPI). Empty = disabled, and every call
-     * becomes a no-op: scoring happens after the access decision is already
-     * made and recorded, so a missing engine costs alerts, never entry.
-     */
     url: process.env.BEHAVIOR_ENGINE_URL || '',
-    // Short on purpose — this runs off the critical path, but a hung request
-    // should not pile up sockets while someone holds a door open.
     timeoutMs: num(process.env.BEHAVIOR_TIMEOUT_MS, 3000),
   },
 
   access: {
-    // How stale a signed request may be. Long enough for a slow phone and a
-    // little clock skew, short enough that a captured request is useless.
-    // Signatures are also single-use (access_events.signature is unique), so
-    // this bounds the window in which a replay could even be attempted.
     maxRequestAgeSeconds: num(process.env.ACCESS_MAX_REQUEST_AGE, 90),
     maxClockSkewSeconds: num(process.env.ACCESS_MAX_CLOCK_SKEW, 30),
-    /**
-     * Minimum on-device face-match score. The old endpoint took `faceScore` as
-     * optional and ignored it — the log line literally read `face: bypassed`.
-     * Set ACCESS_REQUIRE_FACE=false only for hardware-free testing.
-     */
     requireFace: process.env.ACCESS_REQUIRE_FACE !== 'false',
     faceThreshold: num(process.env.ACCESS_FACE_THRESHOLD, 0.7),
   },
 
-  /**
-   * The door LED ring driven by BLE proximity. Cosmetic throughout — see
-   * api/mobile/proximity.service.ts. Nothing here affects an access decision.
-   */
   devices: {
-    /**
-     * Subnet to sweep for devices that speak their own protocol instead of
-     * MQTT — Tuya plugs answer on 6668, and nothing about them reaches the
-     * broker.
-     *
-     * It has to be configured rather than detected: this process runs on a
-     * Docker bridge network, so its own interface says 172.x and the LAN is
-     * invisible from here. Empty disables the sweep, which is the right default
-     * for anyone whose hardware is all on MQTT.
-     */
     scanSubnet: process.env.DEVICE_SCAN_SUBNET || '',
   },
 
   proximity: {
-    /**
-     * LED steps in a door's ring — one per physical LED, so twelve for the
-     * ReSpeaker. Reports above this are clamped, so a value smaller than the
-     * ring silently compresses the ramp: at 8 the door rescaled to twelve and
-     * left the intermediate positions uneven. Must match LED_LEVELS in
-     * mobile-app/src/lib/beacon.ts.
-     *
-     * The phone buckets RSSI into 0..levels and reports on change plus a
-     * keepalive, so this also bounds how many messages one approach produces.
-     */
     levels: num(process.env.PROXIMITY_LEVELS, 12),
-    /**
-     * How stale a report may be. Far tighter than an access request: this is a
-     * claim about where somebody is *now*, and the phone re-sends on every
-     * bucket change, so there is no reason to honour an old one.
-     */
     maxAgeSeconds: num(process.env.PROXIMITY_MAX_AGE, 10),
     maxClockSkewSeconds: num(process.env.PROXIMITY_MAX_CLOCK_SKEW, 30),
   },

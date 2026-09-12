@@ -60,57 +60,18 @@ import numpy as np
 from PIL import Image
 
 
-# ── CONFIG ────────────────────────────────────────────────────────────────
 EXTRACTED_PATH = "/home/b2/projects/zavrsni/face_recognition/extracted_faces"
 CHECKPOINT_DIR = "/home/b2/projects/zavrsni/face_recognition/training_checkpoints"
 
-BATCH_SIZE = 32          # Larger batches (64, 256 tested) hit an untuned rocBLAS
-                         # fallback kernel on this GPU and run ~3x slower per
-                         # epoch despite using more VRAM. 32 is empirically fastest.
-EPOCH_SIZE = 85_000      # Images sampled (with replacement) per "epoch". A true
-                         # full pass over all 749,553 images took 314min/epoch --
-                         # 40 of those would be ~209h (8.7 days). Sampling a
-                         # fixed subset per epoch instead decouples "epoch" from
-                         # dataset size, restoring ~35min/epoch: enough for
-                         # frequent checkpoints/collapse-checks (this pipeline
-                         # has twice needed those to catch problems fast) while
-                         # 40 epochs x 85,000 ~= 4.5 full passes over the data
-                         # in ~24h total.
-NUM_EPOCHS = 60          # Extended from 40: loss was still decreasing every
-                         # single epoch (no plateau) and verification
-                         # separation (quick_verify_check.py) was still
-                         # climbing at epoch 30 (0.35 -> 0.40 -> 0.46,
-                         # epochs 10/20/30, accelerating if anything) with
-                         # classification accuracy only ~21% on a
-                         # 19,203-way problem -- real headroom left.
-LEARNING_RATE = 1e-4     # 1e-3 was unstable on the 97.5M-param model (fast
-                         # embedding contraction in first ~60 steps); 1e-4
-                         # settles instead of collapsing.
-WARM_RESTART_EPOCH = 40  # The original run's cosine cycle (T_max=40) decayed
-                         # LR to ~1e-6 by epoch 40 -- resuming past that with
-                         # the *same* schedule would make CosineAnnealingLR's
-                         # periodic formula start climbing LR back toward 1e-4
-                         # (a real bug, not a feature). Epochs 41-60 instead
-                         # get a fresh, independent cosine cycle (standard
-                         # "warm restart" / SGDR practice) -- see main().
-WARM_RESTART_LR = 1e-5   # Restart LR for epoch 41: 10x below the original
-                         # start (1e-4) since the model is already
-                         # well-trained and doesn't need coarse early steps
-                         # again, but well above the ~1e-6 floor the first
-                         # cycle ended at -- needs *some* room to actually
-                         # move and find further improvement, not just
-                         # fine-tune in place.
-MARGIN = 0.2             # Unused by the current classification loss; kept for
-                         # TripletMarginLossWithMining, retained for reference.
-DROPOUT_RATE = 0.3       # Dropout before embedding layer
-SAVE_INTERVAL = 1        # Save checkpoint every epoch -- cheap since
-                         # save_checkpoint() prunes to the 3 most recent
-                         # files regardless of interval (disk is only
-                         # ~13GB free, each checkpoint ~1.3GB), so more
-                         # frequent saves cost a few extra seconds/epoch,
-                         # not more disk. Gives a rollback point after
-                         # every epoch if a change (e.g. the LR schedule
-                         # below) turns out to hurt training.
+BATCH_SIZE = 32
+EPOCH_SIZE = 85_000
+NUM_EPOCHS = 60
+LEARNING_RATE = 1e-4
+WARM_RESTART_EPOCH = 40
+WARM_RESTART_LR = 1e-5
+MARGIN = 0.2
+DROPOUT_RATE = 0.3
+SAVE_INTERVAL = 1
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Device: {DEVICE}")
@@ -118,24 +79,9 @@ if torch.cuda.is_available():
     print(f"GPU: {torch.cuda.get_device_name(0)}")
     print(f"VRAM: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
     torch.cuda.empty_cache()
-    # MI50 (gfx906): the bundled libMIOpen.so segfaults inside
-    # miopen::GetUserDbPath() on this system's libstdc++ (ABI mismatch in
-    # std::filesystem::path between the toolchains). Disabling routes
-    # conv2d through the native/rocBLAS path instead of MIOpen, which
-    # works correctly (just without MIOpen's autotuned conv kernels).
     torch.backends.cudnn.enabled = False
 
 
-# ── CUSTOM CNN (PATH C, ~80M PARAMS) ─────────────────────────────────────
-#
-# CHANGES FROM ORIGINAL app.py:
-#   1. Added BatchNorm after every Conv2D (stabilizes training)
-#   2. Added residual shortcut connections (mini-ResNet style)
-#   3. Added Dropout(0.3) before embedding (prevents overfitting)
-#   4. Changed output to Dense(512) with L2 normalization
-#   5. Replaced sigmoid activation with linear
-#   6. 6 conv blocks instead of 4 (deeper feature extraction)
-#
 
 class CustomCNN(nn.Module):
     """
@@ -164,66 +110,58 @@ class CustomCNN(nn.Module):
         super(CustomCNN, self).__init__()
         c1, c2, c3, c4, c5, c6, fc1_dim = 224, 448, 576, 896, 1152, 3072, 4096
 
-        # BLOCK 1 - Large kernel captures broad facial patterns
         self.block1 = nn.Sequential(
-            nn.Conv2d(3, c1, kernel_size=11, stride=1, padding=0),  # 105->95
+            nn.Conv2d(3, c1, kernel_size=11, stride=1, padding=0),
             nn.BatchNorm2d(c1), nn.ReLU(inplace=True),
-            nn.MaxPool2d(2),  # 95->47
-            nn.Conv2d(c1, c1, kernel_size=3, padding=1),  # 47->47
+            nn.MaxPool2d(2),
+            nn.Conv2d(c1, c1, kernel_size=3, padding=1),
             nn.BatchNorm2d(c1), nn.ReLU(inplace=True),
         )
 
-        # BLOCK 2 - Medium kernel combines local patterns
         self.block2 = nn.Sequential(
-            nn.Conv2d(c1, c2, kernel_size=7, stride=1, padding=0),  # 47->41
+            nn.Conv2d(c1, c2, kernel_size=7, stride=1, padding=0),
             nn.BatchNorm2d(c2), nn.ReLU(inplace=True),
-            nn.MaxPool2d(2),  # 41->20
-            nn.Conv2d(c2, c2, kernel_size=3, padding=1),  # 20->20
+            nn.MaxPool2d(2),
+            nn.Conv2d(c2, c2, kernel_size=3, padding=1),
             nn.BatchNorm2d(c2), nn.ReLU(inplace=True),
         )
 
-        # BLOCK 3 - Smaller kernel for finer details
         self.block3 = nn.Sequential(
-            nn.Conv2d(c2, c3, kernel_size=5, stride=1, padding=0),  # 20->16
+            nn.Conv2d(c2, c3, kernel_size=5, stride=1, padding=0),
             nn.BatchNorm2d(c3), nn.ReLU(inplace=True),
-            nn.MaxPool2d(2),  # 16->8
-            nn.Conv2d(c3, c3, kernel_size=3, padding=1),  # 8->8
+            nn.MaxPool2d(2),
+            nn.Conv2d(c3, c3, kernel_size=3, padding=1),
             nn.BatchNorm2d(c3), nn.ReLU(inplace=True),
         )
         self.res3 = nn.Conv2d(c3, c3, kernel_size=1)
 
-        # BLOCK 4 - Many channels for complex features
         self.block4 = nn.Sequential(
-            nn.Conv2d(c3, c4, kernel_size=3, stride=1, padding=0),  # 8->6
+            nn.Conv2d(c3, c4, kernel_size=3, stride=1, padding=0),
             nn.BatchNorm2d(c4), nn.ReLU(inplace=True),
-            nn.MaxPool2d(2),  # 6->3
-            nn.Conv2d(c4, c4, kernel_size=3, padding=1),  # 3->3
+            nn.MaxPool2d(2),
+            nn.Conv2d(c4, c4, kernel_size=3, padding=1),
             nn.BatchNorm2d(c4), nn.ReLU(inplace=True),
         )
         self.res4 = nn.Conv2d(c4, c4, kernel_size=1)
 
-        # BLOCK 5 - Same depth, more capacity
         self.block5 = nn.Sequential(
-            nn.Conv2d(c4, c5, kernel_size=3, stride=1, padding=0),  # 3->1
+            nn.Conv2d(c4, c5, kernel_size=3, stride=1, padding=0),
             nn.BatchNorm2d(c5), nn.ReLU(inplace=True),
-            nn.Conv2d(c5, c5, kernel_size=3, padding=1),  # 1->1
+            nn.Conv2d(c5, c5, kernel_size=3, padding=1),
             nn.BatchNorm2d(c5), nn.ReLU(inplace=True),
         )
 
-        # BLOCK 6 - Final block with max channels
         self.block6 = nn.Sequential(
-            nn.Conv2d(c5, c6, kernel_size=3, stride=1, padding=1),  # 1->1
+            nn.Conv2d(c5, c6, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(c6), nn.ReLU(inplace=True),
         )
 
-        # DENSE LAYERS
         self.flatten = nn.Flatten()
         self.fc1 = nn.Linear(c6, fc1_dim)
         self.dropout = nn.Dropout(DROPOUT_RATE)
         self.fc2 = nn.Linear(fc1_dim, embedding_dim)
 
     def forward(self, x):
-        # Forward pass with residual connections
         out = self.block1(x)
 
         out = self.block2(out)
@@ -237,16 +175,14 @@ class CustomCNN(nn.Module):
         out = self.block5(out)
         out = self.block6(out)
 
-        # Flatten + project to embedding space
-        out = self.flatten(out)       # (batch, 1024)
-        out = self.fc1(out)           # (batch, 1024)
-        out = self.dropout(out)       # (batch, 1024) with 30% zeroed
-        out = self.fc2(out)           # (batch, 512)
-        out = nn.functional.normalize(out, p=2, dim=1)  # L2 normalize
+        out = self.flatten(out)
+        out = self.fc1(out)
+        out = self.dropout(out)
+        out = self.fc2(out)
+        out = nn.functional.normalize(out, p=2, dim=1)
         return out
 
 
-# ── DATASET ───────────────────────────────────────────────────────────────
 
 class VGGFace2Dataset(Dataset):
     """
@@ -295,7 +231,6 @@ class VGGFace2Dataset(Dataset):
         return image, label
 
 
-# ── TRIPLET LOSS WITH SEMI-HARD MINING ────────────────────────────────────
 
 class TripletMarginLossWithMining(nn.Module):
     """
@@ -337,29 +272,23 @@ class TripletMarginLossWithMining(nn.Module):
         self.collapse_weight = collapse_weight
 
     def forward(self, embeddings, labels):
-        # Compute pairwise Euclidean distances between all embeddings
-        dist_matrix = self._pdist(embeddings)  # (batch, batch)
+        dist_matrix = self._pdist(embeddings)
 
-        # Positive mask: same identity, not self
         pos_mask = (labels.unsqueeze(0) == labels.unsqueeze(1)) & \
                    (~torch.eye(len(labels), dtype=bool, device=labels.device))
 
-        # Negative mask: different identity
         neg_mask = (labels.unsqueeze(0) != labels.unsqueeze(1))
 
-        # For each anchor, find nearest positive distance
         min_pos_dist = torch.full((len(labels),), float('inf'), device=labels.device)
         for i in range(len(labels)):
             pos_dists = dist_matrix[i][pos_mask[i]]
             if len(pos_dists) > 0:
                 min_pos_dist[i] = pos_dists.min()
 
-        # Semi-hard mask: d(a,p) < d(a,n) < d(a,p) + margin
         semi_hard_mask = neg_mask & \
                          (dist_matrix > min_pos_dist.unsqueeze(1)) & \
                          (dist_matrix < min_pos_dist.unsqueeze(1) + self.margin)
 
-        # Also accept easy negatives for stability
         easy_neg_mask = neg_mask & (dist_matrix >= min_pos_dist.unsqueeze(1) + self.margin)
 
         valid_mask = semi_hard_mask | easy_neg_mask
@@ -371,7 +300,7 @@ class TripletMarginLossWithMining(nn.Module):
             valid_negs = valid_mask[i]
             if valid_negs.any():
                 neg_dists = dist_matrix[i][valid_negs]
-                best_neg_dist = neg_dists.min()  # Hardest valid negative
+                best_neg_dist = neg_dists.min()
                 triplet_loss = torch.clamp(
                     best_neg_dist - min_pos_dist[i] + self.margin, min=0)
                 loss_sum += triplet_loss
@@ -379,26 +308,9 @@ class TripletMarginLossWithMining(nn.Module):
 
         triplet = loss_sum / count if count > 0 else torch.tensor(0.0, device=embeddings.device)
 
-        # Anti-collapse term: triplet loss only constrains RELATIVE
-        # distances (d(a,n) - d(a,p)), so shrinking the whole embedding
-        # space toward a single point can trivially satisfy the mined
-        # triplets without learning anything discriminative -- this is
-        # exactly what happened in an earlier run (all embeddings became
-        # bit-identical, loss froze at the margin value). Penalize the
-        # mean distance between DIFFERENT-identity embeddings in the
-        # batch if it drops below a floor, giving the optimizer a direct,
-        # constant counter-pressure against collapse that doesn't depend
-        # on getting weight_decay/lr exactly right.
         neg_dists_all = dist_matrix[neg_mask]
         if neg_dists_all.numel() > 0:
             mean_neg_dist = neg_dists_all.mean()
-            # Squared hinge, not linear: a linear penalty (collapse_weight=1.0)
-            # applies the same constant restoring force no matter how close
-            # to collapse the batch already is, and empirically wasn't
-            # enough to stop a slow full-epoch drift (0.22 at 400 steps ->
-            # 0.085 by epoch end). Squaring makes the restoring force grow
-            # the deeper the violation, which is the actual behavior needed
-            # to hold a floor rather than just slow the approach to it.
             collapse_penalty = torch.clamp(self.min_neg_dist - mean_neg_dist, min=0) ** 2
         else:
             collapse_penalty = torch.tensor(0.0, device=embeddings.device)
@@ -408,14 +320,12 @@ class TripletMarginLossWithMining(nn.Module):
     @staticmethod
     def _pdist(embeddings):
         """Pairwise Euclidean distance matrix."""
-        # For L2-normalized embeddings: ||a-b||^2 = 2 - 2*a.b
         dot = torch.mm(embeddings, embeddings.t())
         dist_sq = 2.0 - 2.0 * dot
         dist_sq = torch.clamp(dist_sq, min=0.0)
         return torch.sqrt(dist_sq + 1e-8)
 
 
-# ── TRAINING FUNCTIONS ───────────────────────────────────────────────────
 
 class PKSampler(torch.utils.data.Sampler):
     """
@@ -480,8 +390,6 @@ def create_dataloaders(batch_size=32):
 
     dataset = VGGFace2Dataset(EXTRACTED_PATH, transform=transform)
 
-    # Sample a fixed-size random subset (with replacement) per epoch rather
-    # than a full pass over all 749,553 images -- see EPOCH_SIZE.
     sampler = torch.utils.data.RandomSampler(
         dataset, replacement=True, num_samples=EPOCH_SIZE)
 
@@ -553,11 +461,6 @@ def save_checkpoint(model, classifier, optimizer, epoch, loss, path):
     }, path)
     print(f"    Saved: {path} (epoch {epoch}, loss={loss:.4f})")
 
-    # Prune old checkpoints -- disk is only ~9-13GB free and each checkpoint
-    # is ~1.2GB (97.5M backbone + 9.8M classifier + Adam state for both).
-    # Keep the 3 most recent epoch_*.pt files only. Milestone snapshots
-    # (see save_milestone) use a different filename prefix on purpose, so
-    # this glob never touches them.
     ckpt_dir = os.path.dirname(path)
     epoch_ckpts = sorted(
         (f for f in os.listdir(ckpt_dir) if f.startswith("epoch_") and f.endswith(".pt")),
@@ -597,7 +500,6 @@ def load_checkpoint(model, classifier, optimizer, path):
     return ckpt['epoch'], ckpt['loss']
 
 
-# ── COLLAPSE DETECTION ───────────────────────────────────────────────────
 
 def build_collapse_probe(device, n=8):
     """
@@ -654,7 +556,6 @@ def check_collapse(model, probe_batch):
     return mean_dist
 
 
-# ── MAIN ──────────────────────────────────────────────────────────────────
 
 def main():
     print("=" * 60)
@@ -665,13 +566,11 @@ def main():
     print(f"  Epochs: {NUM_EPOCHS}, Batch: {BATCH_SIZE}, LR: {LEARNING_RATE}")
     print("=" * 60)
 
-    # Verify extracted faces
     if not os.path.isdir(EXTRACTED_PATH):
         print(f"\nERROR: Extracted faces not found at {EXTRACTED_PATH}")
         print("Run extract_faces.py first.")
         sys.exit(1)
 
-    # Init device, model, optimizer
     device = torch.device(DEVICE)
     print(f"\nDevice: {device}\n")
 
@@ -684,36 +583,14 @@ def main():
     dataloader, num_identities = create_dataloaders(BATCH_SIZE)
     print(f"  {num_identities:,} identities\n")
 
-    # Classification head: Linear(512, num_identities), no bias, applied to
-    # the L2-normalized embedding and scaled before softmax (standard
-    # cosine-similarity classification, ArcFace/CosFace-style without the
-    # angular margin term). Chosen over the triplet loss this pipeline
-    # started with because triplet loss only constrains RELATIVE distances
-    # (d(a,n) - d(a,p)) -- collapsing every embedding to the same point can
-    # trivially satisfy whatever triplets get mined without learning
-    # anything discriminative, and that's what happened in three separate
-    # attempts (plain triplet, triplet + linear anti-collapse penalty,
-    # triplet + squared anti-collapse penalty -- see TRAINING_LOG.md).
-    # Cross-entropy classification doesn't have that degenerate optimum:
-    # if all embeddings were identical, a single embedding could not
-    # simultaneously classify correctly as up to 19,203 different
-    # identities, so collapse is catastrophic for the loss, not
-    # accidentally close to optimal.
     classifier = nn.Linear(512, num_identities, bias=False).to(device)
-    SCALE = 30.0  # standard ArcFace/CosFace temperature; raw cosine sims
-                  # are bounded in [-1,1], too narrow a range for useful
-                  # cross-entropy gradients without it.
+    SCALE = 30.0
 
-    # weight_decay=0: every conv here feeds directly into BatchNorm, which
-    # makes the loss scale-invariant to those weights, so L2 decay has no
-    # restoring force and silently collapses them toward zero over enough
-    # steps. See CustomCNN docstring -- this exact bug killed a prior run.
     optimizer = optim.Adam(
         list(model.parameters()) + list(classifier.parameters()),
         lr=LEARNING_RATE, weight_decay=0)
     criterion = nn.CrossEntropyLoss()
 
-    # Check for existing checkpoint
     latest_ckpt = os.path.join(CHECKPOINT_DIR, "latest.pt")
     start_epoch = 0
 
@@ -724,22 +601,6 @@ def main():
     else:
         print("\nStarting training from scratch.")
 
-    # Cosine LR decay: 1e-4 -> 1e-6 over epochs 1-40. A flat LR makes good
-    # early progress but tends to plateau once the model needs finer
-    # adjustments than a fixed step size allows; decaying it lets later
-    # epochs actually settle into a better solution instead of oscillating
-    # around one. On resume, fast-forward via manual .step() calls rather
-    # than constructing with last_epoch=start_epoch directly -- the latter
-    # requires the optimizer's param_groups to already carry an
-    # 'initial_lr' key from a previous scheduler, which a freshly
-    # recreated optimizer doesn't have (raises KeyError otherwise).
-    #
-    # Epochs 41-60 (WARM_RESTART_EPOCH) get a SEPARATE, fresh cosine cycle
-    # instead of continuing the same one: CosineAnnealingLR's formula is
-    # periodic, so stepping it past its own T_max makes LR climb back up
-    # toward the original 1e-4 rather than staying near the floor it
-    # reached -- resuming the *same* scheduler object past epoch 40 would
-    # silently undo the whole point of decaying it in the first place.
     if start_epoch >= WARM_RESTART_EPOCH:
         for g in optimizer.param_groups:
             g['lr'] = WARM_RESTART_LR
@@ -753,7 +614,6 @@ def main():
         for _ in range(start_epoch):
             scheduler.step()
 
-    # Training loop
     print(f"\n{'─'*60}")
     print(f"Training for {NUM_EPOCHS} epochs (epochs {start_epoch+1}-{NUM_EPOCHS})")
     print(f"{'─'*60}")
@@ -771,18 +631,15 @@ def main():
         current_lr = optimizer.param_groups[0]['lr']
         scheduler.step()
 
-        # Save checkpoint every SAVE_INTERVAL epochs
         if epoch % SAVE_INTERVAL == 0:
             ckpt_path = os.path.join(CHECKPOINT_DIR, f"epoch_{epoch}.pt")
             save_checkpoint(model, classifier, optimizer, epoch, train_loss, ckpt_path)
 
-            # Update latest symlink
             if os.path.islink(latest_ckpt) or not os.path.exists(latest_ckpt):
                 if os.path.exists(latest_ckpt):
                     os.remove(latest_ckpt)
                 os.symlink(ckpt_path, latest_ckpt)
 
-        # Permanent milestones at round-number epochs -- never pruned.
         if epoch in (10, 20, 30, 40, 50, 60):
             milestone_path = os.path.join(CHECKPOINT_DIR, f"milestone_epoch_{epoch}.pt")
             save_milestone(model, classifier, epoch, train_loss, milestone_path)
@@ -796,9 +653,6 @@ def main():
               f"Time: {elapsed/60:.1f}min | Best: {best_loss:.4f} {status} | "
               f"ProbeDist: {probe_dist:.4f} | LR: {current_lr:.2e}")
 
-        # Different real identities should embed far apart. If they don't,
-        # the embedding space has collapsed to a near-constant output --
-        # abort now instead of burning hours on a dead model.
         if probe_dist < 0.02:
             low_diversity_streak += 1
         else:
@@ -817,7 +671,6 @@ def main():
     print(f"  Best loss: {best_loss:.4f}")
     print(f"{'='*60}")
 
-    # Save final pre-trained model
     final_path = os.path.join(CHECKPOINT_DIR, "vggface2_pretrained.pt")
     torch.save(model.state_dict(), final_path)
     print(f"  Final model: {final_path}")

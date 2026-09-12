@@ -4,9 +4,6 @@ import { Copy } from 'lucide-react';
 import type { Person, PersonStatus, PersonType } from '../services/person.service';
 import type { TFunction } from 'i18next';
 
-// Status colour carries meaning and must stay consistent across every surface:
-// grey = not enrolled yet, green = normal, amber = temporarily barred,
-// red = identity retired.
 const STATUS_VARIANT: Record<PersonStatus, 'default' | 'secondary' | 'destructive' | 'outline'> = {
   invited: 'secondary',
   enrolling: 'secondary',
@@ -24,7 +21,6 @@ const STATUS_CLASS: Record<PersonStatus, string> = {
 };
 
 function shortDid(did: string) {
-  // did:ethr:sep:0x1f2e…9a00 — enough to eyeball, short enough for a cell
   const tail = did.slice(-6);
   const head = did.length > 26 ? did.slice(0, 20) : did;
   return `${head}…${tail}`;
@@ -75,8 +71,6 @@ export function makeColumns(t: TFunction): ColumnDef<Person>[] {
       header: t('person.columns.did'),
       cell: ({ row }) => {
         const did = row.original.did;
-        // An em-dash rather than an empty cell: "not enrolled yet" is a real
-        // state an admin needs to spot, not missing data.
         if (!did) return <span className="text-muted-foreground">—</span>;
         return (
           <button

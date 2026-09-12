@@ -8,21 +8,9 @@ import { storage } from './storage';
 
 const INPUT_SIZE = 105;
 const EMBEDDING_DIM = 512;
-// Fraction of the longer box side added around the detected face before
-// cropping. 0.15 is not a taste call — it is the exact margin extract_faces.py
-// used to build the VGGFace2 training crops, and the model only ever saw faces
-// framed this way. Changing it changes the input distribution.
 const FACE_MARGIN = 0.15;
-// ImageNet normalization — must match the preprocessing used during training
 const MEAN = [0.485, 0.456, 0.406];
 const STD = [0.229, 0.224, 0.225];
-// Cosine similarity threshold (embeddings are L2-normalized, so dot product = cosine sim).
-// 0.5 matches the threshold used in evaluate.py.
-/**
- * The on-device match threshold, exported so the UI can show a score against
- * the number it is actually judged by. Keep it in step with the backend's
- * ACCESS_FACE_THRESHOLD — the server re-checks and is the real gate.
- */
 export const SIMILARITY_THRESHOLD = 0.7;
 
 const MODEL_FILENAME = 'siamese_epoch50_int8.onnx';
@@ -32,26 +20,11 @@ let _ortPromise: Promise<typeof OrtNS> | null = null;
 let _faceDetector: FaceNS.ImageFaceDetector | null = null;
 let _facePromise: Promise<typeof FaceNS> | null = null;
 
-/**
- * Loaded lazily on purpose. onnxruntime-react-native's binding.js runs
- * `NativeModules.Onnxruntime.install()` at module scope with no null guard, and
- * on Android that module is currently not exposed to JS — so a static import
- * takes the entire app down at startup, since the route graph pulls this file
- * in. Deferring it confines the failure to the face-recognition path and lets
- * the rest of the app run.
- */
 function loadOrt(): Promise<typeof OrtNS> {
   if (!_ortPromise) _ortPromise = import('onnxruntime-react-native');
   return _ortPromise;
 }
 
-/**
- * The still-image face detector, loaded lazily for the same reason as
- * onnxruntime above: it is a native module and this file sits in the route
- * graph, so a failure at module scope would take down screens that never touch
- * face recognition. Built once and reused — construction spins up an ML Kit
- * detector, which is not something to repeat per capture.
- */
 async function getFaceDetector(): Promise<FaceNS.ImageFaceDetector> {
   if (_faceDetector) return _faceDetector;
   if (!_facePromise) _facePromise = import('react-native-vision-camera-face-detector');
@@ -60,15 +33,6 @@ async function getFaceDetector(): Promise<FaceNS.ImageFaceDetector> {
   return _faceDetector;
 }
 
-/**
- * Resolve the model to something onnxruntime can open. It is shipped as a native
- * resource on both platforms by the withOnnxModel config plugin.
- *
- * On iOS bundleDirectory is the .app bundle root, so the model is already a real
- * file on disk. On Android bundleDirectory is 'asset:///' — a handle into the
- * compressed APK rather than a path — and onnxruntime is native code that can
- * only fopen() a real file, so the model has to be unpacked once on first run.
- */
 async function resolveModelPath(): Promise<string> {
   const bundled = FileSystem.bundleDirectory + MODEL_FILENAME;
   if (Platform.OS !== 'android') return bundled;
@@ -77,8 +41,6 @@ async function resolveModelPath(): Promise<string> {
   const existing = await FileSystem.getInfoAsync(unpacked);
   if (existing.exists && existing.size > 0) return unpacked;
 
-  // Unpack via a staging file and rename into place, so a first launch that is
-  // interrupted mid-copy can't leave a truncated model that looks valid later.
   const staging = `${unpacked}.partial`;
   await FileSystem.deleteAsync(staging, { idempotent: true });
   await FileSystem.copyAsync({ from: bundled, to: staging });
@@ -93,27 +55,12 @@ async function getSession(): Promise<OrtNS.InferenceSession> {
   if (!info.exists) {
     throw new Error(`Model not found at: ${modelPath}`);
   }
-  // onnxruntime-react-native expects a plain file path, not a file:// URI
   const plainPath = modelPath.replace('file://', '');
   const ort = await loadOrt();
   _session = await ort.InferenceSession.create(plainPath);
   return _session;
 }
 
-/**
- * Locate the face in a still image and return the crop rectangle to feed the
- * model, in that image's own pixel coordinates.
- *
- * WHY DETECT AGAIN, when CameraCapture already runs a detector: that one is a
- * frame processor over the live preview, so its boxes are in preview
- * coordinates. The photo capturePhotoToFile() writes is a separate image at a
- * different resolution and possibly a different aspect ratio, so preview boxes
- * cannot be applied to it without a mapping that would silently drift whenever
- * either resolution changed. Detecting on the file itself needs no mapping.
- *
- * Runs in 'accurate' mode: this executes once per capture, not per preview
- * frame, so the cost is paid once and the box is the one the crop depends on.
- */
 async function faceCropRect(uri: string) {
   const detector = await getFaceDetector();
   const faces = detector.detectFaces(uri);
@@ -121,8 +68,6 @@ async function faceCropRect(uri: string) {
     throw new Error('No face detected — center your face in the frame and try again');
   }
 
-  // Largest box wins, matching extract_faces.py. With someone in the
-  // background, the enrolled face should be the one closest to the camera.
   let best = faces[0];
   for (const f of faces) {
     if (f.bounds.width * f.bounds.height > best.bounds.width * best.bounds.height) best = f;
@@ -132,8 +77,6 @@ async function faceCropRect(uri: string) {
   const margin = Math.max(width, height) * FACE_MARGIN;
   const originX = Math.max(0, Math.round(x - margin));
   const originY = Math.max(0, Math.round(y - margin));
-  // Clamp against the frame the detector measured, so a face near an edge
-  // yields a smaller crop rather than a rectangle running off the image.
   const endX = Math.min(best.frameWidth, Math.round(x + width + margin));
   const endY = Math.min(best.frameHeight, Math.round(y + height + margin));
 
@@ -141,10 +84,6 @@ async function faceCropRect(uri: string) {
 }
 
 async function preprocessImage(uri: string): Promise<Float32Array> {
-  // Crop to the face, then resize to 105×105 — one pass, so no intermediate
-  // file is written. Both steps must happen for every embedding: cropping only
-  // at registration and not at verification would compare a face against a
-  // whole frame, and the two are not in the same input distribution.
   const crop = await faceCropRect(uri);
   const resized = await ImageManipulator.manipulateAsync(
     uri,
@@ -152,22 +91,19 @@ async function preprocessImage(uri: string): Promise<Float32Array> {
     { format: ImageManipulator.SaveFormat.JPEG, base64: true }
   );
 
-  // Decode base64 → Uint8Array
   const binaryStr = atob(resized.base64!);
   const jpegBytes = new Uint8Array(binaryStr.length);
   for (let i = 0; i < binaryStr.length; i++) {
     jpegBytes[i] = binaryStr.charCodeAt(i);
   }
 
-  // Decode JPEG → RGBA pixel data
   const decoded = jpeg.decode(jpegBytes, { useTArray: true });
-  const { data } = decoded; // Uint8Array, RGBA, INPUT_SIZE * INPUT_SIZE * 4 bytes
+  const { data } = decoded;
 
-  // Convert RGBA to CHW Float32 with ImageNet normalization
   const tensor = new Float32Array(3 * INPUT_SIZE * INPUT_SIZE);
   for (let y = 0; y < INPUT_SIZE; y++) {
     for (let x = 0; x < INPUT_SIZE; x++) {
-      const src = (y * INPUT_SIZE + x) * 4; // RGBA offset
+      const src = (y * INPUT_SIZE + x) * 4;
       for (let c = 0; c < 3; c++) {
         tensor[c * INPUT_SIZE * INPUT_SIZE + y * INPUT_SIZE + x] =
           (data[src + c] / 255.0 - MEAN[c]) / STD[c];
@@ -183,7 +119,7 @@ async function embed(uri: string): Promise<Float32Array> {
   const ort = await loadOrt();
   const inputTensor = new ort.Tensor('float32', pixels, [1, 3, INPUT_SIZE, INPUT_SIZE]);
   const output = await sess.run({ image: inputTensor });
-  return output['embedding'].data as Float32Array; // 512-dim L2-normalized
+  return output['embedding'].data as Float32Array;
 }
 
 function dotProduct(a: Float32Array, b: Float32Array): number {
@@ -230,9 +166,6 @@ export async function verifyFaceFromUri(uri: string): Promise<FaceScanResult> {
   }
   const refEmbedding = base64ToEmbedding(refB64);
 
-  // A missed detection is a normal outcome here, not a crash: report it as its
-  // own reason so the user is told to reframe, rather than being shown a low
-  // similarity score for a photo the model never properly received.
   let liveEmbedding: Float32Array;
   try {
     liveEmbedding = await embed(uri);

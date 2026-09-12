@@ -1,14 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildCommand, type LockDevice } from './lockService';
 
-/**
- * The profile table, asserted shape by shape.
- *
- * This is the one place where a typo means a door that never opens and no test
- * anywhere else would notice: the access decision succeeds, the event is
- * recorded, the broker accepts the publish, and the relay simply never hears a
- * topic it subscribes to. Pure function, no broker, so it is cheap to pin.
- */
 const lock = (over: Partial<LockDevice> = {}): LockDevice => ({
   id: 1,
   name: 'Test lock',
@@ -29,7 +21,6 @@ describe('lock profiles', () => {
     const cmd = buildCommand(null, 'doors/front-01/cmd', ctx);
     expect(cmd.profile).toBe('native_json');
     expect(cmd.topic).toBe('doors/front-01/cmd');
-    // Firmware written for this system releases itself from `hold_seconds`.
     expect(cmd.release).toBeNull();
     const payload = JSON.parse(cmd.payload);
     expect(payload).toMatchObject({
@@ -38,7 +29,6 @@ describe('lock profiles', () => {
   });
 
   it('prefers the device address over the door topic', () => {
-    // A lock moved to another door carries its own addressing with it.
     const cmd = buildCommand(lock({ lock_profile: 'native_json' }), 'doors/front-01/cmd', ctx);
     expect(cmd.topic).toBe('plug-front');
   });
@@ -91,8 +81,6 @@ describe('lock profiles', () => {
   });
 
   it('never guesses a release for a custom lock with none configured', () => {
-    // A guessed payload at a lock nobody described could latch the door open
-    // rather than close it, which is worse than sending nothing.
     const cmd = buildCommand(
       lock({ lock_profile: 'custom', command_topic: 'site/gate/cmd', unlock_payload: 'OPEN' }),
       'x', ctx,

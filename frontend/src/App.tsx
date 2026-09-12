@@ -36,7 +36,6 @@ function AppRoutes() {
                     <Route path="/docs" element={<Docs />} />
                     <Route element={<ProtectedRoute />}>
                         <Route path="/" element={<MainLayout />}>
-                            {/* primary nav routes */}
                             <Route index element={<Dashboard />} />
             {/* gt:buildings-routes */}
             <Route path="/doors" element={<Doors />} />
@@ -52,7 +51,6 @@ function AppRoutes() {
             <Route path="/devices" element={<Devices />} />
             {/* gt:nav-routes */}
 
-                            {/* secondary nav routes */}
                             <Route path="users" element={<Users />} />
                             <Route path="audit-logs" element={<AuditLogs />} />
                             {/* gt:secondary-routes */}

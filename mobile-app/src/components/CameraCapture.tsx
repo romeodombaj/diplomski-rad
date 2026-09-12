@@ -15,7 +15,6 @@ import { BlinkLivenessDetector, type LivenessStage } from '@/lib/liveness';
 type Props = {
   visible: boolean;
   mode: 'register' | 'scan';
-  /** Require a confirmed blink (liveness check) before the shutter can be used. Only meaningful for mode 'scan'. */
   requireLiveness?: boolean;
   onCapture: (uri: string) => void;
   onCancel: () => void;
@@ -28,12 +27,6 @@ export function CameraCapture({ visible, mode, requireLiveness, onCapture, onCan
   const device = useCameraDevice('front');
   const photoOutput = usePhotoOutput({ quality: 0.9 });
 
-  // Two separate things that used to share one flag. `livenessActive` gates the
-  // blink requirement; `detectorActive` gates whether the detector runs at all.
-  // Detection is now always on, including registration: the enrolment photo
-  // becomes the stored vector every later scan is compared against, so a frame
-  // with no face in it is the single most damaging thing to let through, and it
-  // is also the mode that previously had no detection under any setting.
   const livenessActive = mode === 'scan' && !!requireLiveness;
   const detectorActive = visible;
   const livenessDetector = useRef(new BlinkLivenessDetector());
@@ -52,23 +45,15 @@ export function CameraCapture({ visible, mode, requireLiveness, onCapture, onCan
     }
   }, [visible, mode]);
 
-  // Runs on the JS thread — no worklet/runOnJS needed, this hook bridges natively.
   const faceDetectorOutput = useFaceDetectorOutput({
     performanceMode: 'fast',
     runClassifications: true,
     onFacesDetected(faces) {
       const face = faces[0];
-      // Same re-render discipline as the stage below: faces arrive ~30x a
-      // second, so only touch state when the answer actually flips.
       setFaceSeen((prev) => (prev === !!face ? prev : !!face));
       if (!face) return;
       if (!livenessActive) return;
       livenessDetector.current.update(face.leftEyeOpenProbability ?? 0, face.rightEyeOpenProbability ?? 0);
-      // Only re-render when the stage actually moves. Faces arrive ~30x a
-      // second and there are three stages in a whole scan, so setting state
-      // unconditionally re-rendered the screen on every frame — see the note on
-      // stableFaceOutput below for why that was catastrophic rather than merely
-      // wasteful.
       const next = livenessDetector.current.stage;
       setLivenessStage((prev) => (prev === next ? prev : next));
     },
@@ -77,33 +62,13 @@ export function CameraCapture({ visible, mode, requireLiveness, onCapture, onCan
     },
   });
 
-  /**
-   * Pin the first face-detector output for the life of the component.
-   *
-   * `useFaceDetectorOutput` memoises on `[options]`, but builds `options` with
-   * a rest spread — a fresh object every render — so the memo never hits and
-   * the hook creates a NEW native output on every render. Handing that to
-   * <Camera> changes the outputs prop identity, which reconfigures the capture
-   * session; with a re-render per frame that is a session reconfiguration per
-   * frame, which is the stutter that made liveness unusable.
-   *
-   * Pinning the first instance is safe because the library routes both
-   * callbacks through refs it keeps current, so the original output still
-   * invokes the latest closure.
-   */
   const stableFaceOutput = useRef(faceDetectorOutput).current;
 
-  // Only attach the face detector output while a liveness check is actually required,
-  // so the toggle being off costs nothing extra. Memoised for the same reason as
-  // above: a new array each render is a new prop identity for <Camera>.
   const outputs = useMemo(
     () => (detectorActive ? [photoOutput, stableFaceOutput] : [photoOutput]),
     [detectorActive, photoOutput, stableFaceOutput],
   );
 
-  // Requiring a face before the shutter works means faceGate's crop has
-  // something to find. Without it the capture succeeds and the failure surfaces
-  // later as an unexplained low score, which is a worse thing to show someone.
   const canCapture =
     !capturing && faceSeen && (!livenessActive || livenessStage === 'confirmed');
 
@@ -119,8 +84,6 @@ export function CameraCapture({ visible, mode, requireLiveness, onCapture, onCan
   }
 
   const title = mode === 'register' ? 'Register your face' : 'Scan your face';
-  // "No face yet" outranks every other hint: until the detector sees one the
-  // shutter is disabled, so that is the thing the person needs to fix first.
   const hint = !faceSeen
     ? 'No face detected — center your face in the frame'
     : mode === 'register'
@@ -156,13 +119,11 @@ export function CameraCapture({ visible, mode, requireLiveness, onCapture, onCan
               outputs={outputs}
             />
 
-            {/* Header */}
             <View style={styles.header}>
               <Text style={styles.title}>{title}</Text>
               <Text style={styles.hint}>{hint}</Text>
             </View>
 
-            {/* Face oval guide */}
             <View style={styles.ovalWrapper} pointerEvents="none">
               <View
                 style={[
@@ -172,7 +133,6 @@ export function CameraCapture({ visible, mode, requireLiveness, onCapture, onCan
               />
             </View>
 
-            {/* Bottom controls */}
             <View style={styles.footer}>
               <Pressable style={styles.cancelBtn} onPress={onCancel}>
                 <Text style={styles.whiteText}>Cancel</Text>
@@ -192,7 +152,6 @@ export function CameraCapture({ visible, mode, requireLiveness, onCapture, onCan
                   : <View style={styles.shutterInner} />}
               </Pressable>
 
-              {/* spacer to balance layout */}
               <View style={styles.cancelBtn} />
             </View>
           </>

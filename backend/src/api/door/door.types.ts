@@ -5,11 +5,6 @@ export interface Door {
   door_code: string;
   mqtt_topic: string;
   active: boolean;
-  /**
-   * Hard lock on this one door. Deliberately separate from `active`: inactive
-   * is administrative (out of service, under repair), locked down is a
-   * security action, and an audit has to tell the two apart afterwards.
-   */
   locked_down: boolean;
   locked_down_at: string | null;
   created_at: string;

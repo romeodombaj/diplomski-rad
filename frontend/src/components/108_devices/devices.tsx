@@ -14,7 +14,6 @@ import { DeviceService, type Device } from './services/device.service';
 import DeviceForm from './device/DeviceForm';
 import ScanDialog from './components/ScanDialog';
 
-/** Colour by role, so the inventory reads at a glance. */
 const KIND_VARIANT: Record<string, 'default' | 'secondary' | 'outline'> = {
   beacon: 'default',
   indicator: 'secondary',

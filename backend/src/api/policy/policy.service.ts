@@ -1,17 +1,3 @@
-/**
- * Compiles authoring intent into on-chain policies, and keeps the record of
- * which decision produced which policy.
- *
- * Before this, `chainService.grantAccess` existed but nothing called it. With
- * the chain enabled that meant `hasAccess` was false for everybody and every
- * access request was denied `not_authorized` — the only way to open a door was
- * a hardhat console. This is the missing half.
- *
- * Design constraints come from the contract and are not negotiable here (see
- * specs/06_access_control.md section 1): one flat (did, doorCode) pair per
- * policy, so "Engineering can open 6 doors" is six on-chain rows per person,
- * and granting a group is N transactions rather than one write.
- */
 import db from '../../db';
 import logger from '../../lib/logger';
 import * as chain from '../../services/chainService';
@@ -21,7 +7,6 @@ import type { MirrorRow, SyncStatus, GrantSource } from './policy.types';
 
 const now = () => new Date().toISOString();
 
-/** How many times a failed chain write is retried before it needs a human. */
 const MAX_ATTEMPTS = 5;
 
 export const getSchedule = async (id: number | null): Promise<Schedule | null> => {
@@ -30,7 +15,6 @@ export const getSchedule = async (id: number | null): Promise<Schedule | null> =
   return row ?? null;
 };
 
-// ── Authoring: direct grants ────────────────────────────────────────────────
 
 export interface GrantInput {
   personId: string;
@@ -45,11 +29,6 @@ export type GrantOutcome =
   | { ok: false; reason: 'person_not_found' | 'door_not_found' | 'no_did' | 'door_not_in_scope' | 'already_granted' }
   | { ok: true; mirror: MirrorRow };
 
-/**
- * Author a one-off grant. Returns immediately with a `pending` row — the chain
- * write happens in the sync pass, because Sepolia is seconds-to-minutes and can
- * stall, and an admin action must not block on a block.
- */
 export async function grantDirect(
   buildingId: number,
   input: GrantInput,
@@ -64,9 +43,6 @@ export async function grantDirect(
   const door = await db('doors').where({ id: input.doorId }).whereNull('deleted_at').first();
   if (!door) return { ok: false, reason: 'door_not_found' };
 
-  // A grant may only name a door in a building the person actually belongs to,
-  // for the same reason the access path checks it: a credential from one site
-  // must not reach another.
   const attached = await db('person_buildings')
     .where({ person_id: person.id, building_id: door.building_id })
     .first();
@@ -100,14 +76,7 @@ export async function grantDirect(
   return { ok: true, mirror: (await db('access_policy_mirror').where({ id }).first()) as MirrorRow };
 }
 
-// ── Authoring: groups ───────────────────────────────────────────────────────
 
-/**
- * Attach a person to a group and compile it: one mirror row per door in the
- * group. Idempotent on (person, door, group), so a retried assignment cannot
- * double-grant — a duplicate on-chain policy is harmless for `hasAccess` but
- * makes revocation incomplete, and the mirror must never miss one.
- */
 export async function assignGroup(
   buildingId: number,
   personId: string,
@@ -141,9 +110,6 @@ export async function assignGroup(
       .ignore();
 
     for (const door of doors) {
-      // Checked explicitly rather than relying on what onConflict().ignore()
-      // returns: the driver reports a row either way, so counting its result
-      // would report every re-assignment as new work.
       const already = await trx('access_policy_mirror')
         .where({ person_id: personId, door_id: door.door_id, source_group_id: groupId })
         .first();
@@ -174,7 +140,6 @@ export async function assignGroup(
   return { ok: true, created };
 }
 
-/** Detach a person from a group and mark that group's rows for revocation. */
 export async function unassignGroup(
   buildingId: number,
   personId: string,
@@ -193,7 +158,6 @@ export async function unassignGroup(
   return { revoking: rows.length };
 }
 
-/** Mark one mirror row for revocation. */
 export async function revokeMirror(id: number): Promise<MirrorRow | undefined> {
   await db('access_policy_mirror')
     .where({ id })
@@ -202,12 +166,6 @@ export async function revokeMirror(id: number): Promise<MirrorRow | undefined> {
   return db('access_policy_mirror').where({ id }).first();
 }
 
-/**
- * Mark every policy a person holds for revocation. Used on offboard, where the
- * order matters: revoke policies first, then add the DID to the revocation
- * list. Both are belt and braces; the revocation list is the one that must
- * succeed.
- */
 export async function revokeAllForPerson(personId: string): Promise<number> {
   const rows = await db('access_policy_mirror')
     .where({ person_id: personId })
@@ -218,7 +176,6 @@ export async function revokeAllForPerson(personId: string): Promise<number> {
   return rows.length;
 }
 
-// ── Sync: push the mirror to the chain ──────────────────────────────────────
 
 export interface SyncReport {
   granted: number;
@@ -227,13 +184,6 @@ export interface SyncReport {
   skipped: boolean;
 }
 
-/**
- * Push pending grants and revocations to the chain.
- *
- * Safe to call concurrently with itself only in the sense that chainService
- * serialises the writes; the row-level `attempts` bound stops a permanently
- * failing policy from being retried forever.
- */
 export async function syncPending(limit = 25): Promise<SyncReport> {
   const report: SyncReport = { granted: 0, revoked: 0, failed: 0, skipped: false };
   if (!chain.isEnabled()) {
@@ -307,15 +257,6 @@ async function markFailed(row: MirrorRow, err: Error) {
   });
 }
 
-/**
- * Revoke a policy on chain.
- *
- * Deliberately does NOT trust `chain_policy_id` alone. A grant that failed
- * after the transaction landed, or a duplicate written by an earlier bug,
- * leaves policies the mirror does not know about — so this re-reads the DID's
- * on-chain policies and revokes every active one matching the door. Failing
- * open on revoke is a security bug; failing closed is not.
- */
 async function revokeOnChain(row: MirrorRow): Promise<void> {
   const onChain = await chain.getPoliciesForDID(row.did);
   const targets = onChain.filter((p) => p.active && p.doorCode === row.door_code);
@@ -331,7 +272,6 @@ async function revokeOnChain(row: MirrorRow): Promise<void> {
   }
 }
 
-// ── Reconciliation ──────────────────────────────────────────────────────────
 
 export interface ReconcileReport {
   checked: number;
@@ -341,14 +281,6 @@ export interface ReconcileReport {
   skipped: boolean;
 }
 
-/**
- * Diff the chain against the mirror.
- *
- * The interesting case is "on chain, not in the mirror": someone granted access
- * outside the dashboard. That is the tampering signal the whole system exists
- * to catch, so it is recorded at high severity and never auto-deleted — the
- * point is that a human sees it.
- */
 export async function reconcile(buildingId: number): Promise<ReconcileReport> {
   const report: ReconcileReport = {
     checked: 0, unauthorised: 0, missingOnChain: 0, mismatched: 0, skipped: false,
@@ -409,7 +341,6 @@ export async function reconcile(buildingId: number): Promise<ReconcileReport> {
           mirror_id: row.id,
           detail: 'Recorded as synced but not active on chain. Re-queued.',
         });
-        // A failed grant, not tampering — put it back in the queue.
         await db('access_policy_mirror').where({ id: row.id }).update({
           sync_status: 'pending' as SyncStatus, attempts: 0, updated_at: now(),
         });
@@ -428,7 +359,6 @@ async function recordDrift(
     chain_policy_id?: string; mirror_id?: number; detail: string;
   },
 ) {
-  // Do not re-raise an unresolved finding on every hourly pass.
   const open = await db('access_policy_drift')
     .where({
       building_id: buildingId, kind: d.kind,
@@ -462,10 +392,8 @@ export const resolveDrift = async (buildingId: number, id: number) =>
     .where({ id, building_id: buildingId })
     .update({ resolved_at: now(), updated_at: now() });
 
-// ── Effective access ────────────────────────────────────────────────────────
 
 export interface EffectiveAccessRow {
-  /** The mirror row id — what a revoke targets. */
   id: number;
   door_id: number;
   door_code: string;
@@ -479,13 +407,6 @@ export interface EffectiveAccessRow {
   open_now: boolean;
 }
 
-/**
- * What can this person open, and why.
- *
- * Provenance is the point: "Ana can open the server room" is useless, "Ana can
- * open the server room via the Engineering group" is actionable, because it
- * tells the admin what to change.
- */
 export async function effectiveAccess(personId: string): Promise<EffectiveAccessRow[]> {
   const rows = await db('access_policy_mirror as m')
     .where('m.person_id', personId)
@@ -528,10 +449,6 @@ export async function effectiveAccess(personId: string): Promise<EffectiveAccess
   return out;
 }
 
-/**
- * The inverse: who can open this door. This is what a security review asks for,
- * and neither the group tables nor the chain answer it directly.
- */
 export async function whoHasAccess(doorId: number) {
   const rows = await db('access_policy_mirror as m')
     .where('m.door_id', doorId)

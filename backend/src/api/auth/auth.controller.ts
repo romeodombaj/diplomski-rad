@@ -222,7 +222,6 @@ export async function deleteBuilding(req: Request, res: Response, next: NextFunc
     const buildingId = Number(id);
     const { switchToBuildingId } = await authService.deleteBuilding(buildingId);
 
-    // If the deleted building was active, issue a new token for the fallback building
     if (req.user.buildingId === buildingId || req.user.buildingId === undefined) {
       if (switchToBuildingId) {
         const { accessToken, refreshToken } = await authService.switchBuilding(req.user.userId!, switchToBuildingId, req.user.role ?? 'user');
@@ -236,11 +235,6 @@ export async function deleteBuilding(req: Request, res: Response, next: NextFunc
   }
 }
 
-/**
- * POST /auth/totp-login
- * Authenticate with email/password + TOTP code (for mobile app).
- * Logs success/fail instead of returning 401.
- */
 export async function totpLogin(req: Request, res: Response, next: NextFunction) {
   try {
     const { email, password, totp } = req.body;
@@ -250,14 +244,12 @@ export async function totpLogin(req: Request, res: Response, next: NextFunction)
       return res.status(400).json({ error: 'Email, password, and TOTP code are required' });
     }
 
-    // Step 1: Validate credentials
     const userRecord = await db('users').where({ email }).whereNull('deleted_at').first();
     if (!userRecord) {
       console.log(`[Auth/TOTP] ❌ FAILED: User not found | email: ${email}`);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Verify password
     const validPassword = await authService.verifyPassword(password, userRecord.password_hash);
     if (!validPassword) {
       console.log(`[Auth/TOTP] ❌ FAILED: Invalid password | email: ${email}`);
@@ -266,7 +258,6 @@ export async function totpLogin(req: Request, res: Response, next: NextFunction)
 
     console.log(`[Auth/TOTP] ✅ Password valid | email: ${email} | user: ${userRecord.id}`);
 
-    // Step 2: Validate TOTP code
     const totpSecret = await db('totp_secrets')
       .where({ user_id: userRecord.id })
       .whereNull('deleted_at')
@@ -286,7 +277,6 @@ export async function totpLogin(req: Request, res: Response, next: NextFunction)
 
     console.log(`[Auth/TOTP] ✅ SUCCESS: TOTP valid | user: ${userRecord.id} | email: ${email} | code: ${totp}`);
 
-    // Step 3: Issue token
     const { accessToken, refreshToken } = await authService.createTokenPair(
       userRecord.id,
       userRecord.email,
@@ -311,11 +301,6 @@ export async function totpLogin(req: Request, res: Response, next: NextFunction)
   }
 }
 
-/**
- * POST /auth/totp-verify
- * Standalone TOTP verification (for mobile app door access).
- * Logs success/fail to console instead of returning 401.
- */
 export async function totpVerify(req: Request, res: Response, next: NextFunction) {
   try {
     const { code } = req.body;
@@ -325,7 +310,6 @@ export async function totpVerify(req: Request, res: Response, next: NextFunction
       return res.status(400).json({ error: 'A 6-digit code is required' });
     }
 
-    // Get the user from the Bearer token
     const token = req.headers.authorization?.replace('Bearer ', '');
     if (!token) {
       console.log('[Auth/TOTP] ❌ No authorization token');
@@ -342,7 +326,6 @@ export async function totpVerify(req: Request, res: Response, next: NextFunction
       return res.status(401).json({ error: 'Invalid or expired token' });
     }
 
-    // Validate the TOTP code
     const totpSecret = await db('totp_secrets')
       .where({ user_id: payload.userId })
       .whereNull('deleted_at')

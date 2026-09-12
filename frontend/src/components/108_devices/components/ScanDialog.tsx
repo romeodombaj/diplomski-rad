@@ -11,32 +11,18 @@ import { DeviceService, type DiscoveredDevice } from '../services/device.service
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Called with a topic the operator wants to register. */
   onAdd: (topic: string) => void;
 }
 
 const SCAN_SECONDS = 8;
 
-/**
- * Listen to the MQTT broker and show what is talking.
- *
- * Discovery is by traffic rather than by mDNS or a port scan: the broker is
- * already there, already reachable from the backend, and a device that
- * publishes tells you what it is in a way an open port never does. The
- * trade-off is that a silent device does not appear — hence "add manually"
- * remaining the way in for anything not yet on the broker.
- */
 export default function ScanDialog({ open, onOpenChange, onAdd }: Props) {
   const { t } = useTranslation();
   const [scanning, setScanning] = useState(false);
-  /** Seconds left in the current scan, so the dialog is visibly working. */
   const [remaining, setRemaining] = useState(SCAN_SECONDS);
   const [found, setFound] = useState<DiscoveredDevice[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Start scanning as soon as the dialog opens. Scanning is the only thing
-  // this dialog does, so making the operator press a second button to begin was
-  // a step that could only ever be answered one way.
   useEffect(() => {
     if (!open) {
       setFound(null);
@@ -44,13 +30,9 @@ export default function ScanDialog({ open, onOpenChange, onAdd }: Props) {
       return;
     }
     void run();
-    // run is stable enough for this: it closes over setters only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Tick the countdown while a scan runs. Driven off `scanning` rather than
-  // started inside run(), so the interval is cleaned up on unmount and cannot
-  // outlive a dialog the operator closed mid-scan.
   useEffect(() => {
     if (!scanning) return;
     setRemaining(SCAN_SECONDS);
@@ -125,13 +107,8 @@ export default function ScanDialog({ open, onOpenChange, onAdd }: Props) {
                   </div>
                 </div>
 
-                {/*
-                  One device usually means several topics. Showing the count and
-                  hiding the list keeps the row readable, but the list has to be
-                  reachable — it is the evidence that these really are one node,
-                  and an operator debugging a silent ring needs to see which of
-                  its topics actually arrived.
-                */}
+                {
+}
                 {d.topics.length > 1 && (
                   <details className="mt-1.5">
                     <summary className="cursor-pointer text-[11px] text-muted-foreground hover:text-foreground">

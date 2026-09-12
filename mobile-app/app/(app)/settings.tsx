@@ -28,11 +28,6 @@ export default function Settings() {
     refresh();
   }, []);
 
-  /**
-   * Wipe the identity. There is deliberately no "re-enrol" button any more: a
-   * device cannot mint itself a new credential, it can only discard the one it
-   * has and wait for an operator to issue a fresh enrolment code.
-   */
   function handleReset() {
     Alert.alert(
       'Reset this device?',
@@ -48,10 +43,6 @@ export default function Settings() {
             try {
               await resetEnrollment();
               await refresh();
-              // Go back to Access, which now has nothing to show but the
-              // enrolment form. Staying here left the previous screen still
-              // rendering doors and a TOTP code for a key that no longer
-              // exists, and the only way out was to restart the app.
               Alert.alert(
                 'Done',
                 'Device identity cleared. Ask for a new enrolment code.',

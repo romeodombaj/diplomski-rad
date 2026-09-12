@@ -51,14 +51,13 @@ import numpy as np
 from PIL import Image
 
 
-# ── CONFIG ────────────────────────────────────────────────────────────────
 PRETRAINED_PATH = "/home/b2/projects/zavrsni/face_recognition/training_checkpoints/vggface2_pretrained.pt"
 POSITIVE_DIR = "/home/b2/projects/zavrsni/face_recognition/data/positive"
 NEGATIVE_DIR = "/home/b2/projects/zavrsni/face_recognition/data/negative"
 
 BATCH_SIZE = 32
-NUM_EPOCHS = 50          # Fine-tuning needs more epochs (small dataset)
-LEARNING_RATE = 1e-4     # 10x lower than pretraining
+NUM_EPOCHS = 50
+LEARNING_RATE = 1e-4
 MARGIN = 0.2
 DROPOUT_RATE = 0.3
 SAVE_INTERVAL = 10
@@ -69,12 +68,9 @@ FREEZE_DENSE = False
 
 print(f"Device: {DEVICE}")
 if torch.cuda.is_available():
-    # MI50 (gfx906): bundled libMIOpen.so segfaults on this system's
-    # libstdc++ (ABI mismatch). Route conv2d through native/rocBLAS instead.
     torch.backends.cudnn.enabled = False
 
 
-# ── CUSTOM CNN (SAME AS PHASE 1) ─────────────────────────────────────────
 
 class CustomCNN(nn.Module):
     """Custom CNN for face embedding (Path C architecture, ~97.5M params).
@@ -149,7 +145,6 @@ class CustomCNN(nn.Module):
         return out
 
 
-# ── PERSONAL DATA DATASET ─────────────────────────────────────────────────
 
 class PersonalDataset(Dataset):
     """
@@ -189,12 +184,10 @@ class PersonalDataset(Dataset):
 
     def __getitem__(self, idx):
         """Build and return a single triplet."""
-        # Positive: same person, different photo
         pos_idx = np.random.randint(0, len(self.positive_files))
         while pos_idx == idx and len(self.positive_files) > 1:
             pos_idx = np.random.randint(0, len(self.positive_files))
 
-        # Negative: stranger
         neg_idx = np.random.randint(0, len(self.negative_files))
 
         return (self._load_image(os.path.join(self.positive_dir, self.positive_files[idx])),
@@ -202,7 +195,6 @@ class PersonalDataset(Dataset):
                 self._load_image(os.path.join(self.negative_dir, self.negative_files[neg_idx])))
 
 
-# ── LOSS ──────────────────────────────────────────────────────────────────
 
 class TripletLoss(nn.Module):
     """Simple triplet loss for fine-tuning.
@@ -220,7 +212,6 @@ class TripletLoss(nn.Module):
         return loss.mean()
 
 
-# ── TRAINING ──────────────────────────────────────────────────────────────
 
 def create_dataloader(pos_dir, neg_dir, batch_size=32):
     """Create DataLoader yielding triplets."""
@@ -262,7 +253,6 @@ def fine_tune_step(model, dataloader, optimizer, criterion, device):
     return total_loss / count if count > 0 else 0.0
 
 
-# ── MAIN ──────────────────────────────────────────────────────────────────
 
 def main():
     print("=" * 60)
@@ -274,7 +264,6 @@ def main():
     print(f"  Dense layers: {'FROZEN' if FREEZE_DENSE else 'TRAINABLE'}")
     print("=" * 60)
 
-    # Verify prerequisites
     if not os.path.exists(PRETRAINED_PATH):
         print(f"\nERROR: Pre-trained model not found at {PRETRAINED_PATH}")
         print("Run train_vggface2.py first.")
@@ -289,7 +278,6 @@ def main():
     device = torch.device(DEVICE)
     print(f"\nDevice: {device}\n")
 
-    # Load pre-trained model
     print("Loading Phase 1 pre-trained model...")
     model = CustomCNN(embedding_dim=512)
     model.load_state_dict(
@@ -297,7 +285,6 @@ def main():
     )
     model = model.to(device)
 
-    # Freeze/unfreeze as configured
     if FREEZE_CONV:
         for name, module in model.named_modules():
             if 'block' in name or 'res' in name:
@@ -328,7 +315,6 @@ def main():
     print("\nLoading personal dataset...")
     dataloader = create_dataloader(POSITIVE_DIR, NEGATIVE_DIR, BATCH_SIZE)
 
-    # Checkpointing
     CHECKPOINT_DIR = "/home/b2/projects/zavrsni/face_recognition/training_checkpoints"
     latest_ckpt = os.path.join(CHECKPOINT_DIR, "fine_tune_latest.pt")
     start_epoch = 0
@@ -342,7 +328,6 @@ def main():
     else:
         print("\nStarting fine-tuning from pre-trained model.")
 
-    # Training loop
     print(f"\n{'─'*60}")
     print(f"Fine-tuning for {NUM_EPOCHS} epochs")
     print(f"{'─'*60}")
@@ -380,7 +365,6 @@ def main():
     print(f"  Best loss: {best_loss:.4f}")
     print(f"{'='*60}")
 
-    # Save final model
     final_path = os.path.join(CHECKPOINT_DIR, "personal_finetuned.pt")
     torch.save(model.state_dict(), final_path)
     print(f"  Final model: {final_path}")

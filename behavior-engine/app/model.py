@@ -29,33 +29,20 @@ from .features import AccessEvent, to_matrix, to_vector
 
 log = logging.getLogger(__name__)
 
-# Below this, a "baseline" is noise. Scoring against three events would flag
-# almost anything, so the engine says "still learning" instead of guessing.
 MIN_EVENTS_TO_FIT = 20
 
-# Expected share of the training data that is anomalous. Left low on purpose:
-# the history is assumed to be mostly normal behaviour.
 CONTAMINATION = 0.05
 
-# Bumped whenever the meaning of a stored file changes. A model file is loaded
-# and scored against for weeks; reading an older one as if it were current is
-# how a baseline silently starts answering a different question. Version 2 adds
-# the descriptive baseline explanations are measured against, and follows the
-# switch to a process-stable door hash — a v1 file encodes doors under that
-# process's random salt, so it is not merely incomplete, it is wrong.
 BLOB_VERSION = 2
 
 
 @dataclass
 class Verdict:
-    anomaly_score: float          # 0..1, higher = more unusual
+    anomaly_score: float
     is_anomaly: bool
     reason: str
-    model_trained: bool           # False when there was no baseline to compare to
+    model_trained: bool
     events_in_baseline: int
-    # What drove the score, strongest first. Empty when there is no baseline to
-    # compare against — an unexplained number is reported as unexplained rather
-    # than dressed up.
     factors: list[Factor] = field(default_factory=list)
     baseline: profiles.Baseline | None = None
 
@@ -81,11 +68,9 @@ class ModelStore:
         self.directory = directory
         self.directory.mkdir(parents=True, exist_ok=True)
         self._cache: dict[str, Fitted] = {}
-        # FastAPI serves requests concurrently; fitting mutates the cache.
         self._lock = threading.Lock()
 
     def _path(self, person_id: str) -> Path:
-        # person_id is a UUID from the backend, but never trust it as a filename.
         safe = "".join(c for c in person_id if c.isalnum() or c in "-_")
         return self.directory / f"{safe}.joblib"
 
@@ -98,12 +83,9 @@ class ModelStore:
         forest = IsolationForest(
             n_estimators=100,
             contamination=CONTAMINATION,
-            random_state=42,   # reproducible: the same history gives the same model
+            random_state=42,
         )
         forest.fit(matrix)
-        # Fitted from the same events, in the same call: an explanation that
-        # described a different history than the forest was trained on would be
-        # worse than none.
         baseline = profiles.build(history)
 
         with self._lock:
@@ -127,9 +109,6 @@ class ModelStore:
         try:
             blob = joblib.load(path)
             if blob.get("v") != BLOB_VERSION:
-                # Refit rather than guess. The engine reports "no baseline yet",
-                # which is honest and self-healing: the next REFIT_EVERY events
-                # rebuild it under the current encoding.
                 log.warning(
                     "discarding model for %s: blob version %s, expected %s",
                     person_id, blob.get("v"), BLOB_VERSION,
@@ -139,7 +118,7 @@ class ModelStore:
             with self._lock:
                 self._cache[person_id] = entry
             return entry
-        except Exception as exc:  # a corrupt file must not take the service down
+        except Exception as exc:
             log.warning("could not load model for %s: %s", person_id, exc)
             return None
 
@@ -151,8 +130,6 @@ class ModelStore:
     ) -> Verdict:
         entry = self._load(person_id)
         if entry is None:
-            # Not an anomaly — an unknown. Reporting 0.0 rather than a guess
-            # keeps a new joiner from being flagged on their first day.
             return Verdict(
                 anomaly_score=0.0,
                 is_anomaly=False,
@@ -161,17 +138,9 @@ class ModelStore:
                 events_in_baseline=0,
             )
 
-        # Encoded against the fitted baseline's shares, not this event's own
-        # history: "how usual is this door for this person" is only meaningful
-        # relative to what the forest was trained on.
         row = to_vector(event, previous, entry.baseline.familiarity)
         vector = np.asarray([row], dtype=float)
 
-        # decision_function: positive is normal, negative is an outlier, and it
-        # is roughly in [-0.5, 0.5]. Mapped to 0..1 so the dashboard has one
-        # consistent scale to colour by — and 0.5 is not an arbitrary midpoint
-        # on that scale, it is exactly the model's own boundary, so "above 0.5"
-        # and `is_anomaly` always agree.
         score = self._as_score(entry.forest, row)
         is_anomaly = bool(entry.forest.predict(vector)[0] == -1)
 
@@ -184,9 +153,6 @@ class ModelStore:
         return Verdict(
             anomaly_score=round(score, 4),
             is_anomaly=is_anomaly,
-            # The leading factor rather than a fixed sentence: "unusual for this
-            # person" is a restatement of the score, and an operator standing at
-            # a door needs to know *which* part looked wrong.
             reason=(
                 (lead.detail if lead else "Pattern differs from this person's usual access behaviour.")
                 if is_anomaly else "Consistent with this person's usual behaviour."

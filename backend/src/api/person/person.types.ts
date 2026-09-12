@@ -54,9 +54,7 @@ export interface PersonSearchParams {
   status?: string;
   person_type?: string;
   department?: string;
-  /** 'true' => only people who have not completed enrolment yet */
   no_did?: string;
-  /** 'true' => include offboarded rows, which are hidden by default */
   include_offboarded?: string;
   created_at_from?: string;
   created_at_to?: string;
@@ -82,7 +80,6 @@ export interface PersonDevice {
   revocation_reason: string | null;
 }
 
-/** Returned once, at invite time — the raw token is not recoverable afterwards. */
 export interface EnrollmentInvite {
   token: string;
   expires_at: string;

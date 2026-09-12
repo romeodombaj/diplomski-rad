@@ -26,9 +26,6 @@ export default function BuildingTable() {
   const { data, loading, error, remove, refresh, search, setSearch, filters, clearFilters, sortField, sortDir, setSort, page, nextPage, prevPage, hasMore, total } = useBuilding();
 
   async function handleViewDoors(building: BuildingType) {
-    // Doors are scoped to whichever building is the active JWT context, so
-    // viewing a building's doors means switching into it first. Navigate (not
-    // just reload) to land on /doors once the new context cookie is set.
     const res = await fetch('/auth/switch-building', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -78,15 +75,12 @@ export default function BuildingTable() {
 
   return (
     <>
-      {/* Toolbar: search, filters, actions */}
       <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
         <div className="flex flex-wrap items-end gap-3">
-          {/* Search */}
           <div className="flex flex-col gap-1">
             <span className="text-xs text-muted-foreground">{t('common.search')}</span>
             <SearchInput key={resetKey} onSearch={setSearch} isLoading={loading && search !== ''} placeholder={t('building.searchPlaceholder')} className="w-64" minLength={2} active={search !== ''} />
           </div>
-          {/* Clear all filters */}
           {(Object.keys(filters).length > 0 || search !== '') && (
             <Button variant="ghost" size="sm" className="text-muted-foreground self-end" onClick={() => { clearFilters(); setSearch(''); setResetKey((k) => k + 1); }}>
               <X className="h-4 w-4 mr-1" />
@@ -95,12 +89,10 @@ export default function BuildingTable() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          {/* New building — opens slide */}
           <Button variant="default" size="sm" onClick={() => { setEditId(null); setFormOpen(true); }}>
             <Plus className="h-4 w-4 mr-2" />
             {t('common.new')}
           </Button>
-          {/* Refresh with 3s throttle */}
           <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
             <RefreshCw className={`h-4 w-4 mr-2${isRefreshing ? ' animate-spin' : ''}`} />
             {t('common.refresh')}
@@ -108,7 +100,6 @@ export default function BuildingTable() {
         </div>
       </div>
 
-      {/* Data table */}
       <DataTable
         columns={columns}
         data={data}
@@ -131,7 +122,6 @@ export default function BuildingTable() {
         onSort={setSort}
       />
 
-      {/* Delete confirmation */}
       <AlertDialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -149,7 +139,6 @@ export default function BuildingTable() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* New / Edit building slide */}
       <Sheet open={formOpen} onOpenChange={setFormOpen}>
         <SheetContent className="overflow-y-auto">
           <SheetHeader>

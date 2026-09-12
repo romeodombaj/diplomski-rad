@@ -1,17 +1,6 @@
 import db from '../../db';
 import logger from '../../lib/logger';
 
-/**
- * Lockdown — refusing entry while the hardware is perfectly healthy.
- *
- * Kept separate from `doors.active` on purpose. Inactive is administrative:
- * out of service, not installed, under repair. Lockdown is a security action
- * taken in a hurry, and the audit trail has to be able to tell an emergency
- * apart from a maintenance ticket afterwards.
- *
- * Nothing here opens anything. Releasing a lockdown restores the *normal*
- * rules — signature, TOTP, face, policy and schedule all still apply.
- */
 
 export interface LockdownState {
   building: { active: boolean; since: string | null; by: string | null };
@@ -45,7 +34,6 @@ export const getState = async (buildingId: number): Promise<LockdownState> => {
   };
 };
 
-/** Lock or release one door. */
 export const setDoor = async (
   buildingId: number,
   doorId: number,
@@ -68,14 +56,6 @@ export const setDoor = async (
   return { ok: true };
 };
 
-/**
- * Building-wide emergency lockdown.
- *
- * Only the building flag is written — individual doors are left exactly as they
- * were. That is what makes this reversible: a door an operator locked by hand
- * before the emergency must stay locked when the emergency is lifted, and
- * sweeping every door here would silently release it.
- */
 export const setBuilding = async (
   buildingId: number,
   active: boolean,

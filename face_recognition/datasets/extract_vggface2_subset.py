@@ -20,7 +20,7 @@ TAR_PATH = "/home/b2/projects/zavrsni/face_recognition/datasets/vggface2/VGG-Fac
 OUTPUT_DIR = "/home/b2/projects/zavrsni/face_recognition/extracted_faces"
 
 MAX_PER_IDENTITY = 30
-TOTAL_BYTES_CAP = 8 * 1024**3  # 8 GB hard stop, leaves headroom on a 16GB-free disk
+TOTAL_BYTES_CAP = 8 * 1024**3
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 

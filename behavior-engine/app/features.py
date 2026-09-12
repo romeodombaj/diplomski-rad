@@ -52,17 +52,15 @@ class AccessEvent:
 
     @property
     def weekday(self) -> int:
-        return self.timestamp.weekday()  # 0 = Monday
+        return self.timestamp.weekday()
 
 
-# Feature vector layout, kept as a constant so the model and the explanation
-# code cannot drift apart.
 FEATURE_NAMES = (
-    "sin_time",              # time of day, encoded on a circle
+    "sin_time",
     "cos_time",
-    "weekday_familiarity",   # share of this person's history on this weekday
-    "door_familiarity",      # share of this person's history at this door
-    "gap_minutes",           # log-scaled gap since this person's previous event
+    "weekday_familiarity",
+    "door_familiarity",
+    "gap_minutes",
     "is_first_today",
 )
 
@@ -111,8 +109,6 @@ class Familiarity:
         return self.weekdays[index]
 
 
-# Used when nothing is known about a person yet. Every share is 0.0, which is
-# honest: no door and no day is familiar before there is any history.
 UNKNOWN = Familiarity({}, (0.0,) * 7)
 
 
@@ -148,9 +144,6 @@ def to_vector(
         is_first_today = 1.0
     else:
         delta = (event.timestamp - previous.timestamp).total_seconds() / 60.0
-        # Log-scaled: the difference between 5 and 30 minutes matters far more
-        # than between 5 and 30 hours, and raw minutes would let a weekend gap
-        # dominate every other feature.
         gap_minutes = math.log1p(max(delta, 0.0))
         is_first_today = 1.0 if previous.timestamp.date() != event.timestamp.date() else 0.0
 

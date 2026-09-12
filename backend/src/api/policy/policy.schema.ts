@@ -1,6 +1,5 @@
 import { z } from 'zod';
 
-/** A one-off grant. `startTime`/`endTime` are absolute unix seconds; 0 = no bound. */
 export const GrantDirectSchema = z.object({
   person_id: z.string().trim().min(1),
   door_id: z.number().int().positive(),
@@ -31,11 +30,6 @@ export const SetGroupDoorsSchema = z.object({
   ),
 });
 
-/**
- * A weekly window. `end_minute` may be <= `start_minute`, which means the
- * window crosses midnight (a night shift); the schedule service treats the day
- * check as applying to the day the window opened.
- */
 export const CreateScheduleSchema = z.object({
   name: z.string().trim().min(1).max(100),
   rrule: z.string().trim().min(1).max(200),

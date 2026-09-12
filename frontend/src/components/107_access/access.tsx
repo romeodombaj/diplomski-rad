@@ -7,15 +7,6 @@ import SchedulesTable from './components/SchedulesTable';
 
 type Tab = 'groups' | 'schedules';
 
-/**
- * Access control: what the chain enforces, and where it disagrees with what
- * this dashboard authored.
- *
- * The health panel is above the tabs on purpose. A group that reads correctly
- * here but has not reached the chain does not open anything, and drift means
- * someone granted access outside this UI entirely — both matter more than
- * whatever is being edited below.
- */
 export default function Access() {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>('groups');

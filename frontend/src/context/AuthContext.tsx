@@ -65,7 +65,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         let res = await fetch('/auth/me');
 
         if (res.status === 401) {
-          // Access token expired — silently try to refresh
           const refreshed = await fetch('/auth/refresh', { method: 'POST' });
           if (refreshed.ok) {
             res = await fetch('/auth/me');
@@ -88,7 +87,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     checkAuth();
 
-    // apiFetch dispatches this when both access token and refresh token have expired
     const handleExpired = () => {
       setUser(null);
       setIsAuthenticated(false);

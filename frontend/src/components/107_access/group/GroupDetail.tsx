@@ -8,23 +8,12 @@ import { Card, CardContent } from '@/UI/card';
 import { type GroupDetail as Group } from '../services/policy.service';
 import GroupPanel from './GroupPanel';
 
-/**
- * One access group, as a page rather than a slide-over.
- *
- * A group is the join between doors, schedules and people, and the sheet gave
- * one narrow column for all three while covering the list behind it. A page has
- * room for the membership editor, and the URL makes a specific group linkable
- * and reloadable. Mirrors DoorDetail and PersonDetail so every record in the
- * dashboard behaves the same way.
- */
 export default function GroupDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [group, setGroup] = useState<Group | null>(null);
 
-  // GroupPanel owns the loading; this only needs the name and counts for the
-  // heading, so it takes them from the panel rather than fetching a second copy.
   const onLoaded = useCallback((g: Group) => setGroup(g), []);
 
   return (

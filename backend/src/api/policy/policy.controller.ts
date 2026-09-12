@@ -16,13 +16,7 @@ const REASON_STATUS: Record<string, number> = {
   already_granted: 409,
 };
 
-// ── Grants ──────────────────────────────────────────────────────────────────
 
-/**
- * Authoring returns 202, not 200: the row is written and queued, and the chain
- * write happens in the sync pass. Blocking on a block would tie an admin click
- * to Sepolia's confirmation time.
- */
 export const grantDirect = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const buildingId = req.user.buildingId!;
@@ -37,8 +31,6 @@ export const grantDirect = async (req: Request, res: Response, next: NextFunctio
     if (!result.ok) {
       return next(new AppError(`grant failed: ${result.reason}`, REASON_STATUS[result.reason] ?? 400));
     }
-    // Push it now when the chain is up, so the common case is synced by the
-    // time the operator's list refreshes.
     policyService.syncPending().catch(() => {});
     response.ok(res, result.mirror, 202);
   } catch (err) {
@@ -94,7 +86,6 @@ export const revoke = async (req: Request, res: Response, next: NextFunction) =>
   }
 };
 
-// Mounted on the person router as /:id/effective-access, so the param is `id`.
 export const listForPerson = async (req: Request, res: Response, next: NextFunction) => {
   try {
     response.ok(res, await policyService.effectiveAccess(req.params.id));
@@ -103,7 +94,6 @@ export const listForPerson = async (req: Request, res: Response, next: NextFunct
   }
 };
 
-/** The groups this person is a member of — the Access tab's other half. */
 export const listGroupsForPerson = async (req: Request, res: Response, next: NextFunction) => {
   try {
     response.ok(res, await groupService.groupsForPerson(req.user.buildingId!, req.params.id));
@@ -120,7 +110,6 @@ export const whoHasAccess = async (req: Request, res: Response, next: NextFuncti
   }
 };
 
-// ── Sync and reconciliation ─────────────────────────────────────────────────
 
 export const sync = async (_req: Request, res: Response, next: NextFunction) => {
   try {
@@ -157,7 +146,6 @@ export const resolveDrift = async (req: Request, res: Response, next: NextFuncti
   }
 };
 
-/** Sync-health summary for the dashboard panel. */
 export const health = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const buildingId = req.user.buildingId!;
@@ -189,7 +177,6 @@ export const health = async (req: Request, res: Response, next: NextFunction) =>
   }
 };
 
-// ── Groups and schedules ────────────────────────────────────────────────────
 
 export const listGroups = async (req: Request, res: Response, next: NextFunction) => {
   try {

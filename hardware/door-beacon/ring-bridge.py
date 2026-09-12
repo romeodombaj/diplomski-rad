@@ -32,11 +32,6 @@ from aioesphomeapi.core import APIConnectionError
 
 log = logging.getLogger("ring-bridge")
 
-# How often the bridge re-pushes the current level. This doubles as the loop
-# period, so it also bounds how long a level *change* waits before reaching the
-# ring — at 1.0s the ring visibly lagged someone walking up. It must stay well
-# inside the device's own clear-the-ring timeout (6s), which exists because
-# absence is the only signal that somebody walked away.
 KEEPALIVE_S = 0.3
 UNLOCK_FLASH_S = 2.0
 
@@ -76,7 +71,6 @@ class Bridge:
             )
         log.info("connected to device %s", self.host)
 
-    # -- MQTT callbacks run on paho's thread, so they hand work to the loop --
 
     def on_message(self, _c, _u, msg) -> None:
         try:
@@ -87,8 +81,6 @@ class Bridge:
 
         if msg.topic.endswith("/proximity"):
             levels = int(payload.get("levels") or 0)
-            # Rescale the backend's step count onto the ring's 12 LEDs, so the
-            # two never have to agree on a number.
             self.level = (int(payload.get("level", 0)) * 12) // levels if levels else 0
             log.info("proximity %s -> %d/12", payload.get("level"), self.level)
         elif payload.get("action") == "unlock":
@@ -111,18 +103,11 @@ class Bridge:
         try:
             while True:
                 lit = 12 if self.loop.time() < self.flash_until else self.level
-                # Push on change, and keep pushing while lit so the device's own
-                # decay does not switch the ring off under a stationary person.
                 if lit != last_sent or lit > 0:
                     try:
                         await self.client.execute_service(self.action, {"level": lit})
                         last_sent = lit
                     except (APIConnectionError, OSError) as err:
-                        # The device drops off WiFi from time to time, and a
-                        # single blip used to end the whole bridge — taking the
-                        # ring down until somebody noticed and restarted it.
-                        # Reconnect and carry on instead; the ring going briefly
-                        # dark is a far better failure than staying dark.
                         log.warning("device connection lost (%s) — reconnecting", err)
                         last_sent = None
                         await self.reconnect_device()

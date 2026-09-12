@@ -1,22 +1,3 @@
-/**
- * The device's cryptographic identity.
- *
- * This is the "kriptografski identitet" pillar of the spec
- * (sigurnosni-sustav-biometrija.md §1) and it did not exist before: the DID was
- * a `Math.random()` hex string with no key behind it, so the phone could not
- * sign anything and the backend had nothing to verify. A stolen DID string was
- * a complete identity.
- *
- * Now the phone generates a real secp256k1 keypair. The private key is written
- * to SecureStore (Keychain on iOS, Keystore on Android) and never leaves the
- * device — the backend only ever sees the public key, at enrolment, and the
- * signatures it produces.
- *
- * Pure-JS on purpose: @noble runs under Hermes without a native module, so this
- * works in Expo Go as well as a dev build. Randomness comes from expo-crypto,
- * which is a real CSPRNG — `Math.random()` is not, and using it to mint a key
- * would make every identity guessable.
- */
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { keccak_256 } from '@noble/hashes/sha3';
 import * as Crypto from 'expo-crypto';
@@ -33,7 +14,6 @@ const fromHex = (hex: string): Uint8Array => {
 };
 
 const utf8 = (s: string): Uint8Array => {
-  // TextEncoder is not guaranteed under Hermes; this is the same encoding.
   const out: number[] = [];
   for (let i = 0; i < s.length; i++) {
     let c = s.charCodeAt(i);
@@ -48,7 +28,6 @@ const utf8 = (s: string): Uint8Array => {
   return new Uint8Array(out);
 };
 
-/** A private key must be a scalar in [1, n-1]; retry on the astronomically rare miss. */
 function generatePrivateKey(): Uint8Array {
   for (let i = 0; i < 8; i++) {
     const candidate = Crypto.getRandomBytes(32);
@@ -57,15 +36,12 @@ function generatePrivateKey(): Uint8Array {
   throw new Error('Could not generate a valid private key');
 }
 
-/** Ethereum address: last 20 bytes of keccak256 over the uncompressed key body. */
 function addressFromPublicKey(publicKey: Uint8Array): string {
   return '0x' + toHex(keccak_256(publicKey.slice(1))).slice(-40);
 }
 
 export interface DeviceIdentity {
-  /** `did:ethr:sep:0x…` — the address, so the DID and the key cannot disagree. */
   did: string;
-  /** Uncompressed SEC1 point (0x04 || X || Y). What DIDRegistry stores. */
   publicKey: string;
   address: string;
 }
@@ -77,14 +53,6 @@ async function loadPrivateKey(): Promise<Uint8Array | null> {
   return hex ? fromHex(hex) : null;
 }
 
-/**
- * The device identity, minting one on first call.
- *
- * Deriving the DID from the public key is what makes the pair unforgeable as a
- * unit: anyone can claim a DID string, but only the holder of the matching
- * private key can sign for it, and the address in the DID is checkable against
- * the key the registry holds.
- */
 export async function getOrCreateIdentity(): Promise<DeviceIdentity> {
   if (cached) return cached;
 
@@ -105,10 +73,6 @@ export async function hasIdentity(): Promise<boolean> {
   return (await storage.getPrivateKey()) !== null;
 }
 
-/**
- * Sign a string the way `personal_sign` does (EIP-191), because that is what
- * the backend's `ethers.verifyMessage` and the contracts' recovery expect.
- */
 async function signPersonalMessage(message: string): Promise<string> {
   const priv = await loadPrivateKey();
   if (!priv) throw new Error('No device key — enrol first');
@@ -120,11 +84,9 @@ async function signPersonalMessage(message: string): Promise<string> {
   payload.set(body, prefix.length);
 
   const sig = secp256k1.sign(keccak_256(payload), priv);
-  // r || s || v, with v as the 27-based recovery id Ethereum tooling expects.
   return '0x' + sig.toCompactHex() + (sig.recovery + 27).toString(16).padStart(2, '0');
 }
 
-/** Per-request randomness, so two taps in the same second are distinct requests. */
 export function newNonce(): string {
   return toHex(Crypto.getRandomBytes(16));
 }
@@ -137,13 +99,6 @@ export interface SignedAccessRequest {
   signature: string;
 }
 
-/**
- * Sign an access request for one door.
- *
- * The message format must stay byte-identical to `accessMessage` in
- * backend/src/api/mobile/access.service.ts — the backend recovers the signer
- * from exactly this string, so any drift reads as a forged signature.
- */
 export async function signAccessRequest(doorCode: string): Promise<SignedAccessRequest> {
   const { did } = await getOrCreateIdentity();
   const timestamp = Math.floor(Date.now() / 1000);
@@ -161,16 +116,6 @@ export interface SignedProximityReport {
   signature: string;
 }
 
-/**
- * Sign a cosmetic proximity report for one door's LED ring.
- *
- * Must stay byte-identical to `proximityMessage` in
- * backend/src/api/mobile/proximity.service.ts. The shape is deliberately not
- * the access message: the `proximity|` prefix stops an access signature being
- * replayed here, and `level` sits LAST — after the pipe-free hex nonce — so a
- * report captured off the wire cannot be reassembled into an access request.
- * Moving `level` earlier would silently break that.
- */
 export async function signProximityReport(
   doorCode: string,
   level: number,
@@ -184,7 +129,6 @@ export async function signProximityReport(
   return { did, door_code: doorCode, level, timestamp, nonce, signature };
 }
 
-/** Wipe the keypair. The old DID can never be re-derived — that is the point. */
 export async function clearIdentity(): Promise<void> {
   cached = null;
   await storage.deletePrivateKey();

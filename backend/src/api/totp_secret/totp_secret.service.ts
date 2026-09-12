@@ -1,7 +1,6 @@
 import db from '../../db';
 import type { Totp_secret, CreateTotp_secretDto, UpdateTotp_secretDto, Totp_secretSearchParams, Totp_secretCursorPage } from './totp_secret.types';
 
-// Strip internal fields before returning to clients
 const strip = ({ building_id: _, ...rest }: any): Totp_secret => rest;
 
 export const getAll = async (buildingId: number, params: Totp_secretSearchParams): Promise<Totp_secretCursorPage> => {

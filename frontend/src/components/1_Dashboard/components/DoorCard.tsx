@@ -11,7 +11,6 @@ interface Props {
   onUnlocked: () => void;
 }
 
-/** "14:32" for today, a date for anything older. */
 function lastOpened(iso: string | null, locale: string): string | null {
   if (!iso) return null;
   const d = new Date(iso);
@@ -25,19 +24,6 @@ function lastOpened(iso: string | null, locale: string): string | null {
     : d.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
 }
 
-/**
- * One door, at a glance, with the button that opens it.
- *
- * This is the panel the whole dashboard exists for: the operator's actual job
- * is "let this person in", and before this they had to reach it through the
- * door list, a detail page and a row action.
- *
- * The lock line is not decoration either. A door with no lock device registered
- * still opens — the access path falls back to the door's own MQTT topic — but
- * the operator cannot tell from the card whether it is going to talk to a
- * configured relay or to a topic nobody is listening on, and that is exactly
- * what goes wrong at a demo. So the card says which, by name and profile.
- */
 export default function DoorCardTile({ door, onUnlocked }: Props) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -102,8 +88,6 @@ export default function DoorCardTile({ door, onUnlocked }: Props) {
               )}
             </span>
           ) : (
-            // Not an error: the door still opens on its own topic. But the
-            // operator should know that is what will happen.
             <span
               className="text-muted-foreground flex items-center gap-1.5 text-xs"
               title={t('dashboard.doors.noLockHint', { topic: door.mqtt_topic })}

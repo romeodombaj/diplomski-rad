@@ -49,8 +49,6 @@ async def main() -> int:
         if args.level is not None:
             await client.execute_service(service, {"level": args.level})
             print(f"{args.host}: ring -> {args.level} of 12")
-            # The device clears the ring 3s after the last update, so hold it
-            # open long enough to actually look at the thing.
             for _ in range(10):
                 await asyncio.sleep(1)
                 await client.execute_service(service, {"level": args.level})

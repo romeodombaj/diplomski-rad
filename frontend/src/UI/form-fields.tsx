@@ -11,12 +11,8 @@ import {
 } from "@/UI/select";
 import { Button } from "./button";
 
-// ── FormInput ─────────────────────────────────────────────────────────────────
 
 type FormInputProps = {
-    // "date" renders the browser's own date control: a text field you can type
-    // into AND a calendar picker, with no extra dependency. Its value is always
-    // an ISO yyyy-mm-dd string, which is what the API expects.
     type?: "text" | "email" | "password" | "tel" | "url" | "number" | "date";
     value: string | number;
     onChange: (value: string) => void;
@@ -40,9 +36,6 @@ export function FormInput(props: FormInputProps) {
         disabled,
         error,
     } = props;
-    // FormInputProps is a plain object type, not a discriminated union, so
-    // Extract<..., { type: "number" }> resolved to `never` and every field read
-    // off it was an error. `step` and `decimals` are already optional members.
     const { step, decimals } = props;
 
     const [focused, setFocused] = useState(false);
@@ -66,10 +59,6 @@ export function FormInput(props: FormInputProps) {
                 onFocus={() => setFocused(true)}
                 onBlur={() => setFocused(false)}
                 onChange={(e) =>
-                    // A number input reports through valueAsNumber, but the
-                    // prop is declared as taking a string. Routed through
-                    // unknown because the two signatures genuinely do not
-                    // overlap — the callers of a number field expect a number.
                     type === "number"
                         ? (onChange as unknown as (v: number) => void)(
                               e.target.valueAsNumber
@@ -93,7 +82,6 @@ export function FormInput(props: FormInputProps) {
     );
 }
 
-// ── FormTextarea ──────────────────────────────────────────────────────────────
 
 interface FormTextareaProps {
     label: string;
@@ -137,7 +125,6 @@ export function FormTextarea({
     );
 }
 
-// ── FormSelect ────────────────────────────────────────────────────────────────
 
 interface FormSelectProps {
     label: string;
@@ -150,32 +137,17 @@ interface FormSelectProps {
     error?: string;
 }
 
-// ── FormSuggestInput ─────────────────────────────────────────────────────────
 
 type FormSuggestInputProps = {
     label: string;
     value: string;
     onChange: (value: string) => void;
-    /** Suggestions. The field still accepts anything typed. */
     options: string[];
     placeholder?: string;
     disabled?: boolean;
     error?: string;
 };
 
-/**
- * A text field with a dropdown of values already in use.
- *
- * For columns that are free text in the database but repeat in practice —
- * department is the case this was built for. A hard <Select> would be wrong
- * (there is no canonical list, and the first person entered could not pick
- * anything), and a bare text field invites "Sales", "sales" and "Sales " as
- * three departments. A native <datalist> gives the dropdown without taking
- * away free entry, and needs no popover library.
- *
- * Not FormCombobox below: that one fetches options and only commits when one is
- * clicked, which is right for choosing an existing record and wrong here.
- */
 export function FormSuggestInput({
     label,
     value,
@@ -243,7 +215,6 @@ export function FormSelect({
     );
 }
 
-// ── FormCheckbox ──────────────────────────────────────────────────────────────
 
 interface FormCheckboxProps {
     label: string;
@@ -278,7 +249,6 @@ export function FormCheckbox({
     );
 }
 
-// ── FormRadioGroup ────────────────────────────────────────────────────────────
 
 interface FormRadioGroupProps {
     label: string;
@@ -347,8 +317,6 @@ export function FormRadioGroup({
     );
 }
 
-// ── FormCombobox ──────────────────────────────────────────────────────────────
-// Async searchable combobox. Pass fetchOptions to load results as the user types.
 
 interface ComboboxOption {
     value: string;
@@ -382,7 +350,6 @@ export function FormCombobox({
     const containerRef = useRef<HTMLDivElement>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Resolve label for current value on mount / value change
     useEffect(() => {
         if (!value) {
             setSelectedLabel("");
@@ -396,7 +363,6 @@ export function FormCombobox({
             .catch(() => {});
     }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Close on outside click
     useEffect(() => {
         function onDown(e: MouseEvent) {
             if (
@@ -499,7 +465,6 @@ export function FormCombobox({
     );
 }
 
-// ── FormFileInput ─────────────────────────────────────────────────────────────
 
 interface FormFileInputProps {
     label: string;

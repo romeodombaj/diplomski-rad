@@ -10,25 +10,9 @@ import { PersonService, type Person } from '@/components/106_people/services/per
 
 interface Props {
   group: GroupDetail;
-  /** Reload the group after a membership change. */
   onChanged: () => void;
 }
 
-/**
- * Who is in this group, with add and remove.
- *
- * Membership was read-only before, which made the group screen half a feature:
- * an operator could define what a group opens but had to go to each person in
- * turn to put anybody in it. The two operations are separate endpoints and take
- * effect immediately rather than on a save button, because each one is a
- * complete change on its own — batching them would only make a partial failure
- * harder to report.
- *
- * The fan-out line is not decoration. The chain stores one flat (did, doorCode)
- * policy per door, so adding one person to a group of six doors is six
- * transactions. An operator adding twenty people deserves that number before
- * they start, not after.
- */
 export default function GroupMembers({ group, onChanged }: Props) {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
@@ -42,9 +26,6 @@ export default function GroupMembers({ group, onChanged }: Props) {
   const search = useCallback(async (q: string) => {
     setSearching(true);
     try {
-      // Only people who could actually use a credential. An offboarded person
-      // in an access group is a grant that will never open anything and a row
-      // in every future audit asking why it exists.
       const page = await PersonService.getAll(q, null, 20, false, { status: 'active' });
       setCandidates(page.data);
       setError(null);
@@ -55,9 +36,6 @@ export default function GroupMembers({ group, onChanged }: Props) {
     }
   }, []);
 
-  // SearchInput debounces its own keystrokes, so this only reacts to a settled
-  // query — and re-runs after a membership change so an added person leaves the
-  // candidate list without a second search.
   useEffect(() => { search(query); }, [query, search, group.members.length]);
 
   const add = async (person: Person) => {

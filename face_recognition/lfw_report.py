@@ -18,9 +18,6 @@ import os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-# From TRAINING_LOG.md section 25 -- the metric used during training to
-# choose a checkpoint (mean same-person cosine minus mean different-person
-# cosine, measured on the personal/held-out probe set, NOT on LFW).
 TRAINING_SEPARATION = {
     "epoch10": 0.3456, "epoch20": 0.3976, "epoch30": 0.4601,
     "epoch40": 0.4961, "epoch50": 0.5022, "epoch60": 0.4520,
@@ -50,7 +47,6 @@ def main():
     print("oracle = best threshold fitted on all 6000 pairs (test-set fitted,")
     print("         shown only to expose how much that shortcut inflates)")
 
-    # ── same/different similarity gap ────────────────────────────────────
     print("\nCosine similarity, LFW pairs:")
     print(f"{'model':20s} {'same':>8s} {'different':>10s} {'gap':>8s}")
     print("-" * 50)
@@ -59,7 +55,6 @@ def main():
         print(f"{name:20s} {r['mean_sim_same']:8.4f} "
               f"{r['mean_sim_diff']:10.4f} {gap:8.4f}")
 
-    # ── figure ───────────────────────────────────────────────────────────
     try:
         import matplotlib
         matplotlib.use("Agg")

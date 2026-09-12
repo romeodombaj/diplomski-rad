@@ -3,13 +3,6 @@ import { useTranslation } from "react-i18next";
 import { Badge } from "@/UI/badge";
 import { type AuditLog } from "../services/auditLog.service";
 
-/**
- * One row per access decision.
- *
- * Denials carry the most information here — a run of `invalid_signature` or
- * `door_not_in_scope` against one DID is what an operator is actually looking
- * for, so the reason is a first-class column rather than a detail-view field.
- */
 function DecisionCell({ row }: { row: AuditLog }) {
   const { t } = useTranslation();
   const granted = row.decision === "granted";
@@ -25,11 +18,6 @@ function DecisionCell({ row }: { row: AuditLog }) {
   );
 }
 
-/**
- * Whether the decision was actually checked against the chain, and whether the
- * signature verified. A granted row with either unset was let through on local
- * data alone — worth seeing at a glance rather than hunting for.
- */
 function TrustCell({ row }: { row: AuditLog }) {
   const { t } = useTranslation();
   return (
@@ -69,7 +57,6 @@ export function useAuditLogColumns(): ColumnDef<AuditLog>[] {
       accessorKey: "person_name",
       header: t("auditLog.columns.person"),
       enableSorting: false,
-      // A denial often has no person to join to — show the DID rather than a blank.
       cell: ({ row }) =>
         row.original.person_name ?? (
           <span className="text-muted-foreground font-mono text-xs">
@@ -107,7 +94,6 @@ export function useAuditLogColumns(): ColumnDef<AuditLog>[] {
       accessorKey: "event_hash",
       header: t("auditLog.columns.eventHash"),
       enableSorting: false,
-      // The value written to the on-chain AuditLog — the row's proof of record.
       cell: ({ row }) => (
         <span className="font-mono text-xs" title={row.original.event_hash}>
           {row.original.event_hash.slice(0, 10)}…

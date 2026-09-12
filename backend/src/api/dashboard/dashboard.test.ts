@@ -6,13 +6,6 @@ import app from '../../app';
 import db from '../../db';
 import { config } from '../../config/conifg';
 
-/**
- * The dashboard overview.
- *
- * What matters here is scoping and bucketing: it must count today rather than
- * everything, this building rather than every building, and it must survive an
- * event whose person was deleted or which never had one (an admin override).
- */
 describe('Dashboard overview', () => {
   let buildingId: number;
   let otherBuildingId: number;

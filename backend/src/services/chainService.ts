@@ -1,26 +1,9 @@
-/**
- * The backend's only door to Ethereum.
- *
- * Until this existed the three deployed contracts were unreachable from Node:
- * DIDs lived only in SQLite, `AccessPolicy.hasAccess()` was never asked, and the
- * on-chain AuditLog stayed empty. Everything here wraps the ABI surface the
- * access path and enrolment actually use — nothing more.
- *
- * DEGRADED MODE: when no RPC is configured `isEnabled()` is false and every
- * read resolves to a "chain says nothing" value. That keeps tests and a
- * chain-less dev machine working, but it is not a security decision — the
- * caller decides whether a missing chain means allow or deny (see
- * `config.chain.requireChain`).
- */
 import { ethers } from 'ethers';
 import fs from 'fs';
 import path from 'path';
 import logger from '../lib/logger';
 import { config } from '../config/conifg';
 
-// Minimal ABIs. Deliberately hand-written rather than imported from the hardhat
-// artifacts directory so the backend does not depend on the blockchain package
-// having been compiled.
 const DID_REGISTRY_ABI = [
   'function registerDID(string _did, bytes _publicKey) external',
   'function getPublicKey(string _did) external view returns (bytes)',
@@ -57,7 +40,6 @@ interface ChainState {
   enabled: boolean;
   provider?: ethers.JsonRpcProvider;
   wallet?: ethers.Wallet;
-  /** The wallet wrapped in nonce tracking; what the contracts actually use. */
   signer?: ethers.NonceManager;
   registry?: ethers.Contract;
   policy?: ethers.Contract;
@@ -68,11 +50,6 @@ interface ChainState {
 
 let state: ChainState = { enabled: false, reason: 'not initialised' };
 
-/**
- * Read `blockchain/deployments/<network>.json` — the manifest `deploy.js`
- * writes. Explicit CONTRACT_* env vars win, so a deployment made elsewhere can
- * be pointed at without copying files around.
- */
 function loadAddresses(): ChainAddresses | null {
   const { didRegistry, accessPolicy, auditLog } = config.chain.contracts;
   if (didRegistry && accessPolicy && auditLog) {
@@ -93,7 +70,6 @@ function loadAddresses(): ChainAddresses | null {
   }
 }
 
-/** Wire up provider, wallet and contracts. Safe to call more than once. */
 export function init(): ChainState {
   if (!config.chain.rpcUrl) {
     state = { enabled: false, reason: 'CHAIN_RPC_URL not set' };
@@ -109,15 +85,9 @@ export function init(): ChainState {
 
   try {
     const provider = new ethers.JsonRpcProvider(config.chain.rpcUrl);
-    // A read-only setup is legitimate: a backend that only checks policy needs
-    // no key. Writes then fail loudly rather than silently doing nothing.
     const wallet = config.chain.backendPrivateKey
       ? new ethers.Wallet(config.chain.backendPrivateKey, provider)
       : undefined;
-    // A bare Wallet asks the node for its pending nonce on every send, so two
-    // sends that overlap read the same value and the loser is rejected as
-    // NONCE_EXPIRED. NonceManager keeps the counter locally and hands out a
-    // fresh one per send; the write queue below keeps those sends in order.
     const signer = wallet ? new ethers.NonceManager(wallet) : undefined;
     const runner = signer ?? provider;
 
@@ -151,25 +121,17 @@ export const status = () => ({
   signer: state.wallet?.address ?? null,
 });
 
-/** Test seam — lets a suite drive a hardhat node without touching env vars. */
 export function __setStateForTests(next: Partial<ChainState>) {
   state = { ...state, ...next } as ChainState;
 }
 
-// ── Reads ────────────────────────────────────────────────────────────────────
 
-/**
- * The on-chain public key for a DID, or null when the chain is off or the DID
- * was never registered. Callers must distinguish "no key" from "wrong key" —
- * returning null here is not an authorisation decision.
- */
 export async function getPublicKey(did: string): Promise<string | null> {
   if (!state.enabled) return null;
   try {
     const key: string = await state.registry!.getPublicKey(did);
     return key && key !== '0x' ? key : null;
   } catch {
-    // DIDNotRegistered reverts; that is a normal answer, not a failure.
     return null;
   }
 }
@@ -183,7 +145,6 @@ export async function isRegistered(did: string): Promise<boolean> {
   }
 }
 
-/** Does AccessPolicy allow this DID through this door right now? */
 export async function hasAccess(did: string, doorCode: string): Promise<boolean> {
   if (!state.enabled) return false;
   try {
@@ -194,15 +155,6 @@ export async function hasAccess(did: string, doorCode: string): Promise<boolean>
   }
 }
 
-/**
- * Is this DID on the revocation list?
- *
- * Two different "false"s here: a disabled chain has no revocation list to
- * consult, so it reports not-revoked and the caller's `requireChain` setting
- * decides what that is worth. A chain that is configured but unreachable fails
- * CLOSED and reports revoked — a network outage must not be a way to slip a
- * revoked phone through.
- */
 export async function isRevoked(did: string): Promise<boolean> {
   if (!state.enabled) return false;
   try {
@@ -213,7 +165,6 @@ export async function isRevoked(did: string): Promise<boolean> {
   }
 }
 
-// ── Writes ───────────────────────────────────────────────────────────────────
 
 function requireSigner(op: string): ethers.Wallet {
   if (!state.enabled) throw new Error(`[chain] ${op}: chain disabled (${state.reason})`);
@@ -221,18 +172,6 @@ function requireSigner(op: string): ethers.Wallet {
   return state.wallet;
 }
 
-/**
- * Every write goes through one wallet, and a wallet has one nonce sequence.
- * Two sends in flight at once both read the same pending nonce and the second
- * is rejected as NONCE_EXPIRED — which is not hypothetical here, because
- * `logEventAsync` deliberately does not await, so an unlock's audit write
- * overlaps whatever enrolment or revocation happens next.
- *
- * Serialising through a promise chain makes each send read the nonce only after
- * the previous one has been accepted. Writes are rare and off the critical path
- * (the unlock decision comes from free view calls), so the queue costs nothing
- * that matters.
- */
 let writeQueue: Promise<unknown> = Promise.resolve();
 
 function enqueueWrite<T>(fn: () => Promise<T>): Promise<T> {
@@ -240,21 +179,15 @@ function enqueueWrite<T>(fn: () => Promise<T>): Promise<T> {
     try {
       return await fn();
     } catch (err) {
-      // A send that never landed leaves NonceManager's local counter one ahead
-      // of the chain, which would fail every subsequent write too. Drop the
-      // local count so the next send re-reads it from the node.
       state.signer?.reset();
       throw err;
     }
   };
-  // Swallow the predecessor's rejection so one failed write cannot poison the
-  // queue for every write after it.
   const next = writeQueue.then(run, run);
   writeQueue = next.catch(() => {});
   return next;
 }
 
-/** Bind a DID to its device public key. Called once, at enrolment. */
 export async function registerDID(did: string, publicKey: string): Promise<string> {
   requireSigner('registerDID');
   return enqueueWrite(async () => {
@@ -264,13 +197,6 @@ export async function registerDID(did: string, publicKey: string): Promise<strin
   });
 }
 
-/**
- * Append an access-event hash.
- *
- * Fire-and-forget on purpose: a block takes ~12s on a public network and nobody
- * waits at a door that long. The unlock decision comes from the free view calls
- * above; this is the durable record catching up afterwards.
- */
 export function logEventAsync(eventHash: string, doorCode: string): void {
   if (!state.enabled || !state.signer) return;
   enqueueWrite(async () => {
@@ -289,22 +215,13 @@ export async function revokeDID(did: string): Promise<string> {
   });
 }
 
-/** No recurring schedule — 24/7 access, nothing for the backend to enforce. */
 export const NO_SCHEDULE = ethers.ZeroHash;
 
 export interface GrantResult {
-  /** The contract's "pol-N" id, needed to revoke this exact policy later. */
   policyId: string;
   txHash: string;
 }
 
-/**
- * Write one (did, doorCode) policy on chain.
- *
- * `grantAccess` returns the policy id on-chain, but a transaction only yields a
- * receipt off-chain — so the id is read back out of the AccessGranted event.
- * Losing it would make the policy unrevocable by id.
- */
 export async function grantAccess(
   did: string,
   doorCode: string,
@@ -325,7 +242,6 @@ export async function grantAccess(
           break;
         }
       } catch {
-        // Logs from other contracts in the same tx do not parse; skip them.
       }
     }
     if (!policyId) throw new Error('grantAccess: AccessGranted not emitted');
@@ -362,13 +278,6 @@ const toChainPolicy = (p: any): ChainPolicy => ({
   scheduleHash: p.scheduleHash,
 });
 
-/**
- * Every policy the chain holds for a DID, active or not.
- *
- * This is the reconciliation read and the revocation read — NOT a table-view
- * read. The contract's own comments warn the return is unbounded, so it is
- * called per-DID during a sweep, never to render a list.
- */
 export async function getPoliciesForDID(did: string): Promise<ChainPolicy[]> {
   if (!state.enabled) return [];
   try {
@@ -380,11 +289,6 @@ export async function getPoliciesForDID(did: string): Promise<ChainPolicy[]> {
   }
 }
 
-/**
- * Does the chain allow this DID through this door, and under what schedule
- * commitment? Returns null when the chain is disabled, so the caller can tell
- * "no policy" from "could not ask".
- */
 export async function hasAccessWithSchedule(
   did: string,
   doorCode: string,

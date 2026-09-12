@@ -1,10 +1,5 @@
 import { storage } from './storage';
 
-// Use `||` so an empty EXPO_PUBLIC_API_URL still falls back. NOTE: on a physical
-// phone localhost is the phone itself, so this fallback only works in the
-// simulator — set EXPO_PUBLIC_API_URL to the dev machine's LAN IP for devices.
-// The value is inlined at bundle time, so a release build bakes in whatever the
-// .env files hold on the machine that ran the build.
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5001';
 const MOBILE_API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5001';
 
@@ -52,7 +47,6 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
   };
   if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
 
-  // Use mobile prefix for mobile endpoints
   const urlPrefix = path.startsWith('/mobile') ? MOBILE_API_URL : API_URL;
   const res = await fetch(`${urlPrefix}${path}`, { ...init, headers });
 

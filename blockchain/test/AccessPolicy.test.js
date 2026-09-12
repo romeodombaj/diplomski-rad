@@ -6,12 +6,8 @@ describe("AccessPolicy", function () {
   let policy, admin, outsider;
   const DID = "did:demo:a1b2c3";
   const DOOR = "MAIN-01";
-  // The sentinel for "no recurring schedule" — 24/7 access, nothing for the
-  // backend to enforce. See specs/06_access_control.md section 4, option C.
   const NO_SCHEDULE = ethers.ZeroHash;
 
-  // grantAccess returns a value on-chain, but a transaction only yields a
-  // receipt off-chain -- so read the id back out of the emitted event.
   async function grant(did, door, start, end, signer = admin, schedule = NO_SCHEDULE) {
     const tx = await policy.connect(signer).grantAccess(did, door, start, end, schedule);
     const receipt = await tx.wait();
@@ -66,7 +62,6 @@ describe("AccessPolicy", function () {
       .to.be.revertedWithCustomError(policy, "PolicyNotFound");
   });
 
-  // ── time windows ──────────────────────────────────────────────────────
 
   it("denies access before the window opens", async function () {
     const now = await time.latest();
@@ -102,7 +97,6 @@ describe("AccessPolicy", function () {
       .to.be.revertedWithCustomError(policy, "InvalidTimeWindow");
   });
 
-  // ── lookups and authorization ─────────────────────────────────────────
 
   it("lists policies by DID and by door", async function () {
     await grant(DID, DOOR, 0, 0);
@@ -115,12 +109,11 @@ describe("AccessPolicy", function () {
 
   it("still grants when one of several policies matches", async function () {
     const now = await time.latest();
-    await grant(DID, DOOR, now + 9999, now + 99999); // not yet valid
-    await grant(DID, DOOR, now - 10, 0);             // valid now
+    await grant(DID, DOOR, now + 9999, now + 99999);
+    await grant(DID, DOOR, now - 10, 0);
     expect(await policy.hasAccess(DID, DOOR)).to.equal(true);
   });
 
-  // AUDIT.md F-23
   it("blocks granting from an address without POLICY_ADMIN_ROLE", async function () {
     await expect(policy.connect(outsider).grantAccess(DID, DOOR, 0, 0, NO_SCHEDULE))
       .to.be.revertedWithCustomError(policy, "AccessControlUnauthorizedAccount");
@@ -133,8 +126,6 @@ describe("AccessPolicy", function () {
   });
 
   it("stores the schedule commitment and reports it back", async function () {
-    // The chain cannot express "Mon-Fri 09:00-17:00"; it commits to a hash of
-    // the schedule so the backend that enforces it cannot silently widen it.
     const schedule = ethers.keccak256(
       ethers.toUtf8Bytes("FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR|540|1020|Europe/Zagreb"),
     );
@@ -156,9 +147,6 @@ describe("AccessPolicy", function () {
   });
 
   it("prefers a 24/7 policy over a scheduled one", async function () {
-    // Two grants for the same door, one scheduled and one not. The unscheduled
-    // one is the weaker constraint, so the backend must be told there is no
-    // window to enforce rather than being handed an arbitrary one.
     const schedule = ethers.keccak256(ethers.toUtf8Bytes("weekdays"));
     await grant(DID, DOOR, 0, 0, admin, schedule);
     await grant(DID, DOOR, 0, 0);

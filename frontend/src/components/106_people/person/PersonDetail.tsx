@@ -120,11 +120,8 @@ export default function PersonDetail() {
       {tab === 'profile' && (
         <Card>
           <CardContent className="grid gap-3 pt-6 sm:grid-cols-2">
-            {/* `person.columns.*`, not `people.columns.*`: the latter namespace
-                does not exist, so every label on this tab rendered as its own
-                raw key. Values are formatted the same way the people table
-                formats them — a person_type is a translated word and an
-                enrolment is a date, not the string the column happens to hold. */}
+            {
+}
             {([
               ['person.columns.department', person.department],
               ['person.columns.jobTitle', person.job_title],
@@ -214,8 +211,6 @@ export default function PersonDetail() {
             </CardHeader>
             <CardContent className="space-y-3">
               {!person.did && (
-                // A policy is keyed by DID, so there is nothing to grant to
-                // until the person has enrolled a phone.
                 <p className="text-muted-foreground text-sm">{t('people.detail.needsEnrolment')}</p>
               )}
               <div className="flex flex-wrap items-end gap-2">
@@ -259,9 +254,8 @@ export default function PersonDetail() {
             </CardContent>
           </Card>
 
-          {/* Membership before the doors it produces. A group with no doors
-              yet still belongs here: the person is in it, and "no effective
-              access" is a different statement from "in no groups". */}
+          {
+}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">{t('people.detail.groupsTitle')}</CardTitle>
@@ -315,8 +309,8 @@ export default function PersonDetail() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>{t('people.detail.door')}</TableHead>
-                    {/* Provenance: "can open the server room" is useless without
-                        "via Engineering" — that is what an admin changes. */}
+                    {
+}
                     <TableHead>{t('people.detail.via')}</TableHead>
                     <TableHead>{t('people.detail.hours')}</TableHead>
                     <TableHead>{t('people.detail.chain')}</TableHead>
@@ -375,8 +369,8 @@ export default function PersonDetail() {
         </div>
       )}
 
-      {/* Mounted only when open: the panel calls the behaviour engine, which is
-          optional and can be slow, and no other tab should wait on it. */}
+      {
+}
       {tab === 'behaviour' && <BehaviourPanel personId={person.id} />}
     </div>
   );

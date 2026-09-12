@@ -1,27 +1,7 @@
-# The whole stack, minus the phone.
-#
-#   docker compose up --build
-#
-#   dashboard   http://localhost:8080
-#   backend     http://localhost:5001
-#   behaviour   http://localhost:8000
-#   chain RPC   http://localhost:8545
-#   MQTT        localhost:1883  (websockets on 9001)
-#
-# Every host port is overridable, because 5001 in particular tends to already be
-# taken by a `npm run dev` backend on the same machine:
-#   BACKEND_PORT=5002 FRONTEND_PORT=8081 docker compose up
-#
-# The mobile app is not here: it is an Expo build that runs on a device, and it
-# reaches the backend over the LAN. Point EXPO_PUBLIC_API_URL at this machine's
-# LAN address, not localhost — on a phone, localhost is the phone.
 
 name: diplomski-rad
 
 services:
-  # A local Ethereum node with the contracts deployed into it. Stands in for
-  # Sepolia; see the note in blockchain/Dockerfile about why it is not a
-  # substitute for one.
   chain:
     build:
       context: ./blockchain
@@ -29,8 +9,6 @@ services:
     ports:
       - "${CHAIN_PORT:-8545}:8545"
     volumes:
-      # The deployment manifest is how the backend learns the contract
-      # addresses. Shared rather than baked in, so a redeploy is picked up.
       - chain-deployments:/app/deployments
     healthcheck:
       test: ["CMD-SHELL", "test -f /app/deployments/localhost.json && curl -fsS -X POST -H 'Content-Type: application/json' --data '{\"jsonrpc\":\"2.0\",\"method\":\"eth_chainId\",\"params\":[],\"id\":1}' http://127.0.0.1:8545 >/dev/null"]
@@ -49,8 +27,6 @@ services:
       - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mosquitto-data:/mosquitto/data
     healthcheck:
-      # mosquitto_sub with -E exits as soon as it has connected, which is
-      # exactly the "is the broker accepting clients" question.
       test: ["CMD-SHELL", "mosquitto_sub -h 127.0.0.1 -t healthcheck -E -W 3 || exit 1"]
       interval: 15s
       timeout: 5s
@@ -62,12 +38,9 @@ services:
       context: ./backend
     container_name: dr-backend
     ports:
-      # 5001 by default because that is what mobile-app/.env points at.
       - "${BACKEND_PORT:-5001}:5000"
     depends_on:
       chain:
-        # Waits for the manifest to exist, not just for the port to open —
-        # otherwise the backend starts, finds no addresses, and runs chain-less.
         condition: service_healthy
       broker:
         condition: service_started
@@ -75,13 +48,8 @@ services:
       NODE_ENV: production
       PORT: 5000
 
-      # The building's wall clock. The behaviour engine reasons in local time —
-      # "03:00 is unusual for this person" is a claim about the clock on the
-      # wall, not about UTC — and these images default to UTC, which shifted
-      # every hour it saw by the offset. Both containers must agree.
       TZ: ${TZ:-Europe/Zagreb}
 
-      # Change these before running this anywhere but a laptop.
       JWT_SECRET: ${JWT_SECRET:-dev-only-change-me}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-only-change-me-too}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
@@ -89,26 +57,14 @@ services:
       CHAIN_RPC_URL: http://chain:8545
       CHAIN_NETWORK: localhost
       CHAIN_DEPLOYMENT_FILE: /chain/localhost.json
-      # hardhat account #0 — publicly known, and holds every contract role.
-      # Fine against a throwaway local chain, never against a testnet.
       CHAIN_BACKEND_PRIVATE_KEY: ${CHAIN_BACKEND_PRIVATE_KEY:-0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80}
-      # The chain is up in this stack, so make it authoritative: no chain, no
-      # entry. Set false only if you deliberately want the degraded path.
       CHAIN_REQUIRED: ${CHAIN_REQUIRED:-true}
 
       MQTT_URL: mqtt://broker:1883
       MQTT_CLIENT_ID: access-backend
 
-      # `-` and not `:-`: BEHAVIOR_ENGINE_URL= (empty) has to mean "disabled",
-      # which is a supported configuration, not a missing value to fill in.
-      # There is deliberately no depends_on for it — see the service below.
       BEHAVIOR_ENGINE_URL: ${BEHAVIOR_ENGINE_URL-http://behavior:8000}
 
-      # Must match LED_LEVELS in mobile-app/src/lib/beacon.ts. If the backend
-      # says 12 while an older app still reports 8, the door paints 8 of 12.
-      # LAN to sweep for devices that speak their own protocol instead of MQTT
-      # (Tuya plugs answer on 6668). Must be given: this container sits on a
-      # bridge network and its own interface says 172.x. Empty disables it.
       DEVICE_SCAN_SUBNET: ${DEVICE_SCAN_SUBNET:-}
       PROXIMITY_LEVELS: ${PROXIMITY_LEVELS:-12}
       ACCESS_REQUIRE_FACE: ${ACCESS_REQUIRE_FACE:-true}
@@ -118,10 +74,6 @@ services:
       - chain-deployments:/chain:ro
     restart: unless-stopped
 
-  # Per-user anomaly detection over access metadata. Nothing depends on it on
-  # purpose: the backend scores an event *after* the decision is made and the
-  # row is committed, so this container being down or slow costs alerts and
-  # never entry. Point BEHAVIOR_ENGINE_URL at nothing to switch it off.
   behavior:
     build:
       context: ./behavior-engine
@@ -129,14 +81,8 @@ services:
     ports:
       - "${BEHAVIOR_PORT:-8000}:8000"
     environment:
-      # Must match the backend's. This engine normalises every timestamp to
-      # local wall-clock time on purpose (behavior-engine/app/features.py), so
-      # running it in UTC against a CEST building moved every entry an hour or
-      # two and made ordinary mornings look like unusual ones.
       TZ: ${TZ:-Europe/Zagreb}
     volumes:
-      # Fitted models. A baseline can represent two weeks of real usage, which
-      # a container rebuild has no business discarding.
       - behavior-models:/data
     restart: unless-stopped
 
@@ -153,11 +99,7 @@ services:
     restart: unless-stopped
 
 volumes:
-  # The SQLite file. Without this, every restart discards the people, devices
-  # and the whole access history.
   backend-data:
   mosquitto-data:
-  # One fitted Isolation Forest per person, written by the behaviour engine.
   behavior-models:
-  # Written by the chain container, read by the backend.
   chain-deployments:

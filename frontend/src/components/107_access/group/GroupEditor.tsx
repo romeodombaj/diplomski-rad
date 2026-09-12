@@ -14,14 +14,6 @@ interface Props {
   onSaved: () => void;
 }
 
-/**
- * The slide-over form of the group editor.
- *
- * Kept for the quick change from the list, with the body shared with the full
- * page at /access/groups/:id — see GroupPanel. The expand control is there
- * because a group with a long door list and a membership editor outgrows a
- * sheet, and because a page can be linked to and reloaded.
- */
 export default function GroupEditor({ groupId, open, onOpenChange, onSaved }: Props) {
   const { t } = useTranslation();
   const navigate = useNavigate();

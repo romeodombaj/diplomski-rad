@@ -16,9 +16,6 @@ function RootNavigator() {
     if (isLoading) return;
     SplashScreen.hideAsync();
 
-    // The phone is the identity (device DID + on-device TOTP), so the app does
-    // not require a server login. Land directly on the access flow; the login
-    // screen stays available but is not a wall.
     const inAuthGroup = segments[0] === '(auth)';
     if (inAuthGroup) {
       router.replace('/(app)');

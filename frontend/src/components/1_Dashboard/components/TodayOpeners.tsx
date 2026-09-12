@@ -8,18 +8,6 @@ interface Props {
   openers: OpenerRow[];
 }
 
-/**
- * Who came in today, most recent first.
- *
- * One row per person rather than one per event: the useful reading is "who is
- * in the building and when did they last pass a door", not a raw event stream.
- * The full stream already exists on the audit page, and duplicating it here
- * would make this panel long and say less.
- *
- * A row with no person_id is a dashboard override — it keeps its own row rather
- * than folding into an unnamed group, because "somebody was let in by hand
- * today" is precisely the line an operator should not have to hunt for.
- */
 export default function TodayOpeners({ openers }: Props) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();

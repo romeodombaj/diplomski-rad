@@ -4,7 +4,6 @@ import random
 import numpy as np
 from matplotlib import pyplot as plt
 
-# tensorflow deps
 import tensorflow as tf
 from tensorflow import keras
 from keras.models import Model
@@ -21,7 +20,6 @@ for gpu in gpus:
     tf.config.experimental.set_memory_growth(gpu, True)
 
 
-# paths
 POS_PATH = os.path.join("data", "positive");
 NEG_PATH = os.path.join("data", "negative")
 ANC_PATH = os.path.join("data", "anchor")
@@ -100,24 +98,19 @@ mod = Model(inputs=[inp], outputs=[d1], name='embedding')
 
 mod.summary()
 
-# embeding layer
 
 def make_embedding(): 
     inp = Input(shape=(105,105,3), name='input_image')
     
-    # First block
     c1 = Conv2D(64, (10,10), activation='relu')(inp)
     m1 = MaxPooling2D(64, (2,2), padding='same')(c1)
     
-    # Second block
     c2 = Conv2D(128, (7,7), activation='relu')(m1)
     m2 = MaxPooling2D(64, (2,2), padding='same')(c2)
     
-    # Third block 
     c3 = Conv2D(128, (4,4), activation='relu')(m2)
     m3 = MaxPooling2D(64, (2,2), padding='same')(c3)
     
-    # Final embedding block
     c4 = Conv2D(256, (4,4), activation='relu')(m3)
     f1 = Flatten()(c4)
     d1 = Dense(4096, activation='sigmoid')(f1)
@@ -131,21 +124,17 @@ embedding = make_embedding()
 embedding.summary()
 
 
-# Siamese L1 Distance class
 class L1Dist(Layer):
     
-    # Init method - inheritance
     def __init__(self, **kwargs):
         super().__init__()
        
-    # Magic happens here - similarity calculation
     def call(self, inputs):
         input_embedding, validation_embedding = inputs
         return tf.math.abs(input_embedding - validation_embedding)
 
 l1 = L1Dist()
 
-#
 
 
 input_image = Input(name='input_img', shape=(105,105,3))
@@ -166,18 +155,14 @@ siamese_network.summary()
 
 def make_siamese_model(): 
     
-    # Anchor image input in the network
     input_image = Input(name='input_img', shape=(105,105,3))
     
-    # Validation image in the network 
     validation_image = Input(name='validation_img', shape=(105,105,3))
     
-    # Combine siamese distance components
     siamese_layer = L1Dist()
     siamese_layer._name = 'distance'
     distances = siamese_layer([embedding(input_image), embedding(validation_image)])
     
-    # Classification layer 
     classifier = Dense(1, activation='sigmoid')(distances)
     
     return Model(inputs=[input_image, validation_image], outputs=classifier, name='SiameseNetwork')
@@ -186,10 +171,9 @@ siamese_model = make_siamese_model()
 
 siamese_model.summary()
 
-#training
 
 binary_cross_loss = tf.losses.BinaryCrossentropy()
-opt = tf.keras.optimizers.Adam(1e-4) # 0.0001
+opt = tf.keras.optimizers.Adam(1e-4)
 
 checkpoint_dir = './training_checkpoints'
 checkpoint_prefix = os.path.join(checkpoint_dir, 'ckpt')
@@ -208,41 +192,29 @@ print(y)
 @tf.function
 def train_step(batch):
     
-    # Record all of our operations 
     with tf.GradientTape() as tape:     
-        # Get anchor and positive/negative image
         X = batch[:2]
-        # Get label
         y = batch[2]
         
-        # Forward pass
         yhat = siamese_model(X, training=True)
-        # Calculate loss
         loss = binary_cross_loss(y, yhat)
     print(loss)
         
-    # Calculate gradients
     grad = tape.gradient(loss, siamese_model.trainable_variables)
     
-    # Calculate updated weights and apply to siamese model
     opt.apply_gradients(zip(grad, siamese_model.trainable_variables))
     
-    # Return loss
     return loss
 
 def train(data, EPOCHS):
-    # Loop through epochs
     for epoch in range(1, EPOCHS+1):
         print('\n Epoch {}/{}'.format(epoch, EPOCHS))
         progbar = tf.keras.utils.Progbar(len(data))
         
-        # Loop through each batch
         for idx, batch in enumerate(data):
-            # Run train step here
             train_step(batch)
             progbar.update(idx+1)
         
-        # Save checkpoints
         if epoch % 10 == 0: 
             checkpoint.save(file_prefix=checkpoint_prefix)
 
@@ -253,7 +225,6 @@ train(train_data, EPOCHS)
 
 
 
-#evaluate
 
 from keras.metrics import Precision, Recall
 
@@ -266,48 +237,35 @@ print([1 if prediction > 0.5 else 0 for prediction in y_hat ])
 
 print(y_true)
 
-# Creating a metric object 
 m = Recall()
 
-# Calculating the recall value 
 m.update_state(y_true, y_hat)
 
-# Return Recall Result
 m.result().numpy()
 
-# Creating a metric object 
 m = Precision()
 
-# Calculating the recall value 
 m.update_state(y_true, y_hat)
 
-# Return Recall Result
 m.result().numpy()
 
-# Set plot size 
 plt.figure(figsize=(10,8))
 
-# Set first subplot
 plt.subplot(1,2,1)
 plt.imshow(test_input[0])
 
-# Set second subplot
 plt.subplot(1,2,2)
 plt.imshow(test_val[0])
 
-# Renders cleanly
 plt.show()
 
-# save model
 
-# Save weights
 siamese_model.save('siamesemodel.h5')
 
 print(L1Dist)
 
 
 
-# Reload model 
 model = tf.keras.models.load_model('siamesemodel.h5', custom_objects={'L1Dist':L1Dist, 'BinaryCrossentropy':tf.losses.BinaryCrossentropy})
 
 model.predict([test_input, test_val])

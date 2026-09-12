@@ -1,19 +1,3 @@
-/**
- * Drives the containerised stack the way a real operator and phone would, and
- * asserts the unlock actually reaches the MQTT broker.
- *
- * Where verify-chain-e2e.ts exercises the backend in-process against a chain,
- * this one talks only over the network to `docker compose up` — so it catches
- * the things that only break in a container: a missing seeds directory, a
- * contract manifest that never reached the shared volume, a broker hostname
- * that does not resolve.
- *
- *   docker compose up -d --build
- *   node backend/scripts/verify-stack.mjs
- *
- * Honour the same overrides compose does:
- *   BACKEND_PORT=5055 MQTT_PORT=1883 node backend/scripts/verify-stack.mjs
- */
 import { createRequire } from 'module';
 import { randomUUID } from 'crypto';
 
@@ -27,7 +11,6 @@ const MQTT_URL = `mqtt://127.0.0.1:${process.env.MQTT_PORT || 1883}`;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'romeodombaj@gmail.com';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Romeodombaj1';
 
-// Unique per run so repeated runs against a persistent volume do not collide.
 const SUFFIX = randomUUID().slice(0, 6).toUpperCase();
 const DOOR = `STACK-${SUFFIX}`;
 const TOPIC = `doors/stack-${SUFFIX.toLowerCase()}/cmd`;
@@ -52,13 +35,11 @@ async function api(path, opts = {}) {
     if (c.startsWith('access_token=')) cookie = c.split(';')[0];
   }
   let body = null;
-  try { body = await res.json(); } catch { /* not every response has a body */ }
+  try { body = await res.json(); } catch {  }
   return { status: res.status, body };
 }
 
 async function main() {
-  // Subscribe first, so the assertion is about a real message on the wire
-  // rather than the backend's own report of what it did.
   const seen = [];
   const client = mqtt.connect(MQTT_URL, { connectTimeout: 8000 });
   await new Promise((resolve, reject) => {
